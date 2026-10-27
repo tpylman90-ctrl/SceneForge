@@ -1,0 +1,2 @@
+# Neon Foundry study 01
+Original deterministic Blender geometry, CC0-1.0. No external assets or paid providers. Scale: meters. Maximum 180,000 triangles and 16 material mesh batches. Runtime GLB is generated and checked in CI before Godot import; cached by generator hash. CPU Cycles preview is a source-art overview, not an Android screenshot. Android uses Compatibility rendering, a directional shadow light and four local unshadowed lights. Review phone frame rate and appearance before expanding. Blender source and validation report are included in build artifacts.

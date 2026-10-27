@@ -69,6 +69,26 @@ jobs:
           p = Path("game/export_presets.cfg")
           p.write_text(p.read_text().replace("version/code=1", 'version/code='+os.environ["GITHUB_RUN_NUMBER"]))
           PY
+      - name: Restore generated scenery
+        id: scenery
+        uses: actions/cache@v4
+        with:
+          path: |
+            game/assets
+            build/NeonFoundry-preview.png
+            build/NeonFoundry.blend
+            build/asset-report.json
+          key: foundry-blender-4.5.3-${{ hashFiles('tools/build_neon_foundry.py') }}
+      - name: Build original Blender scenery
+        if: steps.scenery.outputs.cache-hit != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --location --retry 3 https://download.blender.org/release/Blender4.5/blender-4.5.3-linux-x64.tar.xz -o /tmp/blender.tar.xz
+          tar -xf /tmp/blender.tar.xz -C /tmp
+          /tmp/blender-4.5.3-linux-x64/blender --background --threads 4 --python tools/build_neon_foundry.py
+          test -s game/assets/neon_foundry.glb
+          test -s build/NeonFoundry-preview.png
       - name: Import and smoke test
         shell: bash
         run: |
@@ -158,5 +178,5 @@ jobs:
           if ! gh release view pipeline-latest >/dev/null 2>&1; then
             gh release create pipeline-latest --target "$GITHUB_SHA" --prerelease --title "SceneForge — latest Android test" --notes "Permanently signed Android build. Download SceneForge.apk."
           fi
-          gh release upload pipeline-latest build/SceneForge.apk build/SceneForge-debug.apk build/SHA256SUMS.txt build/BUILD.txt --clobber
+          gh release upload pipeline-latest build/SceneForge.apk build/SceneForge-debug.apk build/SHA256SUMS.txt build/BUILD.txt build/NeonFoundry-preview.png build/asset-report.json --clobber
           gh release edit pipeline-latest --notes "Successful pipeline build #$GITHUB_RUN_NUMBER from commit $GITHUB_SHA. Permanent release signing verified. Download SceneForge.apk; the debug variant remains available separately."
