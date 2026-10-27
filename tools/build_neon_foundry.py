@@ -24,6 +24,56 @@ material('white',(.7,.8,.82),.2,.55)
 material('rubber',(.017,.025,.03),0,.85)
 material('puddle',(.055,.1,.13),.65,.09)
 
+# Original seamless PBR texture maps, built offline with Blender's bundled NumPy.
+# Each material gets albedo, roughness and tangent-space normals exported in GLB.
+import numpy as np
+N=512
+rng=np.random.default_rng(95)
+def noise_grid(cells):
+    grid=rng.random((cells,cells))
+    coords=np.arange(N)*cells/N
+    idx=coords.astype(int); frac=coords-idx; frac=frac*frac*(3-2*frac)
+    a=grid[idx[:,None]%cells,idx[None,:]%cells]
+    c=grid[(idx[:,None]+1)%cells,idx[None,:]%cells]
+    d=grid[idx[:,None]%cells,(idx[None,:]+1)%cells]
+    e=grid[(idx[:,None]+1)%cells,(idx[None,:]+1)%cells]
+    return (a*(1-frac[:,None])+c*frac[:,None])*(1-frac[None,:])+(d*(1-frac[:,None])+e*frac[:,None])*frac[None,:]
+def image_map(name,arr,color=False):
+    im=bpy.data.images.new(name,width=N,height=N,alpha=True)
+    rgba=np.ones((N,N,4),dtype=np.float32)
+    if arr.ndim==2: rgba[:,:,:3]=arr[:,:,None]
+    else: rgba[:,:,:3]=arr
+    if not color: im.colorspace_settings.name='Non-Color'
+    im.pixels.foreach_set(rgba.ravel())
+    im.pack()
+    return im
+for name in ['asphalt','concrete','wall','trim','steel','rust','orange']:
+    mat=M[name]; nodes=mat.node_tree.nodes; links=mat.node_tree.links; p=nodes.get('Principled BSDF')
+    coarse=noise_grid(8); medium=noise_grid(40); grain=rng.random((N,N))
+    height=.5*coarse+.3*medium+.2*grain
+    dirt=np.clip((coarse-.42)*2,0,1)
+    base=np.array(mat.diffuse_color[:3])
+    albedo=np.clip(base[None,None,:]*(.68+.5*height[:,:,None]),0,1)
+    rough=np.clip(float(p.inputs['Roughness'].default_value)+.22*(height-.5),.1,.95)
+    if name in ['wall','orange','trim']:
+        scratches=(rng.random((N,N))>.998)
+        for i in range(1,9): scratches |= np.roll(scratches,1,axis=1) & (rng.random((N,N))>.4)
+        albedo[scratches]=np.array([.23,.27,.28])
+        albedo*=1-.28*dirt[:,:,None]
+    if name=='asphalt':
+        albedo*=.9
+        rough=np.clip(.28+.5*medium,.22,.85)
+    dy,dx=np.gradient(height)
+    normal=np.dstack((-dx*1.5,-dy*1.5,np.ones_like(height)))
+    normal/=np.linalg.norm(normal,axis=2)[:,:,None]
+    for label,data,socket,col in [('Albedo',albedo,'Base Color',True),('Roughness',rough,'Roughness',False),('Normal',normal*.5+.5,None,False)]:
+        tex=nodes.new('ShaderNodeTexImage');tex.image=image_map(name+'_'+label,data,col)
+        tex.extension='REPEAT'
+        if socket:links.new(tex.outputs['Color'],p.inputs[socket])
+        else:
+            nm=nodes.new('ShaderNodeNormalMap');nm.inputs['Strength'].default_value=.6
+            links.new(tex.outputs['Color'],nm.inputs['Color']);links.new(nm.outputs['Normal'],p.inputs['Normal'])
+
 def box(n,loc,scale,mat,bevel=.025):
  bpy.ops.mesh.primitive_cube_add(size=1,location=loc); o=bpy.context.object; o.name=n; o.dimensions=scale; bpy.ops.object.transform_apply(location=False,rotation=False,scale=True); o.data.materials.append(M[mat])
  if bevel:
@@ -49,7 +99,9 @@ for x in range(-6,7,2):
  box('lane dash',(x,-5,.002),(.9,.08,.008),'orange',0)
 for i in range(20):
  x=random.uniform(-6,6); y=random.uniform(-9,3)
- o=box('shallow puddle',(x,y,.002),(random.uniform(.4,1.5),random.uniform(.15,.5),.006),'puddle',.05); o.rotation_euler.z=random.uniform(-.3,.3)
+ bpy.ops.mesh.primitive_circle_add(vertices=24,radius=1,fill_type='NGON',location=(x,y,.008))
+ o=bpy.context.object;o.name='irregular wet patch';o.scale=(random.uniform(.3,.9),random.uniform(.15,.4),1);o.data.materials.append(M['puddle'])
+ for v in o.data.vertices:v.co*=random.uniform(.8,1.12)
 for x in [-5.8,5.8]:
  for y in [-6,-2,2]:
   box('drain surround',(x,y,.01),(.5,1,.03),'trim')
@@ -134,8 +186,19 @@ for mat in M.values():
  bpy.ops.object.select_all(action='DESELECT')
  for o in obs:o.select_set(True)
  bpy.context.view_layer.objects.active=obs[0];bpy.ops.object.join();obs[0].name='Foundry_'+mat.name
+# UV cube projection in world scale after batching keeps surface grain consistent.
+for o in bpy.context.scene.objects:
+ if o.type!='MESH': continue
+ bpy.ops.object.select_all(action='DESELECT');o.select_set(True);bpy.context.view_layer.objects.active=o
+ bpy.ops.object.transform_apply(location=False,rotation=False,scale=True)
+ bpy.ops.object.mode_set(mode='EDIT');bpy.ops.mesh.select_all(action='SELECT')
+ bpy.ops.uv.cube_project(cube_size=2.0,correct_aspect=True)
+ bpy.ops.object.mode_set(mode='OBJECT')
+ # Weighted normals preserve broad planar faces and smooth the beveled edges.
+ mod=o.modifiers.new('Weighted corner normals','WEIGHTED_NORMAL');mod.keep_sharp=True;mod.weight=50
+ bpy.ops.object.modifier_apply(modifier=mod.name)
 root=Path.cwd();dest=root/'game/assets';dest.mkdir(parents=True,exist_ok=True)
-bpy.ops.export_scene.gltf(filepath=str(dest/'neon_foundry.glb'),export_format='GLB',use_selection=False,export_yup=True)
+bpy.ops.export_scene.gltf(filepath=str(dest/'neon_foundry.glb'),export_format='GLB',use_selection=False,export_yup=True,export_normals=True,export_texcoords=True)
 meshes=[o for o in bpy.context.scene.objects if o.type=='MESH'];triangles=sum(sum(len(p.vertices)-2 for p in o.data.polygons) for o in meshes)
 assert triangles<180000,triangles
 assert len(meshes)<=16,len(meshes)

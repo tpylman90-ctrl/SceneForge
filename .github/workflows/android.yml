@@ -96,6 +96,14 @@ jobs:
           godot --headless --path game --editor --import 2>&1 | tee build/import.log
           godot --headless --path game --quit-after 60 2>&1 | tee build/smoke.log
           if grep -E 'SCRIPT ERROR:|ERROR:' build/import.log build/smoke.log; then exit 1; fi
+      - name: Capture actual Godot scene
+        env:
+          LIBGL_ALWAYS_SOFTWARE: '1'
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y xvfb libgl1-mesa-dri
+          timeout 120 xvfb-run -a godot --path game --rendering-method gl_compatibility --resolution 1280x720 -- --capture
+          test -s build/NeonFoundry-ingame.png
       - name: Export and verify APK
         shell: bash
         run: |
@@ -178,5 +186,5 @@ jobs:
           if ! gh release view pipeline-latest >/dev/null 2>&1; then
             gh release create pipeline-latest --target "$GITHUB_SHA" --prerelease --title "SceneForge — latest Android test" --notes "Permanently signed Android build. Download SceneForge.apk."
           fi
-          gh release upload pipeline-latest build/SceneForge.apk build/SceneForge-debug.apk build/SHA256SUMS.txt build/BUILD.txt build/NeonFoundry-preview.png build/asset-report.json --clobber
+          gh release upload pipeline-latest build/SceneForge.apk build/SceneForge-debug.apk build/SHA256SUMS.txt build/BUILD.txt build/NeonFoundry-preview.png build/NeonFoundry-ingame.png build/asset-report.json --clobber
           gh release edit pipeline-latest --notes "Successful pipeline build #$GITHUB_RUN_NUMBER from commit $GITHUB_SHA. Permanent release signing verified. Download SceneForge.apk; the debug variant remains available separately."
