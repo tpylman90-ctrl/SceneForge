@@ -88,6 +88,47 @@ jobs:
           cd build
           sha256sum SceneForge-debug.apk > SHA256SUMS.txt
           printf 'Commit: %s\nRun: %s\nGodot: %s\nSigning: temporary debug\n' "$GITHUB_SHA" "$GITHUB_RUN_NUMBER" "$GODOT_VERSION" > BUILD.txt
+      - name: Export permanent signed release
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          for name in ANDROID_KEYSTORE_BASE64 ANDROID_KEYSTORE_PASSWORD ANDROID_KEY_PASSWORD ANDROID_KEY_ALIAS; do
+            if [ -z "${!name}" ]; then echo "::error::Missing repository secret: $name"; exit 1; fi
+          done
+          if [ "$ANDROID_KEYSTORE_PASSWORD" != "$ANDROID_KEY_PASSWORD" ]; then
+            echo "::error::Godot requires matching store and key passwords."
+            exit 1
+          fi
+          key="$RUNNER_TEMP/sceneforge-release.keystore"
+          trap 'rm -f "$key"' EXIT
+          umask 077
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$key"
+          keytool -exportcert -keystore "$key" -storepass:env ANDROID_KEYSTORE_PASSWORD -alias "$ANDROID_KEY_ALIAS" -file "$RUNNER_TEMP/signing-cert.der"
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("game/export_presets.cfg")
+          p.write_text(p.read_text().replace("com.sceneforge.lab.debug", "com.sceneforge.lab"))
+          PY
+          export GODOT_ANDROID_KEYSTORE_RELEASE_PATH="$key"
+          export GODOT_ANDROID_KEYSTORE_RELEASE_USER="$ANDROID_KEY_ALIAS"
+          export GODOT_ANDROID_KEYSTORE_RELEASE_PASSWORD="$ANDROID_KEYSTORE_PASSWORD"
+          godot --headless --path game --export-release Android ../build/SceneForge.apk 2>&1 | tee build/release-export.log
+          test -s build/SceneForge.apk
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs build/SceneForge.apk | tee build/release-signature.txt
+          expected=$(sha256sum "$RUNNER_TEMP/signing-cert.der" | cut -d ' ' -f 1)
+          actual=$(sed -n 's/^Signer #1 certificate SHA-256 digest: //p' build/release-signature.txt)
+          test "$expected" = "$actual"
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging build/SceneForge.apk > build/release-package.txt
+          grep "package: name='com.sceneforge.lab'" build/release-package.txt
+          cd build
+          sha256sum SceneForge.apk SceneForge-debug.apk > SHA256SUMS.txt
+          printf 'Commit: %s\nRun: %s\nGodot: %s\nSigning: permanent release\n' "$GITHUB_SHA" "$GITHUB_RUN_NUMBER" "$GODOT_VERSION" > BUILD.txt
       - name: Upload APK and diagnostic logs
         if: always()
         uses: actions/upload-artifact@v4
@@ -115,7 +156,7 @@ jobs:
         run: |
           set -euo pipefail
           if ! gh release view pipeline-latest >/dev/null 2>&1; then
-            gh release create pipeline-latest --target "$GITHUB_SHA" --prerelease --title "SceneForge — latest Android test" --notes "Temporary debug-signed pipeline build. Download SceneForge-debug.apk. Release signing will follow."
+            gh release create pipeline-latest --target "$GITHUB_SHA" --prerelease --title "SceneForge — latest Android test" --notes "Permanently signed Android build. Download SceneForge.apk."
           fi
-          gh release upload pipeline-latest build/SceneForge-debug.apk build/SHA256SUMS.txt build/BUILD.txt --clobber
-          gh release edit pipeline-latest --notes "Successful pipeline build #$GITHUB_RUN_NUMBER from commit $GITHUB_SHA. Temporary debug signing; production signing is pending."
+          gh release upload pipeline-latest build/SceneForge.apk build/SceneForge-debug.apk build/SHA256SUMS.txt build/BUILD.txt --clobber
+          gh release edit pipeline-latest --notes "Successful pipeline build #$GITHUB_RUN_NUMBER from commit $GITHUB_SHA. Permanent release signing verified. Download SceneForge.apk; the debug variant remains available separately."
