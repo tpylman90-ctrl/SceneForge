@@ -2,7 +2,7 @@
 Android scenery laboratory. First planned environment: Neon Foundry.
 
 ## Download
-Open [latest pipeline build](https://github.com/tpylman90-ctrl/SceneForge/releases/tag/pipeline-latest) and download **SceneForge-debug.apk** directly. Successful main builds update this prerelease; failed builds leave the last working download intact. Run-specific APKs and logs are also available in Actions for 30 days.
+Open [latest pipeline build](https://github.com/tpylman90-ctrl/SceneForge/releases/tag/pipeline-latest) and download **SceneForge.apk** directly. Successful main builds update this prerelease; failed builds leave the last working download intact. Run-specific APKs and logs are also available in Actions for 30 days.
 
 ## Pipeline
 Godot 4.5.1 stable, Java 17, Android build tools 35.0.0. Push to main or run Android pipeline manually. Pull requests validate and export without publishing.
@@ -10,7 +10,7 @@ Godot 4.5.1 stable, Java 17, Android build tools 35.0.0. Push to main or run And
 The initial app is a pipeline check screen, not the Neon Foundry environment. Android hardware testing remains necessary.
 
 ## Signing
-These are temporary debug-signed builds, package com.sceneforge.lab.debug. The debug key is cached, not a permanent release identity: cache loss can require uninstalling an earlier debug build. Release signing and a separate production package will be configured next. Never commit private release keystores or passwords.
+Main builds produce SceneForge.apk with permanent release signing, package com.sceneforge.lab. The separate SceneForge-debug.apk uses com.sceneforge.lab.debug. Both apps can coexist. Release builds require ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS, and ANDROID_KEY_PASSWORD repository secrets. Store and key passwords must match for Godot. Every release verifies its APK signature against the configured keystore certificate before publication. Private keys are decoded only in runner temporary storage and removed after export; no keystore is uploaded. Keep the original key backup for future updates. Pull requests never receive release credentials.
 
 ## Layout
 - game/: Godot runtime and GLB assets
