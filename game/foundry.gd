@@ -2,8 +2,8 @@ extends Node3D
 
 var body: CharacterBody3D
 var camera: Camera3D
-var yaw := 0.0
-var pitch := -0.06
+var yaw := 0.62
+var pitch := -0.1
 var move_touch := -1
 var look_touch := -1
 var stick_origin := Vector2.ZERO
@@ -80,8 +80,7 @@ func _ready() -> void:
 	for side in [-1.0, 1.0]:
 		collider(Vector3(side * 7.8, 4.0, 0), Vector3(0.3, 8, 24))
 	collider(Vector3(0, 1.1, 11.35), Vector3(15, 2.2, 0.15))
-	collider(Vector3(-4.05, 0.9, 3.2), Vector3(2.65, 1.8, 4.5))
-	collider(Vector3(-6.25, 0.5, 2.5), Vector3(0.5, 1, 0.5))
+	collider(Vector3(0, 1.0, 0.8), Vector3(3.3, 2.0, 6.5))
 	collider(Vector3(0, -0.15, 0), Vector3(28, 0.3, 24))
 	collider(Vector3(-4.5, 2.5, -4), Vector3(5, 5, 1))
 	collider(Vector3(4.5, 2.5, -4), Vector3(5, 5, 1))
@@ -95,7 +94,7 @@ func _ready() -> void:
 	for p in [Vector3(-3, 0.42, -1.5), Vector3(3.8, 0.42, -0.7), Vector3(5.2, 0.42, -1.2)]:
 		collider(p, Vector3(0.8, 0.84, 0.8))
 	body = CharacterBody3D.new()
-	body.position = Vector3(0, 0.1, 7.5)
+	body.position = Vector3(4.6, 0.1, 7.5)
 	var shape := CollisionShape3D.new()
 	var capsule := CapsuleShape3D.new()
 	capsule.radius = 0.28
@@ -110,12 +109,29 @@ func _ready() -> void:
 	camera.far = 75
 	body.add_child(camera)
 	add_child(body)
+
+	var hum: AudioStreamWAV = load("res://assets/kestrel_hum.wav")
+	hum.loop_mode = AudioStreamWAV.LOOP_FORWARD
+	hum.loop_end = int(hum.get_length() * hum.mix_rate)
+	var sound := AudioStreamPlayer3D.new()
+	sound.name = "KestrelHum"
+	sound.stream = hum
+	sound.position = Vector3(0, 0.8, 0.8)
+	sound.volume_db = -25
+	sound.unit_size = 4
+	sound.max_distance = 18
+	add_child(sound)
+	sound.play()
 	ui()
 	apply_quality(true)
 	if "--vehicle-view" in OS.get_cmdline_user_args():
-		body.position = Vector3(-0.3, 0.1, 7.3)
-		yaw = 0.73
-		pitch = -0.12
+		body.position = Vector3(4.6, 0.1, 7.5)
+		yaw = 0.62
+		pitch = -0.1
+	if "--vehicle-tail" in OS.get_cmdline_user_args():
+		body.position = Vector3(-4.8, 0.1, -5.0)
+		yaw = -2.3
+		pitch = -0.09
 	if "--rear-view" in OS.get_cmdline_user_args():
 		body.position = Vector3(0, 0.1, 5)
 		yaw = PI
@@ -149,7 +165,7 @@ func ui() -> void:
 	var layer := CanvasLayer.new()
 	add_child(layer)
 	var title := Label.new()
-	title.text = "SCENEFORGE  /  NEON FOUNDRY\nRepair bay · Kestrel hover coupe · study 08"
+	title.text = "SCENEFORGE  /  NEON FOUNDRY\nRepair bay · Kestrel · predator showcase 09"
 	title.position = Vector2(28, 20)
 	title.add_theme_font_size_override("font_size", 23)
 	layer.add_child(title)
@@ -167,7 +183,7 @@ func ui() -> void:
 	reset.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
 	reset.position = Vector2(-200, 25)
 	reset.size = Vector2(170, 55)
-	reset.pressed.connect(func(): body.position = Vector3(0, 0.1, 7.5); yaw = 0; pitch = -0.06; stick = Vector2.ZERO)
+	reset.pressed.connect(func(): body.position = Vector3(4.6, 0.1, 7.5); yaw = 0.62; pitch = -0.1; stick = Vector2.ZERO)
 	layer.add_child(reset)
 	quality_button = Button.new()
 	quality_button.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
@@ -181,7 +197,30 @@ func ui() -> void:
 	compare_button.position = Vector2(-200, 159)
 	compare_button.size = Vector2(170, 55)
 	compare_button.pressed.connect(start_comparison)
+
 	layer.add_child(compare_button)
+	var showcase := Button.new()
+	showcase.text = "FRONT / TAIL"
+	showcase.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
+	showcase.position = Vector2(-200, 226)
+	showcase.size = Vector2(170, 55)
+	showcase.pressed.connect(func():
+		cancel_comparison()
+		show_tail = not show_tail
+		body.position = Vector3(-4.8, 0.1, -5) if show_tail else Vector3(4.6, 0.1, 7.5)
+		yaw = -2.3 if show_tail else 0.62
+		pitch = -0.09 if show_tail else -0.1
+		stick = Vector2.ZERO)
+	layer.add_child(showcase)
+	var mute := Button.new()
+	mute.text = "HUM ON / OFF"
+	mute.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
+	mute.position = Vector2(-200, 293)
+	mute.size = Vector2(170, 55)
+	mute.pressed.connect(func():
+		var sound: AudioStreamPlayer3D = get_node("KestrelHum")
+		sound.volume_db = -80 if sound.volume_db > -50 else -25)
+	layer.add_child(mute)
 	result_label = Label.new()
 	result_label.position = Vector2(28, 120)
 	result_label.add_theme_font_size_override("font_size", 18)
@@ -229,7 +268,7 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func _physics_process(delta: float) -> void:
 	if comparing:
-		body.position = Vector3(0, 0.1, 7.5)
+		body.position = Vector3(4.6, 0.1, 7.5)
 		body.velocity = Vector3.ZERO
 		body.rotation.y = 0
 		camera.rotation.x = -0.06
@@ -257,7 +296,16 @@ func _process(_delta: float) -> void:
 	if "--capture" in OS.get_cmdline_user_args():
 		capture_frames += 1
 		if capture_frames == 35:
-			get_viewport().get_texture().get_image().save_png(OS.get_environment("GITHUB_WORKSPACE") + ("/build/Kestrel-hovercar.png" if "--vehicle-view" in OS.get_cmdline_user_args() else ("/build/NeonFoundry-rear.png" if "--rear-view" in OS.get_cmdline_user_args() else ("/build/NeonFoundry-road.png" if "--road-closeup" in OS.get_cmdline_user_args() else "/build/NeonFoundry-ingame.png"))))
+			var filename := "NeonFoundry-ingame.png"
+			if "--vehicle-view" in OS.get_cmdline_user_args():
+				filename = "Kestrel-hovercar.png"
+			elif "--vehicle-tail" in OS.get_cmdline_user_args():
+				filename = "Kestrel-tail.png"
+			elif "--rear-view" in OS.get_cmdline_user_args():
+				filename = "NeonFoundry-rear.png"
+			elif "--road-closeup" in OS.get_cmdline_user_args():
+				filename = "NeonFoundry-road.png"
+			get_viewport().get_texture().get_image().save_png(OS.get_environment("GITHUB_WORKSPACE") + "/build/" + filename)
 			get_tree().quit()
 
 # Bounded A/B: same camera, workload and renderer; two phases, no auto tuning.
@@ -360,3 +408,5 @@ func comparison_frame() -> void:
 	print("SCENEFORGE_COMPARISON ", JSON.stringify(report))
 	if smoke:
 		get_tree().quit()
+
+var show_tail := false

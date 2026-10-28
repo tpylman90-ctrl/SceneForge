@@ -340,72 +340,168 @@ for x in [-10,-4,3,10]:
  box('rear roof',(x,-18,9.1),(5.2,5.2,.2),'skyline')
 
 
-# NF Kestrel: original parked hover coupe. Shaped body, no wheel placeholders.
-cx,cy=-4.05,-3.2
-def car_loft(name,sections,mat):
- verts=[]
- # Cross section wraps lower pan, chamfered shoulders and upper deck.
- for y,w,bottom,top in sections:
-  chamfer=min(.04,(top-bottom)*.25)
-  verts.extend([(cx-w*.72,cy+y,bottom),(cx+w*.72,cy+y,bottom),
-   (cx+w,cy+y,bottom+chamfer),(cx+w,cy+y,top-chamfer),
-   (cx+w*.72,cy+y,top),(cx-w*.72,cy+y,top),
-   (cx-w,cy+y,top-.07),(cx-w,cy+y,bottom+.08)])
- faces=[tuple(reversed(range(8)))]
- for j in range(len(sections)-1):
-  for i in range(8):faces.append((j*8+i,j*8+(i+1)%8,(j+1)*8+(i+1)%8,(j+1)*8+i))
- faces.append(tuple((len(sections)-1)*8+i for i in range(8)))
+
+# Kestrel hero rebuild: original swept coupe, 6.2 m long. No paid assets.
+vehicle_before=set(bpy.context.scene.objects)
+material('kestrel_slate',(.18,.215,.24),.65,.42)
+material('kestrel_orange',(.58,.145,.035),.5,.34)
+material('kestrel_carbon',(.025,.032,.038),.65,.3)
+material('repulsor_glow',(.04,.42,.62),.1,.22,1.7)
+M['vehicle_glass'].node_tree.nodes['Principled BSDF'].inputs['Roughness'].default_value=.12
+M['vehicle_glass'].node_tree.nodes['Principled BSDF'].inputs['Metallic'].default_value=.38
+M['vehicle_glass'].node_tree.nodes['Principled BSDF'].inputs['Coat Weight'].default_value=.5
+# Subtle original 2x2 twill weave, baked maps rather than a runtime pattern shader.
+gx,gy=np.meshgrid(np.arange(N),np.arange(N))
+warp=((gx//8+gy//8)%4)<2
+thread=.78+.14*np.sin((gx%8)/8*math.pi)+.08*np.sin((gy%8)/8*math.pi)
+weave=(.035+.012*warp)*thread
+carbon=M['kestrel_carbon'];pn=carbon.node_tree.nodes['Principled BSDF']
+tx=carbon.node_tree.nodes.new('ShaderNodeTexImage');tx.image=image_map('Kestrel_twill',np.power(np.dstack((weave*.83,weave*.94,weave)),1/2.2),True)
+carbon.node_tree.links.new(tx.outputs['Color'],pn.inputs['Base Color'])
+cx,cy=0,-.8
+def hero_mesh(name,verts,faces,mat,bevel=0):
  mesh=bpy.data.meshes.new(name);mesh.from_pydata(verts,[],faces);mesh.update()
  obj=bpy.data.objects.new(name,mesh);bpy.context.collection.objects.link(obj);obj.data.materials.append(M[mat])
- bpy.ops.object.select_all(action='DESELECT');bpy.context.view_layer.objects.active=obj;obj.select_set(True)
+ bpy.ops.object.select_all(action='DESELECT');obj.select_set(True);bpy.context.view_layer.objects.active=obj
  bpy.ops.object.mode_set(mode='EDIT');bpy.ops.mesh.select_all(action='SELECT');bpy.ops.mesh.normals_make_consistent(inside=False);bpy.ops.object.mode_set(mode='OBJECT')
- mod=obj.modifiers.new('Body edge radii','BEVEL');mod.width=.035;mod.segments=3
- bpy.ops.object.modifier_apply(modifier=mod.name)
+ if bevel:
+  mod=obj.modifiers.new('Manufactured edge radius','BEVEL');mod.width=bevel;mod.segments=3;bpy.ops.object.modifier_apply(modifier=mod.name)
  return obj
-car_loft('Kestrel lower pan',[(-2.18,.55,.5,.66),(-1.9,.9,.48,.78),(-.8,1.02,.48,.86),(.8,1.02,.49,.86),(1.8,.89,.51,.8),(2.05,.7,.56,.73)],'trim')
-car_loft('Kestrel painted shell',[(-2.12,.52,.67,.83),(-1.75,.92,.7,1.02),(-.65,1.02,.78,1.2),(.85,1.0,.8,1.22),(1.8,.85,.73,1.06),(2.0,.68,.7,.91)],'orange')
-car_loft('Kestrel opaque canopy',[(-.65,.69,1.15,1.24),(-.15,.74,1.17,1.77),(.65,.7,1.19,1.83),(1.12,.55,1.17,1.42)],'vehicle_glass')
-# Windshield surround and roof rail follow the canopy instead of enclosing a box.
+profile=[(-3.15,.035,.54,.65),(-2.8,.34,.55,.81),(-2.0,.84,.58,1.03),(-1.0,1.12,.64,1.24),(.2,1.28,.68,1.32),(1.25,1.14,.73,1.26),(2.05,.8,.74,1.1),(2.5,.55,.78,1.0)]
+def dims(y):
+ return tuple(float(np.interp(y,[p[0] for p in profile],[p[k] for p in profile])) for k in [1,2,3])
+cross=[(-.7,0),(.7,0),(.96,.15),(1,.46),(.92,.78),(.7,1),(-.7,1),(-.92,.78),(-1,.46),(-.96,.15)]
+verts=[]
+ys=np.linspace(-3.15,2.5,49)
+for y in ys:
+ w,lo,hi=dims(y)
+ for xx,zz in cross:verts.append((cx+xx*w,cy+y,lo+zz*(hi-lo)))
+faces=[tuple(reversed(range(10)))]
+for j in range(len(ys)-1):
+ for i in range(10):faces.append((j*10+i,j*10+(i+1)%10,(j+1)*10+(i+1)%10,(j+1)*10+i))
+faces.append(tuple((len(ys)-1)*10+i for i in range(10)))
+hero_mesh('Swept slate monocoque',verts,faces,'kestrel_slate',.015)
+# Carbon hood inset follows the descending beak, with a slender raised center ridge.
+verts=[];ys=np.linspace(-2.92,-.65,28)
+for y in ys:
+ w,lo,hi=dims(y)
+ for f in np.linspace(-1,1,9):
+  verts.append((cx+f*w*.54,cy+y,hi+.012+.035*(1-f*f)))
+faces=[]
+for j in range(len(ys)-1):
+ for i in range(8):faces.append((j*9+i,j*9+i+1,(j+1)*9+i+1,(j+1)*9+i))
+hero_mesh('Carbon beak inset',verts,faces,'kestrel_carbon')
+# Swept flank panels taper like overlapping flight feathers.
 for side in [-1,1]:
- pipe('windshield pillar',(cx+side*.69,cy-.63,1.2),(cx+side*.74,cy-.15,1.77),.035,'steel')
- pipe('roof rail',(cx+side*.74,cy-.15,1.77),(cx+side*.7,cy+.65,1.83),.035,'trim')
- pipe('rear canopy pillar',(cx+side*.7,cy+.65,1.83),(cx+side*.55,cy+1.12,1.38),.035,'steel')
- box('side sill',(cx+side*1.02,cy,.78),(.1,2.35,.12),'steel')
- box('door seam',(cx+side*1.027,cy+.4,1.02),(.008,.018,.28),'trim',.001)
- box('recessed door handle',(cx+side*1.03,cy+.48,1.12),(.025,.23,.04),'trim',.005)
- pipe('mirror stalk',(cx+side*.82,cy-.52,1.25),(cx+side*1.12,cy-.57,1.3),.025,'steel')
- box('mirror pod',(cx+side*1.14,cy-.6,1.31),(.22,.21,.09),'trim')
- # Four independent repulsor pods with metallic bells and luminous annuli.
- for y in [-1.3,1.32]:
-  x=cx+side*1.02
-  pipe('repulsor neck',(x,cy+y,.58),(x,cy+y,.83),.22,'trim',20)
-  pipe('repulsor housing',(x,cy+y,.44),(x,cy+y,.64),.34,'steel',24)
-  pipe('repulsor lower ring',(x,cy+y,.4),(x,cy+y,.445),.345,'cyan',24)
-  pipe('repulsor nozzle',(x,cy+y,.37),(x,cy+y,.4),.25,'trim',24)
-  for a in range(0,360,90):
-   t=math.radians(a)
-   pipe('pod fastener',(x+.27*math.cos(t),cy+y+.27*math.sin(t),.65),(x+.27*math.cos(t),cy+y+.27*math.sin(t),.69),.025,'trim',8)
- # Headlamps sit within a dark recess; tail lamps are narrow amber strips.
- box('headlamp recess',(cx+side*.57,cy-1.91,.87),(.5,.09,.14),'trim')
- box('headlamp lens',(cx+side*.57,cy-1.963,.89),(.38,.02,.055),'white',.008)
- box('tail lamp recess',(cx+side*.5,cy+1.99,.86),(.44,.07,.13),'trim')
- box('tail lamp',(cx+side*.5,cy+2.031,.88),(.34,.015,.045),'amber',.006)
- fin=box('rear stabilizer',(cx+side*1.08,cy+1.34,1.0),(.34,.85,.06),'steel')
- fin.rotation_euler.y=side*.12
-box('hood center spine',(cx,cy-1.22,1.1),(.14,.9,.045),'trim')
+ for i in range(3):
+  y=-1.35+i*.67
+  pts=[]
+  for yy,f,zf in [(y,1.01,.7),(y+.92,1.01,.75),(y+.7,1.015,.4),(y+.08,1.015,.42)]:
+   w,lo,hi=dims(yy);pts.append((cx+side*w*f,cy+yy,lo+(hi-lo)*zf))
+  hero_mesh('Burnt orange flight panel',pts,[(0,1,2,3)],'kestrel_orange')
+  a,bp=pts[0],pts[1];pipe('Flank rust pinstripe',a,bp,.012,'rust',8)
+ # Vented side intake recessed behind the canopy shoulder.
+ for i in range(7):
+  yy=.55+i*.095;w,lo,hi=dims(yy)
+  o=box('Side intake louver',(cx+side*(w+.012),cy+yy,1.03),(.025,.045,.15),'trim',.003);o.rotation_euler.x=-.25
+ # Slim swept mirrors rather than rectangular stalk-mounted boxes.
+ pipe('Mirror arm',(cx+side*.83,cy-.65,1.35),(cx+side*1.24,cy-.82,1.35),.024,'trim')
+ o=box('Camera mirror',(cx+side*1.25,cy-.87,1.37),(.22,.32,.065),'kestrel_slate',.025);o.rotation_euler.z=side*.3
+# Continuous teardrop canopy: curved in both directions, opaque polarized finish.
+verts=[];canopy_rows=33;canopy_cols=33
+for j,t in enumerate(np.linspace(0,1,canopy_rows)):
+ y=-.92+2.53*t
+ w=.83*(math.sin(math.pi*t)**.55)*(1-.25*t)+.012
+ h=.88*(math.sin(math.pi*t)**.7)
+ base=1.2+.02*math.sin(math.pi*t)
+ for a in np.linspace(0,math.pi,canopy_cols):
+  verts.append((cx+w*math.cos(a),cy+y,base+h*math.sin(a)))
+faces=[]
+for j in range(canopy_rows-1):
+ for i in range(canopy_cols-1):faces.append((j*canopy_cols+i,j*canopy_cols+i+1,(j+1)*canopy_cols+i+1,(j+1)*canopy_cols+i))
+canopy=hero_mesh('Polarized teardrop canopy',verts,faces,'vehicle_glass')
+for p in canopy.data.polygons:p.use_smooth=True
 for side in [-1,1]:
- for i in range(6):
-  box('hood heat extractor',(cx+side*.45,cy-1.23+i*.09,1.15),(.3,.035,.02),'trim',.003)
-for i in range(8):box('rear cooling slat',(cx-.49+i*.14,cy+1.52,1.12),(.065,.5,.04),'trim',.004)
-box('front splitter',(cx,cy-1.99,.62),(1.45,.3,.065),'steel')
-box('rear diffuser',(cx,cy+1.92,.58),(1.5,.23,.12),'trim')
-for x in [-.5,0,.5]:box('diffuser vane',(cx+x,cy+1.96,.55),(.035,.35,.16),'steel',.004)
-text('KESTREL', (cx-.36,cy-2.16,.74),.115,'white')
-# Discreet workshop charging pedestal by the parking position.
-box('charger plinth',(-6.25,-2.5,.45),(.4,.45,.9),'trim')
-box('charger cap',(-6.25,-2.5,.94),(.48,.5,.12),'orange')
-box('charger status',(-6.25,-2.76,.75),(.2,.025,.1),'cyan')
-hose('charging lead',[(-6.0,-2.5,.8),(-5.7,-2.6,.38),(-5.4,-2.8,.25),(-5.1,-2.9,.8)],.025)
+ points=[]
+ for t in np.linspace(0,1,49):
+  y=-.92+2.53*t;w=.83*(math.sin(math.pi*t)**.55)*(1-.25*t)+.012
+  points.append((cx+side*w,cy+y,1.2+.02*math.sin(math.pi*t)))
+ # A thin continuous seal preserves the seamless glass silhouette.
+ hose('Canopy seal',points,.018)
+ # Side door latch and inset split line.
+ pipe('Door seam',(cx+side*1.03,cy-.5,1.21),(cx+side*1.2,cy+.5,1.26),.01,'trim',8)
+ box('Flush door latch',(cx+side*1.17,cy+.57,1.2),(.025,.2,.035),'steel',.008)
+# Four downward magnetic repulsors, fairings and visible suspension connections.
+for side in [-1,1]:
+ for yy in [-1.4,1.25]:
+  x=cx+side*(1.0 if yy<0 else 1.12)
+  pipe('Repulsor arm',(cx+side*.65,cy+yy,.7),(x,cy+yy,.66),.09,'trim',16)
+  bpy.ops.mesh.primitive_uv_sphere_add(segments=24,ring_count=12,location=(x,cy+yy,.64))
+  fair=bpy.context.object;fair.name='Swept repulsor fairing';fair.scale=(.38,.64,.24);fair.data.materials.append(M['kestrel_slate'])
+  bpy.ops.object.transform_apply(location=False,rotation=False,scale=True)
+  for p in fair.data.polygons:p.use_smooth=True
+  pipe('Recessed magnetic bell',(x,cy+yy,.31),(x,cy+yy,.59),.29,'trim',32)
+  bpy.ops.mesh.primitive_torus_add(major_radius=.27,minor_radius=.028,major_segments=32,minor_segments=8,location=(x,cy+yy,.315))
+  ring=bpy.context.object;ring.name='Magnetic repulsor halo';ring.data.materials.append(M['repulsor_glow'])
+  pipe('Bell inner core',(x,cy+yy,.325),(x,cy+yy,.36),.19,'steel',24)
+  for angle in range(0,360,60):
+   t=math.radians(angle)
+   pipe('Repulsor radial vane',(x+.12*math.cos(t),cy+yy+.12*math.sin(t),.33),(x+.25*math.cos(t),cy+yy+.25*math.sin(t),.33),.012,'steel',6)
+# Narrow raptor-eye running lights follow the beak.
+for side in [-1,1]:
+ for i in range(9):
+  t=i/8;y=-2.55+.55*t;w,lo,hi=dims(y)
+  point=(cx+side*w*.86,cy+y,hi-.035)
+  pipe('Raptor eye light',point,(point[0]+side*.035,point[1]+.065,point[2]+.012),.017,'repulsor_glow',8)
+# Air-breathing intake and compact drive behind the cockpit.
+box('Plasma drive spine',(cx,cy+1.96,1.17),(.8,.85,.23),'trim',.06)
+for i in range(9):
+ box('Plasma intake slat',(cx-.31+i*.077,cy+1.88,1.31),(.026,.48,.035),'steel',.004)
+pipe('Plasma drive core',(cx,cy+2.0,1.03),(cx,cy+2.55,1.03),.24,'steel',32)
+pipe('Plasma drive throat',(cx,cy+2.48,1.03),(cx,cy+2.62,1.03),.17,'repulsor_glow',24)
+# Tail feathers remain separate named components for independent vectoring.
+for i in range(5):
+ x=(i-2)*.24;fan=(i-2)*.18
+ length=.86-abs(i-2)*.06
+ pts=[(cx+x-.095,cy+2.38,1.08),(cx+x+.095,cy+2.38,1.08),
+      (cx+x+.18+fan,cy+2.38+length,1.13),(cx+x+fan,cy+2.55+length,1.1),
+      (cx+x-.18+fan,cy+2.38+length,1.13)]
+ blade=hero_mesh('TailVector_%d'%i,pts,[(0,1,2,3,4)],'kestrel_carbon')
+ blade['tail_vector']=i+1
+ # Segmented metallic nozzle edges and amber plasma slit.
+ pipe('Tail nozzle edge',pts[1],pts[2],.025,'steel',8)
+ pipe('Tail nozzle edge',pts[4],pts[0],.025,'steel',8)
+ pipe('Tail plasma slit',(cx+x+fan-.09,cy+2.4+length,1.125),(cx+x+fan+.09,cy+2.4+length,1.125),.018,'amber',8)
+# Small inset service hardware, not raised block lettering.
+box('Nose service badge',(cx,cy-2.65,.805),(.18,.15,.012),'steel',.004)
+for side in [-1,1]:
+ for yy in [-1.8,-1.1,.0,1.2]:
+  w,lo,hi=dims(yy)
+  pipe('Flush panel fastener',(cx+side*w*.72,cy+yy,hi+.004),(cx+side*w*.72,cy+yy,hi+.015),.013,'steel',8)
+# Aggressive idle stance: rigid, perfectly still, pitched nose-down by 6 degrees.
+vehicle_objects=[o for o in bpy.context.scene.objects if o not in vehicle_before and o.type=='MESH']
+from mathutils import Matrix
+pitch=Matrix.Rotation(math.radians(6),'X')
+for obj in vehicle_objects:
+ bpy.context.view_layer.objects.active=obj
+ bpy.ops.object.select_all(action='DESELECT');obj.select_set(True)
+ bpy.ops.object.transform_apply(location=False,rotation=True,scale=True)
+ for v in obj.data.vertices:
+  local=obj.matrix_world @ v.co-Vector((cx,cy,0))
+  v.co=pitch @ local+Vector((cx,cy,.2))
+ obj.location=(0,0,0);obj.rotation_euler=(0,0,0);obj.scale=(1,1,1)
+ obj['is_vehicle']=True
+# Car's low idle hum is original synthesized audio, generated with Python's standard library.
+import wave,array
+audio_dir=Path.cwd()/'game/assets';audio_dir.mkdir(parents=True,exist_ok=True)
+rate=22050
+pcm=array.array('h')
+for i in range(rate*2):
+ t=i/rate;value=(math.sin(math.tau*220*t)*.5+math.sin(math.tau*660*t)*.16+math.sin(math.tau*880*t)*.045)
+ pcm.append(int(value*6500))
+with wave.open(str(audio_dir/'kestrel_hum.wav'),'wb') as stream:
+ stream.setnchannels(1);stream.setsampwidth(2);stream.setframerate(rate);stream.writeframes(pcm.tobytes())
+
 # Rear service yard: continuous ground and detailed visible warehouse fronts.
 box('rear yard ground',(0,-18.5,-.12),(40,14,.12),'skyline',.01)
 for index,x in enumerate([-10,-4,3,10]):
@@ -435,13 +531,14 @@ for x,y in [(-7,-13.3),(6,-13.5),(11,-14)]:
  box('yard cargo upper',(x+.12,y,.0+1.65),(1.1,.8,.9),'trim')
 box('yard retaining wall',(0,-24.5,1),(38,.35,2),'skyline')
 
-# Batch geometry by material to keep draw calls bounded.
+# Batch scenery and vehicle separately; keep tail panels independently addressable.
 for mat in M.values():
- obs=[o for o in bpy.context.scene.objects if o.type=='MESH' and len(o.data.materials) and o.data.materials[0]==mat]
- if not obs:continue
- bpy.ops.object.select_all(action='DESELECT')
- for o in obs:o.select_set(True)
- bpy.context.view_layer.objects.active=obs[0];bpy.ops.object.join();obs[0].name='Foundry_'+mat.name
+ for vehicle in [False,True]:
+  obs=[o for o in bpy.context.scene.objects if o.type=='MESH' and len(o.data.materials) and o.data.materials[0]==mat and bool(o.get('is_vehicle',False))==vehicle and not o.get('tail_vector',0)]
+  if not obs:continue
+  bpy.ops.object.select_all(action='DESELECT')
+  for o in obs:o.select_set(True)
+  bpy.context.view_layer.objects.active=obs[0];bpy.ops.object.join();obs[0].name=('Kestrel_' if vehicle else 'Foundry_')+mat.name
 # UV cube projection in world scale after batching keeps surface grain consistent.
 for o in bpy.context.scene.objects:
  if o.type!='MESH': continue
@@ -507,8 +604,8 @@ json_length=struct.unpack_from('<I',payload,12)[0]
 gltf=json.loads(payload[20:20+json_length])
 assert all('COLOR_0' in p['attributes'] for m in gltf['meshes'] for p in m['primitives'])
 meshes=[o for o in bpy.context.scene.objects if o.type=='MESH'];triangles=sum(sum(len(p.vertices)-2 for p in o.data.polygons) for o in meshes)
-assert triangles<180000,triangles
-assert len(meshes)<=16,len(meshes)
+assert triangles<220000,triangles
+assert len(meshes)<=48,len(meshes)
 (root/'build').mkdir(exist_ok=True)
 (root/'build/asset-report.json').write_text(json.dumps({'asset':'Neon Foundry corner','license':'CC0-1.0','source':'Original Blender script; no external assets','triangles':triangles,'mesh_batches':len(meshes),'blender':bpy.app.version_string},indent=2))
 print('SCENEFORGE_ASSET_VALIDATED',triangles,len(meshes))
