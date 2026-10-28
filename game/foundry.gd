@@ -30,6 +30,10 @@ func _ready() -> void:
 	var scenery: Node3D = load("res://assets/neon_foundry.glb").instantiate()
 	add_child(scenery)
 	for node in scenery.find_children("*", "MeshInstance3D", true, false):
+		for surface in range(node.mesh.get_surface_count()):
+			var material: Material = node.get_active_material(surface)
+			if material is StandardMaterial3D:
+				material.vertex_color_use_as_albedo = true
 		if "asphalt" in node.name or "grime" in node.name:
 			node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	var environment := WorldEnvironment.new()
@@ -45,8 +49,8 @@ func _ready() -> void:
 	settings.sky = sky
 	settings.background_mode = Environment.BG_SKY
 	settings.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	settings.ambient_light_color = Color("7598b2")
-	settings.ambient_light_energy = 0.7
+	settings.ambient_light_color = Color("8b9ba8")
+	settings.ambient_light_energy = 0.72
 	settings.reflected_light_source = Environment.REFLECTION_SOURCE_SKY
 	settings.tonemap_mode = Environment.TONE_MAPPER_FILMIC
 	environment.environment = settings
@@ -54,9 +58,10 @@ func _ready() -> void:
 	sun = DirectionalLight3D.new()
 	sun.rotation_degrees = Vector3(-35, -25, 0)
 	sun.light_color = Color("8cadcf")
-	sun.light_energy = 0.65
+	sun.light_energy = 0.52
 	sun.shadow_enabled = true
 	sun.directional_shadow_max_distance = 24.0
+	sun.shadow_blur = 1.3
 	sun.shadow_bias = 0.15
 	sun.shadow_normal_bias = 1.5
 	add_child(sun)
@@ -131,7 +136,7 @@ func ui() -> void:
 	var layer := CanvasLayer.new()
 	add_child(layer)
 	var title := Label.new()
-	title.text = "SCENEFORGE  /  NEON FOUNDRY\nRepair bay · workshop detail study 05"
+	title.text = "SCENEFORGE  /  NEON FOUNDRY\nRepair bay · lighting & contact study 06"
 	title.position = Vector2(28, 20)
 	title.add_theme_font_size_override("font_size", 23)
 	layer.add_child(title)

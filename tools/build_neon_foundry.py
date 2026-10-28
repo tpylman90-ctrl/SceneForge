@@ -305,8 +305,53 @@ for o in bpy.context.scene.objects:
  # Weighted normals preserve broad planar faces and smooth the beveled edges.
  mod=o.modifiers.new('Weighted corner normals','WEIGHTED_NORMAL');mod.keep_sharp=True;mod.weight=50
  bpy.ops.object.modifier_apply(modifier=mod.name)
+
+# Offline contact occlusion using Blender's BVH ray queries.
+# Exported vertex colors add no texture fetch or runtime AO pass.
+from mathutils.bvhtree import BVHTree
+vertices=[];faces=[]
+for obj in bpy.context.scene.objects:
+ if obj.type!='MESH':continue
+ offset=len(vertices)
+ vertices.extend([obj.matrix_world @ v.co for v in obj.data.vertices])
+ faces.extend([tuple(offset+i for i in p.vertices) for p in obj.data.polygons])
+tree=BVHTree.FromPolygons(vertices,faces,all_triangles=False)
+ray_count=12
+for obj in bpy.context.scene.objects:
+ if obj.type!='MESH':continue
+ mesh=obj.data
+ colors=mesh.color_attributes.new(name='ContactAO',type='FLOAT_COLOR',domain='CORNER')
+ mesh.color_attributes.active_color=colors
+ name=obj.data.materials[0].name
+ factors=[]
+ for v in mesh.vertices:
+  if name in ['asphalt','amber','cyan','window_warm','window_cool']:
+   factors.append(1.0);continue
+  n=(obj.matrix_world.to_3x3() @ v.normal).normalized()
+  tangent=n.cross(Vector((0,0,1)))
+  if tangent.length<.01:tangent=n.cross(Vector((0,1,0)))
+  tangent.normalize();bitangent=n.cross(tangent).normalized()
+  origin=(obj.matrix_world @ v.co)+n*.018
+  blocked=0.0
+  for i in range(ray_count):
+   z=(i+.5)/ray_count;angle=i*2.3999632297
+   r=math.sqrt(1-z*z)
+   direction=(tangent*(math.cos(angle)*r)+bitangent*(math.sin(angle)*r)+n*z).normalized()
+   hit,normal,index,distance=tree.ray_cast(origin,direction,1.1)
+   if hit is not None:blocked+=1-distance/1.1
+  factors.append(max(.62,1-.65*blocked/ray_count))
+ for loop in mesh.loops:
+  a=factors[loop.vertex_index];colors.data[loop.index].color=(a,a,a,1)
+print('SCENEFORGE_CONTACT_AO_BAKED',ray_count)
+
 root=Path.cwd();dest=root/'game/assets';dest.mkdir(parents=True,exist_ok=True)
-bpy.ops.export_scene.gltf(filepath=str(dest/'neon_foundry.glb'),export_format='GLB',use_selection=False,export_yup=True,export_normals=True,export_texcoords=True)
+bpy.ops.export_scene.gltf(filepath=str(dest/'neon_foundry.glb'),export_format='GLB',use_selection=False,export_yup=True,export_normals=True,export_texcoords=True,export_vertex_color='ACTIVE',export_all_vertex_colors=False)
+# Confirm the exported GLB actually carries the baked shading attribute.
+import struct
+payload=(dest/'neon_foundry.glb').read_bytes()
+json_length=struct.unpack_from('<I',payload,12)[0]
+gltf=json.loads(payload[20:20+json_length])
+assert all('COLOR_0' in p['attributes'] for m in gltf['meshes'] for p in m['primitives'])
 meshes=[o for o in bpy.context.scene.objects if o.type=='MESH'];triangles=sum(sum(len(p.vertices)-2 for p in o.data.polygons) for o in meshes)
 assert triangles<180000,triangles
 assert len(meshes)<=16,len(meshes)
