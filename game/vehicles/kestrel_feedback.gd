@@ -137,7 +137,7 @@ func update_feedback(delta: float, signed_speed: float, drive: float, steering: 
 	visual_pitch = lerpf(visual_pitch,clampf(acceleration*0.002,-0.035,0.025),1-exp(-delta*5))
 	rotation = Vector3(visual_pitch,0,visual_roll)
 	position.y = sin(motion_clock*3.0)*0.018*amount
-	yoke.transform = yoke_rest*Transform3D(Basis(Vector3.FORWARD,steering*0.22),Vector3.ZERO)
+	yoke.transform = yoke_rest*Transform3D(Basis(Vector3.BACK,steering*0.22),Vector3.ZERO)
 	for i in range(5):
 		var fan := float(i-2)/2
 		var vector := Basis.from_euler(Vector3(visual_pitch*1.5,steering*(0.09+absf(fan)*0.035)*amount,fan*drive*0.025))

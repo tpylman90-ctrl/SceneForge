@@ -503,6 +503,8 @@ func test_loop() -> void:
 	assert(feedback.telemetry.last_speed==86 and feedback.telemetry.last_mode=="DRIVE")
 	assert(absf(feedback.visual_roll)>0.05)
 	assert(not feedback.yoke.transform.is_equal_approx(feedback.yoke_rest))
+	var yoke_motion: Transform3D = feedback.yoke_rest.affine_inverse()*feedback.yoke.transform
+	assert(yoke_motion.basis.x.y > 0, "Right steering must raise the pilot's left grip")
 	assert(not feedback.tails[0].transform.is_equal_approx(feedback.tail_rest[0]))
 	feedback.update_feedback(1.0,-4,0.3,0,0,0,true)
 	assert(feedback.telemetry.last_mode=="REVERSE")
