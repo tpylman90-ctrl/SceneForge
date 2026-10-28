@@ -151,7 +151,7 @@ def build_piledriver(body,accent,carbon,steel,rubber,glow,glass):
  for z in np.linspace(2.85,3.42,9):
   w,lo,hi=dims(z)
   pipe('Sculpted brass chin',(-w*.80,lo+.13,z),(w*.80,lo+.13,z),.045,accent,16)
- panel('Carbon hood intake',[(-.25,1.275,1.67),(.25,1.275,1.67),(.18,1.17,2.25),(-.18,1.17,2.25)],carbon)
+ panel('Carbon hood intake',[(-.25,dims(1.67)[2]+.012,1.67),(.25,dims(1.67)[2]+.012,1.67),(.18,dims(2.25)[2]+.012,2.25),(-.18,dims(2.25)[2]+.012,2.25)],carbon)
  for i in range(8):
   z=1.72+i*.063;w,lo,hi=dims(z)
   pipe('Hood intake mesh',(-.20,hi+.025,z),(.20,hi+.025,z),.009,steel,8)
@@ -163,8 +163,8 @@ def build_piledriver(body,accent,carbon,steel,rubber,glow,glass):
   # Text local XY lies on a top-facing Godot XZ surface.
   obj.rotation_euler=(0,0,0)
   bpy.ops.object.convert(target='MESH')
- marking('07',(-.27,1.286,1.70),.17)
- marking('PYLDRIVER',(-.74,1.25,1.93),.075)
+ marking('07',(-.27,dims(1.70)[2]+.018,1.70),.17)
+ marking('PYLDRIVER',(-.65,dims(1.93)[2]+.018,1.93),.075)
  # Preserve the five animated vector controls, integrated above turbine bodies.
  for i in range(5):
   before=set(bpy.context.scene.objects);x=(i-2)*.36
