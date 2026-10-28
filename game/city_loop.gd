@@ -153,6 +153,7 @@ func _ready() -> void:
 	settings.fog_enabled = true
 	settings.fog_light_color = Color("273c50")
 	settings.fog_density = 0.002
+	settings.fog_sky_affect = 0.0
 	environment.environment = settings
 	add_child(environment)
 	var sun := DirectionalLight3D.new()
