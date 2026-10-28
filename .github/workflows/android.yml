@@ -102,9 +102,9 @@ jobs:
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y xvfb libgl1-mesa-dri
-          timeout 120 xvfb-run -a godot --path game --rendering-method gl_compatibility --resolution 1280x720 -- --capture
+          timeout 120 xvfb-run -a godot --audio-driver Dummy --path game --rendering-method gl_compatibility --resolution 1280x720 -- --capture
           test -s build/NeonFoundry-ingame.png
-          timeout 120 xvfb-run -a godot --path game --rendering-method gl_compatibility --resolution 1280x720 -- --benchmark-smoke 2>&1 | tee build/comparison-smoke.log
+          timeout 120 xvfb-run -a godot --audio-driver Dummy --path game --rendering-method gl_compatibility --resolution 1280x720 -- --benchmark-smoke 2>&1 | tee build/comparison-smoke.log
           if grep -E 'SCRIPT ERROR:|ERROR:' build/comparison-smoke.log; then exit 1; fi
           grep SCENEFORGE_COMPARISON build/comparison-smoke.log
       - name: Export and verify APK
