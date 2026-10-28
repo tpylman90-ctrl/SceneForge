@@ -418,7 +418,7 @@ for j,t in enumerate(np.linspace(0,1,canopy_rows)):
   verts.append((cx+w*math.cos(a),cy+y,base+h*math.sin(a)))
 faces=[]
 for j in range(canopy_rows-1):
- for i in range(canopy_cols-1):faces.append((j*canopy_cols+i,j*canopy_cols+i+1,(j+1)*canopy_cols+i+1,(j+1)*canopy_cols+i))
+ for i in range(canopy_cols-1):faces.append((j*canopy_cols+i,(j+1)*canopy_cols+i,(j+1)*canopy_cols+i+1,j*canopy_cols+i+1))
 canopy=hero_mesh('Polarized teardrop canopy',verts,faces,'vehicle_glass')
 for p in canopy.data.polygons:p.use_smooth=True
 for side in [-1,1]:

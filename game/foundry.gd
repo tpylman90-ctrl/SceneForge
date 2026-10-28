@@ -129,8 +129,8 @@ func _ready() -> void:
 		yaw = 0.62
 		pitch = -0.1
 	if "--vehicle-tail" in OS.get_cmdline_user_args():
-		body.position = Vector3(-4.8, 0.1, -5.0)
-		yaw = -2.3
+		body.position = Vector3(3.8, 0.1, -2.9)
+		yaw = 2.34
 		pitch = -0.09
 	if "--rear-view" in OS.get_cmdline_user_args():
 		body.position = Vector3(0, 0.1, 5)
@@ -207,8 +207,8 @@ func ui() -> void:
 	showcase.pressed.connect(func():
 		cancel_comparison()
 		show_tail = not show_tail
-		body.position = Vector3(-4.8, 0.1, -5) if show_tail else Vector3(4.6, 0.1, 7.5)
-		yaw = -2.3 if show_tail else 0.62
+		body.position = Vector3(3.8, 0.1, -2.9) if show_tail else Vector3(4.6, 0.1, 7.5)
+		yaw = 2.34 if show_tail else 0.62
 		pitch = -0.09 if show_tail else -0.1
 		stick = Vector2.ZERO)
 	layer.add_child(showcase)
@@ -270,8 +270,8 @@ func _physics_process(delta: float) -> void:
 	if comparing:
 		body.position = Vector3(4.6, 0.1, 7.5)
 		body.velocity = Vector3.ZERO
-		body.rotation.y = 0
-		camera.rotation.x = -0.06
+		body.rotation.y = 0.62
+		camera.rotation.x = -0.1
 		return
 	var keys := Vector2(float(Input.is_physical_key_pressed(KEY_D) or Input.is_physical_key_pressed(KEY_RIGHT)) - float(Input.is_physical_key_pressed(KEY_A) or Input.is_physical_key_pressed(KEY_LEFT)), float(Input.is_physical_key_pressed(KEY_S) or Input.is_physical_key_pressed(KEY_DOWN)) - float(Input.is_physical_key_pressed(KEY_W) or Input.is_physical_key_pressed(KEY_UP)))
 	var input := (stick + keys).limit_length()
