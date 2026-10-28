@@ -55,6 +55,54 @@ var travel_velocity := Vector3.ZERO
 var sound_button: Button
 var shutting_down := false
 var driving_touches: Dictionary = {}
+var track_id := 0
+var track_menu: Control
+const TRACK_NAMES := ["NEON CROSS","SKYWAY","VIPER RIFT"]
+const TRACK_INFO := ["MEDIUM / Figure-eight crossing jump", "EASY / Elevated oval and forgiving jump", "HARD / S-bends, banked turns and extended leap"]
+
+func route_position(index: int) -> Vector3:
+	var a := TAU*index/COUNT
+	var z := 32*sin(2*a)
+	if track_id==1:
+		z=38*sin(a)
+	elif track_id==2:
+		z+=5*sin(4*a)
+	return Vector3(80*cos(a),deck_height(index),z)
+
+func bank_slope(index: int) -> float:
+	if track_id!=2 or index>=26 and index<=70 or index>=132 and index<=156:
+		return 0.0
+	return -0.10*sin(TAU*index/COUNT*2)
+
+func track_name() -> String:
+	return TRACK_NAMES[track_id]
+
+func load_best() -> void:
+	var records := ConfigFile.new()
+	if records.load("user://records.cfg")==OK:
+		best=float(records.get_value("best",str(track_id),0.0))
+	else:
+		best=0.0
+
+func save_best() -> void:
+	var records := ConfigFile.new()
+	records.load("user://records.cfg")
+	records.set_value("best",str(track_id),best)
+	records.save("user://records.cfg")
+
+func open_tracks() -> void:
+	left=false
+	right=false
+	throttle=false
+	brake=false
+	boost=false
+	driving_touches.clear()
+	set_physics_process(false)
+	track_menu.show()
+
+func choose_track(index: int) -> void:
+	get_tree().set_meta("sceneforge_track",index)
+	shutdown("res://city_loop.tscn")
 
 func material(color: String, glow: bool = false) -> StandardMaterial3D:
 	var m := StandardMaterial3D.new()
@@ -84,9 +132,19 @@ func flush_batches() -> void:
 	batches.clear()
 
 func _ready() -> void:
+	track_id=int(get_tree().get_meta("sceneforge_track",0))
+	for index in range(3):
+		if "--circuit-%d"%index in OS.get_cmdline_user_args():
+			track_id=index
+	load_best()
 	var environment := WorldEnvironment.new()
 	var settings := Environment.new()
-	settings.background_mode = Environment.BG_COLOR
+	settings.background_mode = Environment.BG_SKY
+	var panorama := PanoramaSkyMaterial.new()
+	panorama.panorama=load("res://assets/twilight_sky.jpg")
+	var sky := Sky.new()
+	sky.sky_material=panorama
+	settings.sky=sky
 	settings.background_color = Color("172c42")
 	settings.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	settings.ambient_light_color = Color("91afc4")
@@ -145,7 +203,7 @@ func _ready() -> void:
 		update_camera(1.0)
 		steering_feedback(right_button,true)
 		boost_button.text="BOOST / 062%"
-		hud.text = "KESTREL MK I / NEON CROSS\nD 129 KM/H  /  BOOST ACTIVE"
+		hud.text = "KESTREL MK I / "+track_name()+"\nD 129 KM/H  /  BOOST ACTIVE"
 	if "--track-jump" in OS.get_cmdline_user_args():
 		prepare_jump_capture()
 	if "--track-overview" in OS.get_cmdline_user_args():
@@ -157,24 +215,29 @@ func _ready() -> void:
 		for child in get_node("DrivingUI").get_children():
 			if child != hud:
 				child.hide()
-		hud.text="NEON CROSS / DISTRICT STUDY\nFOUNDRY ROW  /  TRANSIT  /  FREIGHT DOCKS  /  EXCHANGE"
+		hud.text=track_name()+" / CIRCUIT OVERVIEW\n"+TRACK_INFO[track_id]
 	if "--track-smoke" in OS.get_cmdline_user_args():
 		call_deferred("test_loop")
+	if "--track-menu" in OS.get_cmdline_user_args():
+		open_tracks()
 
 
 func flat(value: Vector3) -> Vector3:
 	return Vector3(value.x,0,value.z)
 
 func deck_height(index: int) -> float:
+	var base := 2.0 if track_id==1 else 0.0
+	if track_id==2 and index>=96 and index<=128:
+		base=3.0*pow(sin(PI*float(index-96)/32.0),2)
 	if index>=28 and index<=JUMP_START:
 		var t := float(index-28)/(JUMP_START-28)
-		return smoothstep(0.0,1.0,t)*RAMP_HEIGHT
+		return base+smoothstep(0.0,1.0,t)*RAMP_HEIGHT
 	if index>JUMP_START and index<JUMP_END:
-		return RAMP_HEIGHT
+		return base+RAMP_HEIGHT
 	if index>=JUMP_END and index<=68:
 		var t := float(index-JUMP_END)/(68-JUMP_END)
-		return (1-smoothstep(0.0,1.0,t))*RAMP_HEIGHT
-	return 0.0
+		return base+(1-smoothstep(0.0,1.0,t))*RAMP_HEIGHT
+	return base
 
 func is_jump_gap(index: int) -> bool:
 	return index>=JUMP_START and index<JUMP_END
@@ -235,7 +298,7 @@ func build_city() -> void:
 	var asphalt := road_material()
 	var concrete := material("475b66")
 	var dark := material("192932")
-	var wall := material("344b5b")
+	var wall := material(["344b5b","3b5264","493f50"][track_id])
 	var trim := material("657681")
 	var orange := material("ce793a")
 	var cyan := material("55cbd6", true)
@@ -243,8 +306,7 @@ func build_city() -> void:
 	var warm := material("c4a779", true)
 	block(Vector3(0,-0.4,0), Vector3(240,0.5,200), dark)
 	for i in range(COUNT):
-		var a := TAU*i/COUNT
-		route.append(Vector3(80*cos(a),deck_height(i),32*sin(2*a)))
+		route.append(route_position(i))
 	var road := SurfaceTool.new()
 	road.begin(Mesh.PRIMITIVE_TRIANGLES)
 	var walls := SurfaceTool.new()
@@ -258,13 +320,15 @@ func build_city() -> void:
 		var normal := Vector3(forward.z,0,-forward.x)
 		var next := flat(route[(i+2)%COUNT]-q).normalized()
 		var n2 := Vector3(next.z,0,-next.x)
+		normal.y=bank_slope(i)
+		n2.y=bank_slope((i+1)%COUNT)
 		var width := road_half_width(i)
 		var next_width := road_half_width((i+1)%COUNT)
 		var verts := PackedVector3Array([p-normal*width,q-n2*next_width,q+n2*next_width,p+normal*width])
 		var mid := (p+q)*0.5
 		var angle := atan2(forward.x,forward.z)
 		var pitch := -atan2(q.y-p.y,flat(q-p).length())
-		var surface_normal := Basis(Vector3.UP,angle)*Basis(Vector3.RIGHT,pitch)*Vector3.UP
+		var surface_normal := (q-p).cross(verts[2]-verts[1]).normalized()
 		for index in [0,2,1,0,3,2]:
 			road.set_normal(surface_normal)
 			road.set_uv(Vector2(verts[index].x,verts[index].z)*0.2)
@@ -332,19 +396,27 @@ func build_city() -> void:
 				for side in [-1.0,1.0]:
 					block(Vector3(x-5+col*2.5,height-2,z+side*4.03),Vector3(1.1,1.4,0.06),warm)
 	for x in [70.0,90.0]:
-		block(Vector3(x,3.5,0),Vector3(0.6,7,0.6),trim)
-	block(Vector3(80,7,0),Vector3(20.6,1.0,0.7),dark)
+		block(Vector3(x,3.5+route[0].y,0),Vector3(0.6,7,0.6),trim)
+	block(Vector3(80,7+route[0].y,0),Vector3(20.6,1.0,0.7),dark)
 	for i in range(16):
-		block(Vector3(72.5+i,0.025,0),Vector3(1,0.04,0.8),trim if i%2==0 else dark)
+		block(Vector3(72.5+i,route[0].y+0.025,0),Vector3(1,0.04,0.8),trim if i%2==0 else dark)
 	build_jump_landmarks(trim,orange,cyan)
 	build_districts(wall,trim,dark,cyan,orange,warm,concrete)
 	build_street_detail(concrete,dark,trim,orange,cyan,warm)
+	if track_id==1:
+		for index in range(0,COUNT,12):
+			var p := route[index]
+			var forward := flat(route[(index+1)%COUNT]-p).normalized()
+			var normal := Vector3(forward.z,0,-forward.x)
+			for side in [-1.0,1.0]:
+				block(p+normal*side*9.2-Vector3.UP*0.6,Vector3(0.8,2.5,0.8),trim)
+				block(p+normal*side*9.2+Vector3.UP*0.8,Vector3(0.85,0.12,0.85),cyan)
 	flush_batches()
 	var sign := Label3D.new()
-	sign.text = "NEON CROSS  /  START"
+	sign.text = track_name()+"  /  START"
 	sign.font_size = 80
 	sign.pixel_size = 0.006
-	sign.position = Vector3(80,7,-0.4)
+	sign.position = Vector3(80,7+route[0].y,-0.4)
 	sign.rotation.y = PI
 	add_child(sign)
 
@@ -551,13 +623,14 @@ func build_ui() -> void:
 	layer.add_child(lap_banner)
 	var top := HBoxContainer.new()
 	top.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
-	top.position = Vector2(-460,20)
+	top.position = Vector2(-570,20)
 	layer.add_child(top)
 	ui_button(top,"VIEW",toggle_camera,100)
 	sound_button = ui_button(top,"SOUND OFF",func():
 		feedback.muted = not feedback.muted
 		sound_button.text = "SOUND OFF" if feedback.muted else "SOUND ON",110)
 	ui_button(top,"RESET",reset_car,100)
+	ui_button(top,"TRACKS",open_tracks,105)
 	ui_button(top,"FOUNDRY",func(): shutdown("res://main.tscn"),125)
 	var row := HBoxContainer.new()
 	row.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT)
@@ -592,6 +665,32 @@ func build_ui() -> void:
 	var gas := ui_button(pedals,"THRUST",func(): pass,190)
 	gas.button_down.connect(func(): throttle=true)
 	gas.button_up.connect(func(): throttle=false)
+	track_menu=ColorRect.new()
+	track_menu.color=Color(0.025,0.055,0.085,0.98)
+	track_menu.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	layer.add_child(track_menu)
+	var choices := VBoxContainer.new()
+	choices.position=Vector2(90,100)
+	choices.size=Vector2(1100,500)
+	choices.add_theme_constant_override("separation",20)
+	track_menu.add_child(choices)
+	var title := Label.new()
+	title.text="KESTREL / CHOOSE YOUR CIRCUIT"
+	title.add_theme_font_size_override("font_size",30)
+	choices.add_child(title)
+	for index in range(3):
+		var choice := Button.new()
+		choice.text=TRACK_NAMES[index]+"  /  "+TRACK_INFO[index]
+		choice.custom_minimum_size=Vector2(1000,90)
+		choice.add_theme_font_size_override("font_size",24)
+		choice.pressed.connect(choose_track.bind(index))
+		choices.add_child(choice)
+	var resume := Button.new()
+	resume.text="RESUME / "+track_name()
+	resume.custom_minimum_size=Vector2(1000,70)
+	resume.pressed.connect(func(): track_menu.hide(); set_physics_process(true))
+	choices.add_child(resume)
+	track_menu.hide()
 
 func reset_car() -> void:
 	car.position = route[0]
@@ -673,6 +772,8 @@ func track_progress(index: int) -> void:
 		banner_time=3.0
 		if record:
 			best=lap_time
+			if lap_time>0.0:
+				save_best()
 		lap+=1
 		lap_time=0
 		checkpoint=0
@@ -687,6 +788,8 @@ func _notification(what: int) -> void:
 		driving_touches.clear()
 
 func _input(event: InputEvent) -> void:
+	if track_menu.visible:
+		return
 	var screen := get_viewport().get_visible_rect().size
 	var control_top := screen.y-160
 	var pedal_left := screen.x-410
@@ -740,11 +843,11 @@ func update_jump(delta: float, surface_height: float) -> float:
 	if not airborne and is_jump_gap(route_index):
 		airborne=true
 		air_time=0
-		vertical_speed=6.5
-		car.position.y=maxf(car.position.y,RAMP_HEIGHT)
+		vertical_speed=8.0 if track_id==2 else 6.5
+		car.position.y=maxf(car.position.y,deck_height(JUMP_START))
 		var route_forward := flat(q-p).normalized()
 		if travel_velocity.dot(route_forward)>0.2 and speed>0:
-			speed=maxf(speed,30.0)
+			speed=maxf(speed,34.0 if track_id==2 else 30.0)
 			travel_velocity=Vector3(sin(heading),0,cos(heading))*speed
 		jump_launches+=1
 	if airborne:
@@ -758,7 +861,7 @@ func update_jump(delta: float, surface_height: float) -> float:
 			vertical_speed=0
 			airborne=false
 			jump_landings+=1
-			lap_banner.text="CROSSING CLEARED / %.1f s AIR"%air_time
+			lap_banner.text="JUMP CLEARED / %.1f s AIR"%air_time
 			banner_time=2
 		elif car.position.y < -0.7 or air_time>3:
 			recover_jump()
@@ -775,6 +878,7 @@ func recover_jump() -> void:
 	var tangent := flat(route[37]-route[36]).normalized()
 	heading=atan2(tangent.x,tangent.z)
 	speed=0
+	yaw_velocity=0.0
 	travel_velocity=Vector3.ZERO
 	vertical_speed=0
 	airborne=false
@@ -802,7 +906,7 @@ func prepare_jump_capture() -> void:
 		_physics_process(1.0/60)
 	assert(airborne and car.position.y>RAMP_HEIGHT)
 	update_camera(1.0)
-	hud.text="NEON CROSS / CROSSING JUMP\nD %03d KM/H\nAIRBORNE / %.1f s"%[int(speed*3.6),air_time]
+	hud.text=track_name()+" / JUMP\nD %03d KM/H\nAIRBORNE / %.1f s"%[int(speed*3.6),air_time]
 
 func _physics_process(delta: float) -> void:
 	var boost_requested := boost or Input.is_physical_key_pressed(KEY_SHIFT)
@@ -855,13 +959,19 @@ func _physics_process(delta: float) -> void:
 		speed = move_toward(speed,0,35*delta)
 		var outward := offset.normalized()
 		travel_velocity -= outward*maxf(0,travel_velocity.dot(outward))
-	var surface_pitch := update_jump(delta,center.y)
+	var road_forward := flat(route[(route_index+1)%COUNT]-route[route_index]).normalized()
+	var road_right := Vector3(road_forward.z,0,-road_forward.x)
+	var bank := bank_slope(route_index)
+	var surface_pitch := update_jump(delta,center.y+offset.dot(road_right)*bank)
+	hover_rings.rotation.z=atan(bank) if not airborne else 0.0
 	car.rotation = Vector3(0,heading,0)
 	var side := Vector3(forward.z,0,-forward.x)
 	var slip := clampf(absf(travel_velocity.dot(side))/maxf(absf(speed),1),0,1)
 	feedback.update_feedback(delta,speed,1.0 if gas and not stopping else (0.35 if speed < -0.1 and stopping else 0.0),steer,(speed-previous_speed)/maxf(delta,0.001),slip,cockpit,boost_active,boost_energy,surface_pitch)
 	landing_kick=move_toward(landing_kick,0,delta*0.3)
 	feedback.position.y-=landing_kick
+	if not airborne:
+		feedback.rotation.z+=atan(bank)
 	if absf(speed) > 0.1:
 		lap_running=true
 	if lap_running:
@@ -873,7 +983,7 @@ func _physics_process(delta: float) -> void:
 		track_progress(nearest["index"])
 	update_camera(delta)
 	boost_button.text = "%s / %03d%%" % ["BOOST" if not boost_locked else "RECHARGING",int(boost_energy)]
-	hud.text = "NEON CROSS / LAP %d\n%s %03d KM/H  ·  %.1f s\nBEST %s  ·  %d FPS\n%s" % [lap,"R" if speed < -0.05 else "D",int(absf(speed)*3.6),lap_time,"—" if best==0 else "%.1f s"%best,Engine.get_frames_per_second(),("AIRBORNE / %.1f s"%air_time) if airborne else DISTRICTS[int(nearest["index"])/(COUNT/4)]]
+	hud.text = track_name()+" / LAP %d\n%s %03d KM/H  ·  %.1f s\nBEST %s  ·  %d FPS\n%s" % [lap,"R" if speed < -0.05 else "D",int(absf(speed)*3.6),lap_time,"—" if best==0 else "%.1f s"%best,Engine.get_frames_per_second(),("AIRBORNE / %.1f s"%air_time) if airborne else DISTRICTS[int(nearest["index"])/(COUNT/4)]]
 
 func update_steering(delta: float) -> void:
 	# Short yaw spool gives weight; countersteer and release settle promptly.
@@ -904,6 +1014,10 @@ func _process(_delta: float) -> void:
 				file="NeonCross-jump-cockpit.png" if cockpit else "NeonCross-jump.png"
 			if "--track-overview" in OS.get_cmdline_user_args():
 				file="NeonLoop-overview.png"
+			if track_id>0:
+				file=("Skyway" if track_id==1 else "ViperRift")+("-overview.png" if "--track-overview" in OS.get_cmdline_user_args() else ("-jump.png" if "--track-jump" in OS.get_cmdline_user_args() else "-cockpit.png"))
+			if "--track-menu" in OS.get_cmdline_user_args():
+				file="Circuit-select.png"
 			get_viewport().get_texture().get_image().save_png(OS.get_environment("GITHUB_WORKSPACE")+"/build/"+file)
 			shutdown()
 

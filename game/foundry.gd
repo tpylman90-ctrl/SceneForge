@@ -85,12 +85,8 @@ func _ready() -> void:
 	var environment := WorldEnvironment.new()
 	var settings := Environment.new()
 	var sky := Sky.new()
-	var atmosphere := ProceduralSkyMaterial.new()
-	atmosphere.sky_top_color = Color("142b48")
-	atmosphere.sky_horizon_color = Color("627a89")
-	atmosphere.ground_bottom_color = Color("101a21")
-	atmosphere.ground_horizon_color = Color("485b68")
-	atmosphere.sky_energy_multiplier = 0.6
+	var atmosphere := PanoramaSkyMaterial.new()
+	atmosphere.panorama=load("res://assets/twilight_sky.jpg")
 	sky.sky_material = atmosphere
 	settings.sky = sky
 	settings.background_mode = Environment.BG_SKY
