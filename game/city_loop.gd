@@ -201,6 +201,7 @@ func build_city() -> void:
 	sign.font_size = 80
 	sign.pixel_size = 0.006
 	sign.position = Vector3(64,7,-0.4)
+	sign.rotation.y = PI
 	add_child(sign)
 
 func normalize_safe(v: Vector3) -> Vector3:
