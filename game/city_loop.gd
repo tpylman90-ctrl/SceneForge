@@ -124,6 +124,16 @@ func _ready() -> void:
 		update_camera(1.0)
 		boost_button.text="BOOST / 062%"
 		hud.text = "KESTREL MK I / NEON LOOP\nD 129 KM/H  /  BOOST ACTIVE"
+	if "--track-overview" in OS.get_cmdline_user_args():
+		set_physics_process(false)
+		camera.position=Vector3(100,155,-100)
+		camera.far=400
+		camera.fov=48
+		camera.look_at(Vector3.ZERO)
+		for child in get_node("DrivingUI").get_children():
+			if child != hud:
+				child.hide()
+		hud.text="NEON LOOP / DISTRICT STUDY\nFOUNDRY ROW  /  TRANSIT  /  FREIGHT DOCKS  /  EXCHANGE"
 	if "--track-smoke" in OS.get_cmdline_user_args():
 		call_deferred("test_loop")
 
@@ -324,6 +334,7 @@ func ui_button(row: Control, text: String, action: Callable, width: float = 125)
 
 func build_ui() -> void:
 	var layer := CanvasLayer.new()
+	layer.name="DrivingUI"
 	add_child(layer)
 	hud = Label.new()
 	hud.position = Vector2(24,20)
@@ -551,6 +562,8 @@ func _process(_delta: float) -> void:
 		capture_frames+=1
 		if capture_frames==35:
 			var file := "NeonLoop-cockpit.png" if cockpit else ("NeonLoop-action.png" if "--track-action" in OS.get_cmdline_user_args() else "NeonLoop-track.png")
+			if "--track-overview" in OS.get_cmdline_user_args():
+				file="NeonLoop-overview.png"
 			get_viewport().get_texture().get_image().save_png(OS.get_environment("GITHUB_WORKSPACE")+"/build/"+file)
 			shutdown()
 

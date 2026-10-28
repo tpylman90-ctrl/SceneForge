@@ -149,6 +149,8 @@ jobs:
           test -s build/NeonLoop-cockpit.png
           timeout 120 xvfb-run -a godot --audio-driver Dummy --path game --rendering-method gl_compatibility --resolution 1280x720 res://city_loop.tscn -- --capture --track-action --sound-on 2>&1 | tee build/loop-action-render.log
           test -s build/NeonLoop-action.png
+          timeout 120 xvfb-run -a godot --audio-driver Dummy --path game --rendering-method gl_compatibility --resolution 1280x720 res://city_loop.tscn -- --capture --track-overview 2>&1 | tee build/loop-overview-render.log
+          test -s build/NeonLoop-overview.png
           if grep -E 'SCRIPT ERROR:|ERROR:' build/loop-*-render.log; then exit 1; fi
       - name: Export and verify APK
         shell: bash
@@ -232,5 +234,5 @@ jobs:
           if ! gh release view pipeline-latest >/dev/null 2>&1; then
             gh release create pipeline-latest --target "$GITHUB_SHA" --prerelease --title "SceneForge — latest Android test" --notes "Permanently signed Android build. Download SceneForge.apk."
           fi
-          gh release upload pipeline-latest build/SceneForge.apk build/SceneForge-debug.apk build/SHA256SUMS.txt build/BUILD.txt build/NeonFoundry-preview.png build/NeonFoundry-ingame.png build/NeonFoundry-road.png build/Kestrel-hovercar.png build/Kestrel-tail.png build/Kestrel-cockpit.png build/Kestrel-door-open.png build/Kestrel-driver-seat.png build/NeonFoundry-rear.png build/asset-report.json build/NeonLoop-track.png build/NeonLoop-cockpit.png build/NeonLoop-action.png --clobber
+          gh release upload pipeline-latest build/SceneForge.apk build/SceneForge-debug.apk build/SHA256SUMS.txt build/BUILD.txt build/NeonFoundry-preview.png build/NeonFoundry-ingame.png build/NeonFoundry-road.png build/Kestrel-hovercar.png build/Kestrel-tail.png build/Kestrel-cockpit.png build/Kestrel-door-open.png build/Kestrel-driver-seat.png build/NeonFoundry-rear.png build/asset-report.json build/NeonLoop-track.png build/NeonLoop-cockpit.png build/NeonLoop-action.png build/NeonLoop-overview.png --clobber
           gh release edit pipeline-latest --notes "Successful pipeline build #$GITHUB_RUN_NUMBER from commit $GITHUB_SHA. Permanent release signing verified. Download SceneForge.apk; the debug variant remains available separately."
