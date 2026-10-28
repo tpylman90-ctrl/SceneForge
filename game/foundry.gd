@@ -226,6 +226,8 @@ func build_cockpit_details() -> void:
 	root.name = "KestrelCockpitInstruments"
 	# Blender's Z-up frame, including the craft's six-degree stance.
 	root.rotation.x = deg_to_rad(-84)
+	# Match rotation about Blender (0, -0.8, 0), then the 0.2 m lift.
+	root.position = Vector3(0, 0.28362277, 0.00438248)
 	add_child(root)
 	var graphite := cockpit_material(Color("15222a"), 0.5)
 	var silver := cockpit_material(Color("567078"), 0.7)
