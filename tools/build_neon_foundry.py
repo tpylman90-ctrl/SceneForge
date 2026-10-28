@@ -281,6 +281,61 @@ for x in [-1.8,-1.25,-.6,.4,1.2,1.8]:
  box('threshold scuff',(x,3.46,.085),(.23,.06,.012),'steel',.002)
 text('KEEP CLEAR',(-.78,3.18,.2),.16,'orange')
 
+
+# Architecture pass: layered rooflines, service access and a bounded district backdrop.
+for side in [-1,1]:
+ for index,y in enumerate([-7,-1,6]):
+  street_x=side*7.92
+  box('facade plinth',(street_x,y,.26),(.2,5.5,.42),'trim')
+  box('floor belt',(street_x,y,4.05),(.18,5.5,.16),'steel')
+  box('roof fascia',(side*9.9,y,7.98),(4.35,5.75,.28),'trim')
+  box('roof cap',(side*9.9,y,8.15),(4.4,5.8,.1),'steel')
+  for yy in [y-2.62,y+2.62]:
+   box('facade edge pier',(side*7.82,yy,4),(.2,.16,7.8),'trim')
+  # Opaque door panel is mounted at the building face.
+  dy=y+.85
+  box('service door frame',(side*7.81,dy,1.15),(.22,1.12,2.3),'trim')
+  box('service door',(side*7.68,dy,1.1),(.08,.89,2.1),'wall')
+  box('door kick plate',(side*7.62,dy,.25),(.025,.85,.25),'steel')
+  box('door pull',(side*7.57,dy-.3,1.12),(.1,.04,.22),'steel')
+  box('door transom',(side*7.61,dy,2.02),(.025,.65,.12),'window_warm' if index%2 else 'window_cool')
+  box('door canopy',(side*7.49,dy,2.4),(.9,1.3,.1),'trim')
+  # Downpipe and its visible elbows connect roof to the curb.
+  pipe('downpipe',(side*7.7,y-2.35,.4),(side*7.7,y-2.35,7.85),.06,'rust')
+  pipe('roof downpipe elbow',(side*7.7,y-2.35,7.85),(side*8.1,y-2.35,7.85),.06,'rust')
+  for z in [1.2,3.8,6.4]:box('downpipe saddle',(side*7.74,y-2.35,z),(.2,.2,.07),'steel')
+  box('roof HVAC',(side*10,y,8.65),(1.7,2,1),'wall')
+  box('HVAC cap',(side*10,y,9.18),(1.85,2.15,.12),'trim')
+  for j in range(6):box('HVAC side grille',(side*9.1,y-.7+j*.26,8.7),(.06,.08,.6),'steel',.003)
+# Repair shop parapet and seams finish the exposed upper edge.
+box('shop coping',(0,4,5.17),(14.25,1.25,.15),'steel')
+box('shop parapet',(0,4.15,5.48),(14,.4,.5),'trim')
+for x in [-5,-2.5,0,2.5,5]:
+ box('parapet cap seam',(x,4.15,5.76),(.045,.55,.045),'steel',.003)
+# Overhead utility spine: pipe collars at the building connections.
+for yy,z in [(-2,6.7),(-1.7,6.95)]:
+ pipe('cross street utility',(-8,yy,z),(8,yy,z),.085,'steel',12)
+ for x in [-7.7,-7.35,7.35,7.7]:
+  pipe('utility collar',(x-.045,yy,z),(x+.045,yy,z),.115,'trim',12)
+for x in [-7.7,7.7]:
+ box('utility support',(x,-1.85,6.62),(.3,.65,.15),'orange')
+hose('overhead cable',[(-7.8+15.6*t,-2.35,6.7-.55*math.sin(math.pi*t)) for t in np.linspace(0,1,33)],.025)
+# Background masses stay outside the walkable scene and use existing materials.
+for x,y,width,height in [(-10,15,4.2,12),(-4,17,4,10),(2,16,4.5,13.5),(9,15,4,11.5)]:
+ box('distant district',(x,y,height/2),(width,4,height),'wall',.05)
+ box('distant roof',(x,y,height+.08),(width+.15,4.15,.16),'trim')
+ for z in [7,9,11]:
+  if z>height-.5:continue
+  for dx in [-.9,0,.9]:
+   box('distant window',(x+dx,y-2.025,z),(.45,.025,.6),'window_warm' if (int(x)+int(z))%3 else 'window_cool',.003)
+# The rear of the review space terminates at a utility fence rather than open void.
+for x in range(-7,8):
+ pipe('fence post',(x,-11.35,0),(x,-11.35,2.2),.035,'trim',8)
+for z in [.4,1.1,1.8]:pipe('fence rail',(-7,-11.35,z),(7,-11.35,z),.025,'steel',8)
+for x in [-10,-4,3,10]:
+ box('rear district mass',(x,-18,4.5),(5,5,9),'wall')
+ box('rear roof',(x,-18,9.1),(5.2,5.2,.2),'trim')
+
 # Batch geometry by material to keep draw calls bounded.
 for mat in M.values():
  obs=[o for o in bpy.context.scene.objects if o.type=='MESH' and len(o.data.materials) and o.data.materials[0]==mat]

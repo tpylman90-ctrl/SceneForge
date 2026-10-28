@@ -77,6 +77,9 @@ func _ready() -> void:
 	light(Vector3(-5.4, 4.0, 6), Color("56dfff"), 2.3, 7.0)
 	light(Vector3(-5.4, 4.0, 0), Color("56dfff"), 1.5, 5.0)
 	# Collision deliberately follows the open bay rather than enclosing the doorway.
+	for side in [-1.0, 1.0]:
+		collider(Vector3(side * 7.8, 4.0, 0), Vector3(0.3, 8, 24))
+	collider(Vector3(0, 1.1, 11.35), Vector3(15, 2.2, 0.15))
 	collider(Vector3(0, -0.15, 0), Vector3(28, 0.3, 24))
 	collider(Vector3(-4.5, 2.5, -4), Vector3(5, 5, 1))
 	collider(Vector3(4.5, 2.5, -4), Vector3(5, 5, 1))
@@ -136,7 +139,7 @@ func ui() -> void:
 	var layer := CanvasLayer.new()
 	add_child(layer)
 	var title := Label.new()
-	title.text = "SCENEFORGE  /  NEON FOUNDRY\nRepair bay · lighting & contact study 06"
+	title.text = "SCENEFORGE  /  NEON FOUNDRY\nRepair bay · district architecture study 07"
 	title.position = Vector2(28, 20)
 	title.add_theme_font_size_override("font_size", 23)
 	layer.add_child(title)
