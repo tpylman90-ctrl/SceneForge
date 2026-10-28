@@ -57,6 +57,10 @@ var shutting_down := false
 var driving_touches: Dictionary = {}
 var track_id := 0
 var track_menu: Control
+var wall_cooldown := 0.0
+var wall_normal := Vector3.ZERO
+var wall_recoil := Vector3.ZERO
+var wall_hits := 0
 const TRACK_NAMES := ["NEON CROSS","SKYWAY","VIPER RIFT"]
 const TRACK_INFO := ["MEDIUM / Figure-eight crossing jump", "EASY / Elevated oval and forgiving jump", "HARD / S-bends, banked turns and extended leap"]
 
@@ -305,7 +309,7 @@ func build_city() -> void:
 	var cyan := material("55cbd6", true)
 	var window := material("91b8bd", true)
 	var warm := material("c4a779", true)
-	block(Vector3(0,-0.4,0), Vector3(240,0.5,200), dark)
+	block(Vector3(0,-0.4,0), Vector3(400,0.5,320), dark)
 	for i in range(COUNT):
 		route.append(route_position(i))
 	var road := SurfaceTool.new()
@@ -404,6 +408,7 @@ func build_city() -> void:
 	build_jump_landmarks(trim,orange,cyan)
 	build_districts(wall,trim,dark,cyan,orange,warm,concrete)
 	build_street_detail(concrete,dark,trim,orange,cyan,warm)
+	build_map_polish(wall,trim,dark,orange,cyan,warm)
 	if track_id==1:
 		for index in range(0,COUNT,12):
 			var p := route[index]
@@ -456,6 +461,62 @@ func build_street_detail(concrete: Material, dark: Material, trim: Material, ora
 			block(Vector3(x,height+0.7,z),Vector3(4,1.4,3),dark)
 			for rib in range(6):
 				block(Vector3(x-1.5+rib*0.6,height+1.43,z),Vector3(0.16,0.08,2.7),trim)
+
+func build_map_polish(wall: Material, trim: Material, dark: Material, orange: Material, cyan: Material, warm: Material) -> void:
+	# Skyline silhouettes and repeated facade shapes remain in material batches.
+	for index in range(36):
+		var a := TAU*index/36
+		var p := Vector3(145*cos(a),0,108*sin(a))
+		var height := 18.0+float((index*17)%31)
+		block(p+Vector3.UP*height*0.5,Vector3(12,height,10),wall)
+		block(p+Vector3.UP*(height+0.4),Vector3(13,0.8,11),dark)
+		for level in range(5,int(height)-2,5):
+			for side in [-1.0,1.0]:
+				block(p+Vector3(0,level,side*5.03),Vector3(9,0.25,0.05),warm if index%3==0 else cyan)
+		if index%3==0:
+			block(p+Vector3.UP*(height+3),Vector3(0.16,6,0.16),trim)
+			block(p+Vector3.UP*(height+6),Vector3(0.3,0.25,0.3),orange)
+	# Give each district a different roadside silhouette; keep jumps clear.
+	for index in range(4,COUNT,8):
+		if index>=26 and index<=70 or index>=132 and index<=156:
+			continue
+		var p := route[index]
+		var forward := flat(route[(index+1)%COUNT]-p).normalized()
+		var outward := outward_at(index)
+		var angle := atan2(forward.x,forward.z)
+		var point := p+outward*13.0
+		var sector := index/(COUNT/4)
+		if sector==0:
+			block(point+Vector3.UP*1.2,Vector3(2.2,2.4,1.4),dark,angle)
+			for rib in range(5):
+				block(point+forward*(rib-2)*0.24+Vector3.UP*2.45,Vector3(1.9,0.08,0.1),trim,angle)
+		elif sector==1:
+			block(point+Vector3.UP*2.4,Vector3(0.25,4.8,0.25),trim,angle)
+			block(point+Vector3.UP*4.8,Vector3(2.5,1.2,0.2),dark,angle)
+			block(point+Vector3.UP*4.8-forward*0.13,Vector3(2.2,0.7,0.05),cyan,angle)
+		elif sector==2:
+			for box in range(3):
+				block(point+forward*(box-1)*1.1+Vector3.UP*0.55,Vector3(0.9,1.1,0.9),orange if box%2==0 else dark,angle)
+		else:
+			block(point+Vector3.UP*1.5,Vector3(0.5,3,0.5),dark,angle)
+			block(point+Vector3.UP*3,Vector3(2.2,0.15,2.2),trim,angle)
+			block(point+Vector3.UP*2.88,Vector3(1.6,0.04,1.6),warm,angle)
+	# Lower facade storefront depth and awnings make the city feel inhabited.
+	for index in range(28):
+		if index in [11,12]:
+			continue
+		var p := outer_building_position(index)
+		var toward := Vector3(-p.x,0,-p.z).normalized()
+		var along := Vector3(toward.z,0,-toward.x)
+		# Use axis-aligned building faces, so signs stay attached to the facade.
+		var face := Vector3(signf(toward.x),0,0) if absf(toward.x)>absf(toward.z) else Vector3(0,0,signf(toward.z))
+		var angle := atan2(face.x,face.z)
+		var entry := p+face*6.1
+		block(entry+Vector3.UP*1.4,Vector3(3,2.8,0.12),dark,angle)
+		block(entry+face*0.65+Vector3.UP*3.1,Vector3(5.0,0.18,1.8),trim,angle)
+		block(entry+face*0.12+Vector3.UP*3.65,Vector3(3.7,0.5,0.12),orange if index%3==0 else cyan,angle)
+		for side in [-1.0,1.0]:
+			block(entry+Vector3(face.z,0,-face.x)*side*2.5+Vector3.UP*1.1,Vector3(0.3,2.2,0.3),trim)
 
 func district_sign(label: String, point: Vector3, forward: Vector3, color: Color) -> void:
 	var sign := Label3D.new()
@@ -714,6 +775,10 @@ func reset_car() -> void:
 	travel_velocity = Vector3.ZERO
 	steer = 0.0
 	yaw_velocity = 0.0
+	wall_cooldown=0.0
+	wall_normal=Vector3.ZERO
+	wall_recoil=Vector3.ZERO
+	wall_hits=0
 	if feedback != null:
 		feedback.rotation = Vector3.ZERO
 		feedback.position = Vector3.ZERO
@@ -874,6 +939,9 @@ func update_jump(delta: float, surface_height: float) -> float:
 
 func recover_jump() -> void:
 	jump_recoveries+=1
+	wall_cooldown=0.0
+	wall_normal=Vector3.ZERO
+	wall_recoil=Vector3.ZERO
 	route_index=36
 	car.position=route[36]
 	var tangent := flat(route[37]-route[36]).normalized()
@@ -947,19 +1015,19 @@ func _physics_process(delta: float) -> void:
 	var forward := Vector3(sin(heading),0,cos(heading))
 	var speed_ratio := clampf(absf(speed)/chassis.max_forward_speed,0,1)
 	var grip: float = chassis.lateral_grip*lerpf(1.0,0.65,speed_ratio)*(0.45 if airborne else 1.0)
-	travel_velocity = travel_velocity.lerp(forward*speed,1-exp(-grip*delta))
-	car.position += travel_velocity*delta
+	wall_cooldown=maxf(0,wall_cooldown-delta)
+	var desired_velocity := forward*speed
+	if wall_cooldown>0:
+		desired_velocity-=wall_normal*maxf(0,desired_velocity.dot(wall_normal))
+	travel_velocity = travel_velocity.lerp(desired_velocity,1-exp(-grip*delta))
+	car.position += (travel_velocity+wall_recoil)*delta
+	wall_recoil=wall_recoil.lerp(Vector3.ZERO,1-exp(-8.0*delta))
 	var nearest := closest_segment(car.position,route_index)
 	route_index=int(nearest["index"])
 	var center: Vector3 = nearest["point"]
 	var offset := flat(car.position-center)
-	if offset.length() > 6.0:
-		var bounded := center+offset.normalized()*6.0
-		car.position.x=bounded.x
-		car.position.z=bounded.z
-		speed = move_toward(speed,0,35*delta)
-		var outward := offset.normalized()
-		travel_velocity -= outward*maxf(0,travel_velocity.dot(outward))
+	resolve_wall(center,road_half_width(route_index)-2.0)
+	offset=flat(car.position-center)
 	var road_forward := flat(route[(route_index+1)%COUNT]-route[route_index]).normalized()
 	var road_right := Vector3(road_forward.z,0,-road_forward.x)
 	var bank := bank_slope(route_index)
@@ -985,6 +1053,25 @@ func _physics_process(delta: float) -> void:
 	update_camera(delta)
 	boost_button.text = "%s / %03d%%" % ["BOOST" if not boost_locked else "RECHARGING",int(boost_energy)]
 	hud.text = track_name()+" / LAP %d\n%s %03d KM/H  ·  %.1f s\nBEST %s  ·  %d FPS\n%s" % [lap,"R" if speed < -0.05 else "D",int(absf(speed)*3.6),lap_time,"—" if best==0 else "%.1f s"%best,Engine.get_frames_per_second(),("AIRBORNE / %.1f s"%air_time) if airborne else DISTRICTS[int(nearest["index"])/(COUNT/4)]]
+
+func resolve_wall(center: Vector3, limit: float) -> void:
+	var offset := flat(car.position-center)
+	if offset.length()<=limit:
+		return
+	var outward := offset.normalized()
+	var incoming := maxf(0,travel_velocity.dot(outward))
+	var bounded := center+outward*(limit-0.12)
+	car.position.x=bounded.x
+	car.position.z=bounded.z
+	# Remove only motion into the barrier: tangent motion survives the impact.
+	travel_velocity-=outward*incoming
+	if wall_cooldown<=0 and incoming>0.25:
+		wall_hits+=1
+		wall_normal=outward
+		wall_cooldown=0.28
+		wall_recoil=-outward*clampf(incoming*0.30,1.3,4.5)
+		var severity := clampf(incoming/maxf(absf(speed),1.0),0,1)
+		speed*=lerpf(0.98,0.15,severity*severity)
 
 func update_steering(delta: float) -> void:
 	# Short yaw spool gives weight; countersteer and release settle promptly.

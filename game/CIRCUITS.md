@@ -19,3 +19,11 @@ All use the same Kestrel, controls, boost and reverse rules. This is a time-tria
 game/tests/circuits_test.gd drives every layout at 30/60/120 simulation Hz, tests approach speeds 8/32/42 m/s, checks one successful launch/landing per lap without recovery, and exercises actual menu-triggered scene replacement. Existing figure-eight, controls, boost, cockpit and reverse checks remain.
 
 CI publishes Skyway/ViperRift overview, cockpit and airborne renders plus Circuit-select.png. CI software-render FPS does not predict Android performance.
+
+## City detail and wall response
+
+The district pack adds a batched distant skyline, storefront awnings and entry frames, plus mechanical equipment, transit signs, freight crates and plaza lights outside the racing surface. No extra realtime lights or external assets are used.
+
+Barrier impacts remove outward velocity while preserving tangent motion. A speed-dependent inward recoil (1.3–4.5 m/s) decays over time; a 0.28 s contact cooldown suppresses repeated impulses and blocks thrust into the contacted wall while permitting sliding and steering away. Speed loss scales with impact angle. Reverse retains its selected direction. Landing-zone containment uses its wider deck width. Failed-jump recovery clears recoil.
+
+wall_rebound_test.gd checks glancing, head-on, reverse and already-separating contacts, repeated-contact suppression, and controller recovery at 30/60/120 Hz.

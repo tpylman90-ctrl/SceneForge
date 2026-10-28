@@ -149,6 +149,9 @@ jobs:
           timeout 120 godot --headless --path game --script res://tests/circuits_test.gd 2>&1 | tee build/circuits.log
           if grep -E 'SCRIPT ERROR:|ERROR:' build/circuits.log; then exit 1; fi
           grep CIRCUITS_OK build/circuits.log
+          timeout 120 godot --headless --path game --script res://tests/wall_rebound_test.gd 2>&1 | tee build/wall-rebound.log
+          if grep -E 'SCRIPT ERROR:|ERROR:' build/wall-rebound.log; then exit 1; fi
+          grep WALL_REBOUND_OK build/wall-rebound.log
           timeout 120 xvfb-run -a godot --audio-driver Dummy --path game --rendering-method gl_compatibility --resolution 1280x720 res://city_loop.tscn -- --capture 2>&1 | tee build/loop-track-render.log
           test -s build/NeonLoop-track.png
           timeout 120 xvfb-run -a godot --audio-driver Dummy --path game --rendering-method gl_compatibility --resolution 1280x720 res://city_loop.tscn -- --capture --track-cockpit --track-action --sound-on 2>&1 | tee build/loop-cockpit-render.log
