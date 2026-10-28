@@ -1,7 +1,7 @@
 extends RefCounted
 
 const IDS := ["kestrel","piledriver","shrike","mantis","aurora"]
-const NAMES := ["KESTREL","PILEDRIVER","SHRIKE","MANTIS","AURORA"]
+const NAMES := ["KESTREL","PYLDRIVER","SHRIKE","MANTIS","AURORA"]
 const NOTES := ["Balanced raptor / slate and burnt orange", "Armored racer / purple and brass", "Agile interceptor / silver and orange", "Stable utility racer / olive green", "Fast swept speedster / blue and copper"]
 
 static func definition(index: int) -> Resource:

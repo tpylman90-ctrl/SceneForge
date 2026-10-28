@@ -60,6 +60,8 @@ def hull(profile,m):
  faces.append(tuple((len(profile)-1)*6+k for k in range(6)))
  mesh('Monocoque',pts,faces,m,.018)
 
+exec((ROOT/'tools/piledriver_detail.py').read_text())
+
 SPECS=[
  ('piledriver',(0.20,.035,.40),(.72,.43,.08),(.65,.06,1.0),'Heavy framed racer / purple and brass'),
  ('shrike',(.40,.46,.49),(.83,.22,.055),(.15,.75,1.0),'Feather-fin interceptor / silver and orange'),
@@ -72,81 +74,84 @@ for ident,color,accent_color,light_color,description in SPECS:
  rubber=mat(ident+'_padding',(.02,.025,.03),0,.8);glow=mat(ident+'_glow',light_color,.1,.3,2)
  glass=mat('vehicle_glass_'+ident,(.025,.065,.095),.25,.15)
  if ident=='piledriver':
-  profile=[(-2.45,.65,.55,1.05),(-1.6,1.18,.48,1.24),(-.5,1.12,.45,1.24),(1.25,.91,.40,1.15),(2.4,.66,.38,.95),(3.4,.18,.40,.66)]
- elif ident=='shrike':
-  profile=[(-2.7,.55,.62,1.12),(-1.5,1.02,.55,1.30),(-.4,1.02,.48,1.27),(1.3,.85,.40,1.16),(2.7,.43,.36,.85),(3.85,.025,.38,.47)]
- elif ident=='mantis':
-  profile=[(-2.2,.88,.56,1.05),(-1.2,1.03,.45,1.26),(-.3,.91,.42,1.27),(1.35,.72,.40,1.1),(2.5,.38,.40,.73),(3.1,.12,.42,.56)]
+  build_piledriver(body,accent,carbon,steel,rubber,glow,glass)
  else:
-  profile=[(-2.6,.85,.52,.99),(-1.4,1.15,.42,1.20),(-.3,1.08,.40,1.24),(1.3,.83,.38,1.1),(2.7,.68,.32,.72),(3.7,.025,.34,.42)]
- hull(profile,body)
- # Common ergonomic bay, compatible with the existing live dashboard and camera.
- box('Cockpit floor',(0,.75,.2),(1.28,.10,2.35),carbon)
- box('Seat cushion',(0,.92,-.18),(.57,.16,.65),rubber,.055)
- box('Seat back',(0,1.30,-.61),(.62,.78,.16),carbon,.055)
- box('Back pad',(0,1.32,-.50),(.48,.61,.10),rubber,.045)
- box('Headrest',(0,1.76,-.64),(.39,.25,.18),rubber,.05)
- for side in [-1,1]:
-  box('Harness',(side*.17,1.31,-.435),(.055,.52,.025),accent,.005)
-  box('Cockpit sill',(side*.71,1.13,.15),(.17,.20,2.0),carbon,.025)
-  pipe('Sill trim',(side*.73,1.25,-.8),(side*.73,1.25,1.25),.025,accent)
-  rail=[(side*.55,1.18,1.62),(side*.58,1.94,.52),(side*.50,1.97,-.65),(side*.49,1.32,-1.28)]
-  for a,b in zip(rail,rail[1:]):pipe('Open cockpit frame',a,b,.045 if ident=='piledriver' else .032,accent if ident in ['piledriver','mantis'] else steel)
-  pipe('Frame light',(side*.58,1.955,.49),(side*.53,1.985,-.40),.009,glow,8)
-  for z in [-.6,-.1,.4,.9]:
-   pipe('Sill fastener',(side*.79,1.19,z),(side*.81,1.19,z),.018,steel,8)
- pipe('Rollover beam',(-.5,1.97,-.65),(.5,1.97,-.65),.04,accent)
- panel('vehicle_glass_windshield',[(-.55,1.18,1.62),(.55,1.18,1.62),(.58,1.82,.70),(-.58,1.82,.70)],glass)
- before=set(bpy.context.scene.objects)
- for side in [-1,1]:
-  pipe('Grip',(side*.22,1.18,1.12),(side*.22,1.38,1.10),.035,rubber)
-  box('Thumb switch',(side*.22,1.40,1.10),(.065,.04,.07),accent)
- pipe('Yoke bridge',(-.22,1.22,1.12),(.22,1.22,1.12),.032,steel)
- rig('Kestrel_Yoke',since(before),(0,1.25,1.12))
- # Four real pod housings with mechanical collars and luminous undersides.
- for x,y,z in [(1.0,.58,2.10),(-1.0,.58,2.10),(1.12,.76,-.65),(-1.12,.76,-.65)]:
-  pipe('Pod strut',(x*.72,y+.15,z),(x,y,z),.075,steel)
-  pipe('Repulsor casing',(x,y-.15,z),(x,y+.17,z),.29,carbon,20)
-  ring('Pod armored rim',(x,y+.17,z),.28,.045,accent)
-  ring('Repulsor field',(x,y-.16,z),.27,.025,glow)
-  for angle in range(0,360,90):
-   a=math.radians(angle);box('Pod bolt',(x+.23*math.cos(a),y+.2,z+.23*math.sin(a)),(.04,.04,.04),steel,.003)
- # Deliberately different body silhouettes, not only paint variants.
- for side in [-1,1]:
   if ident=='piledriver':
-   pipe('Brass side cage',(side*1.1,.72,2.65),(side*1.24,1.42,-1.65),.065,accent)
-   box('Forward racing ski',(side*.43,.31,3.0),(.16,.12,1.65),accent,.035)
-   pipe('Ski suspension',(side*.43,.36,2.7),(side*.62,.65,2.25),.06,steel)
-   panel('Purple shoulder',[(side*.82,1.17,1.2),(side*1.30,1.33,-.95),(side*1.22,.75,-1.5),(side*.98,.72,.75)],body)
-   pipe('Rear turbine',(side*.91,1.06,-1.5),(side*.91,1.06,-2.35),.29,carbon,24)
-   ring('Turbine collar',(side*.91,1.06,-2.2),.22,.045,accent)
+   profile=[(-2.45,.65,.55,1.05),(-1.6,1.18,.48,1.24),(-.5,1.12,.45,1.24),(1.25,.91,.40,1.15),(2.4,.66,.38,.95),(3.4,.18,.40,.66)]
   elif ident=='shrike':
-   panel('Blade flank',[(side*.83,1.15,1.25),(side*1.55,1.18,-1.4),(side*.95,.69,-1.9)],accent)
-   for fin in range(3):
-    panel('Swept feather',[(side*(.74+fin*.17),1.14,-.75-fin*.3),(side*(1.15+fin*.23),1.37,-2.65-fin*.12),(side*.75,1.05,-1.95)],carbon)
-   panel('Split beak chine',[(side*.13,.61,3.75),(side*.72,.90,2.05),(side*.47,.60,1.7)],steel)
+   profile=[(-2.7,.55,.62,1.12),(-1.5,1.02,.55,1.30),(-.4,1.02,.48,1.27),(1.3,.85,.40,1.16),(2.7,.43,.36,.85),(3.85,.025,.38,.47)]
   elif ident=='mantis':
-   box('Utility shoulder',(side*1.15,.97,-.70),(.52,.54,1.35),body,.055)
-   box('Fork runner',(side*.43,.47,3.05),(.22,.16,1.35),carbon,.02)
-   pipe('Fork tie',(side*.43,.5,2.65),(side*.63,.78,1.9),.07,steel)
-   panel('Upright stabilizer',[(side*.73,1.1,-1.4),(side*.82,2.1,-2.25),(side*.43,2.1,-2.0),(side*.45,1.1,-1.15)],accent)
-   for vent in range(5):box('Shoulder vent',(side*1.42,1.02,-1.15+vent*.20),(.025,.23,.06),carbon,.003)
+   profile=[(-2.2,.88,.56,1.05),(-1.2,1.03,.45,1.26),(-.3,.91,.42,1.27),(1.35,.72,.40,1.1),(2.5,.38,.40,.73),(3.1,.12,.42,.56)]
   else:
-   panel('Low delta wing',[(side*.60,.78,2.75),(side*1.67,.81,-1.15),(side*1.12,.66,-2.5),(side*.75,.76,.4)],body)
-   pipe('Wing copper seam',(side*.62,.80,2.68),(side*1.63,.84,-1.1),.018,accent,8)
-   for i in range(4):box('Blue running light',(side*(.45+i*.09),.74,2.60-i*.18),(.06,.035,.12),glow,.006)
-   panel('Rear foil',[(side*.55,1.1,-1.7),(side*1.2,1.60,-2.5),(side*1.35,1.60,-2.6),(side*.72,1.1,-2.2)],accent)
-  # Flank panel gaps, small intake stacks and maintenance fittings.
-  for z in [-.7,-.4,-.1,.2]:box('Intake gill',(side*1.0,1.12,z),(.035,.13,.065),carbon,.003)
-  for i in range(3):box('Flank armor fastener',(side*1.0,.79,.6-i*.5),(.045,.045,.045),steel,.004)
- # Carbon nose spine and independently vectoring five-nozzle tail.
- panel('Nose carbon inset',[(-.31,1.15,1.36),(.31,1.15,1.36),(.07,.57,3.25),(-.07,.57,3.25)],carbon)
- for i in range(5):
-  before=set(bpy.context.scene.objects);x=(i-2)*.42
-  pipe('Vector nozzle',(x,1.65,-1.8),(x,1.65,-2.32),.13,carbon,16)
-  pipe('Nozzle liner',(x,1.65,-2.28),(x,1.65,-2.35),.095,glow,16)
-  panel('Tail feather',[(x-.14,1.68,-1.8),(x+.14,1.68,-1.8),(x+.18,1.75,-2.6),(x-.18,1.75,-2.6)],accent)
-  rig('Kestrel_Tail_%d'%i,since(before),(x,1.65,-1.8))
+   profile=[(-2.6,.85,.52,.99),(-1.4,1.15,.42,1.20),(-.3,1.08,.40,1.24),(1.3,.83,.38,1.1),(2.7,.68,.32,.72),(3.7,.025,.34,.42)]
+  hull(profile,body)
+  # Common ergonomic bay, compatible with the existing live dashboard and camera.
+  box('Cockpit floor',(0,.75,.2),(1.28,.10,2.35),carbon)
+  box('Seat cushion',(0,.92,-.18),(.57,.16,.65),rubber,.055)
+  box('Seat back',(0,1.30,-.61),(.62,.78,.16),carbon,.055)
+  box('Back pad',(0,1.32,-.50),(.48,.61,.10),rubber,.045)
+  box('Headrest',(0,1.76,-.64),(.39,.25,.18),rubber,.05)
+  for side in [-1,1]:
+   box('Harness',(side*.17,1.31,-.435),(.055,.52,.025),accent,.005)
+   box('Cockpit sill',(side*.71,1.13,.15),(.17,.20,2.0),carbon,.025)
+   pipe('Sill trim',(side*.73,1.25,-.8),(side*.73,1.25,1.25),.025,accent)
+   rail=[(side*.55,1.18,1.62),(side*.58,1.94,.52),(side*.50,1.97,-.65),(side*.49,1.32,-1.28)]
+   for a,b in zip(rail,rail[1:]):pipe('Open cockpit frame',a,b,.045 if ident=='piledriver' else .032,accent if ident in ['piledriver','mantis'] else steel)
+   pipe('Frame light',(side*.58,1.955,.49),(side*.53,1.985,-.40),.009,glow,8)
+   for z in [-.6,-.1,.4,.9]:
+    pipe('Sill fastener',(side*.79,1.19,z),(side*.81,1.19,z),.018,steel,8)
+  pipe('Rollover beam',(-.5,1.97,-.65),(.5,1.97,-.65),.04,accent)
+  panel('vehicle_glass_windshield',[(-.55,1.18,1.62),(.55,1.18,1.62),(.58,1.82,.70),(-.58,1.82,.70)],glass)
+  before=set(bpy.context.scene.objects)
+  for side in [-1,1]:
+   pipe('Grip',(side*.22,1.18,1.12),(side*.22,1.38,1.10),.035,rubber)
+   box('Thumb switch',(side*.22,1.40,1.10),(.065,.04,.07),accent)
+  pipe('Yoke bridge',(-.22,1.22,1.12),(.22,1.22,1.12),.032,steel)
+  rig('Kestrel_Yoke',since(before),(0,1.25,1.12))
+  # Four real pod housings with mechanical collars and luminous undersides.
+  for x,y,z in [(1.0,.58,2.10),(-1.0,.58,2.10),(1.12,.76,-.65),(-1.12,.76,-.65)]:
+   pipe('Pod strut',(x*.72,y+.15,z),(x,y,z),.075,steel)
+   pipe('Repulsor casing',(x,y-.15,z),(x,y+.17,z),.29,carbon,20)
+   ring('Pod armored rim',(x,y+.17,z),.28,.045,accent)
+   ring('Repulsor field',(x,y-.16,z),.27,.025,glow)
+   for angle in range(0,360,90):
+    a=math.radians(angle);box('Pod bolt',(x+.23*math.cos(a),y+.2,z+.23*math.sin(a)),(.04,.04,.04),steel,.003)
+  # Deliberately different body silhouettes, not only paint variants.
+  for side in [-1,1]:
+   if ident=='piledriver':
+    pipe('Brass side cage',(side*1.1,.72,2.65),(side*1.24,1.42,-1.65),.065,accent)
+    box('Forward racing ski',(side*.43,.31,3.0),(.16,.12,1.65),accent,.035)
+    pipe('Ski suspension',(side*.43,.36,2.7),(side*.62,.65,2.25),.06,steel)
+    panel('Purple shoulder',[(side*.82,1.17,1.2),(side*1.30,1.33,-.95),(side*1.22,.75,-1.5),(side*.98,.72,.75)],body)
+    pipe('Rear turbine',(side*.91,1.06,-1.5),(side*.91,1.06,-2.35),.29,carbon,24)
+    ring('Turbine collar',(side*.91,1.06,-2.2),.22,.045,accent)
+   elif ident=='shrike':
+    panel('Blade flank',[(side*.83,1.15,1.25),(side*1.55,1.18,-1.4),(side*.95,.69,-1.9)],accent)
+    for fin in range(3):
+     panel('Swept feather',[(side*(.74+fin*.17),1.14,-.75-fin*.3),(side*(1.15+fin*.23),1.37,-2.65-fin*.12),(side*.75,1.05,-1.95)],carbon)
+    panel('Split beak chine',[(side*.13,.61,3.75),(side*.72,.90,2.05),(side*.47,.60,1.7)],steel)
+   elif ident=='mantis':
+    box('Utility shoulder',(side*1.15,.97,-.70),(.52,.54,1.35),body,.055)
+    box('Fork runner',(side*.43,.47,3.05),(.22,.16,1.35),carbon,.02)
+    pipe('Fork tie',(side*.43,.5,2.65),(side*.63,.78,1.9),.07,steel)
+    panel('Upright stabilizer',[(side*.73,1.1,-1.4),(side*.82,2.1,-2.25),(side*.43,2.1,-2.0),(side*.45,1.1,-1.15)],accent)
+    for vent in range(5):box('Shoulder vent',(side*1.42,1.02,-1.15+vent*.20),(.025,.23,.06),carbon,.003)
+   else:
+    panel('Low delta wing',[(side*.60,.78,2.75),(side*1.67,.81,-1.15),(side*1.12,.66,-2.5),(side*.75,.76,.4)],body)
+    pipe('Wing copper seam',(side*.62,.80,2.68),(side*1.63,.84,-1.1),.018,accent,8)
+    for i in range(4):box('Blue running light',(side*(.45+i*.09),.74,2.60-i*.18),(.06,.035,.12),glow,.006)
+    panel('Rear foil',[(side*.55,1.1,-1.7),(side*1.2,1.60,-2.5),(side*1.35,1.60,-2.6),(side*.72,1.1,-2.2)],accent)
+   # Flank panel gaps, small intake stacks and maintenance fittings.
+   for z in [-.7,-.4,-.1,.2]:box('Intake gill',(side*1.0,1.12,z),(.035,.13,.065),carbon,.003)
+   for i in range(3):box('Flank armor fastener',(side*1.0,.79,.6-i*.5),(.045,.045,.045),steel,.004)
+  # Carbon nose spine and independently vectoring five-nozzle tail.
+  panel('Nose carbon inset',[(-.31,1.15,1.36),(.31,1.15,1.36),(.07,.57,3.25),(-.07,.57,3.25)],carbon)
+  for i in range(5):
+   before=set(bpy.context.scene.objects);x=(i-2)*.42
+   pipe('Vector nozzle',(x,1.65,-1.8),(x,1.65,-2.32),.13,carbon,16)
+   pipe('Nozzle liner',(x,1.65,-2.28),(x,1.65,-2.35),.095,glow,16)
+   panel('Tail feather',[(x-.14,1.68,-1.8),(x+.14,1.68,-1.8),(x+.18,1.75,-2.6),(x-.18,1.75,-2.6)],accent)
+   rig('Kestrel_Tail_%d'%i,since(before),(x,1.65,-1.8))
  # Join static parts per material; preserve control/nozzle transforms.
  for material in [body,accent,carbon,steel,rubber,glow,glass]:
   objects=[o for o in bpy.context.scene.objects if o.type=='MESH' and o.parent is None and o.data.materials[0]==material]

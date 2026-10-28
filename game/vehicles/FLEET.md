@@ -5,7 +5,7 @@ Five selectable, driveable craft. Open FLEET from the Foundry or driving view. C
 | Craft | Silhouette | Cruise | Handling |
 |---|---|---|---|
 | Kestrel | Slate/orange raptor; refreshed vents, pod hydraulics, heat shields and rear bracing | 115 km/h | Balanced |
-| Piledriver | Purple/brass cage, broad shoulders, forward skis, twin turbine housings | 108 km/h | Heavy and stable |
+| Pyldriver | Purple/brass cage, broad shoulders, forward skis, twin turbine housings | 108 km/h | Heavy and stable |
 | Shrike | Silver/orange split beak and overlapping swept feather fins | 122 km/h | Quick turn-in |
 | Mantis | Olive utility shoulders, twin fork runners, upright stabilizers | 111 km/h | High grip |
 | Aurora | Midnight-blue low delta wings, copper seams and blue running lights | 126 km/h | Fast, more lateral slip |
@@ -25,3 +25,11 @@ fleet_catalog.gd stores identity, appearance and modest handling differences. Th
 fleet_test.gd drives all 15 chassis/circuit combinations through a full lap and landing, checks rigs, component mounts, live display identity and cockpit camera placement, and exercises actual hangar selection. CI renders Fleet-kestrel.png, Fleet-piledriver.png, Fleet-shrike.png, Fleet-mantis.png and Fleet-aurora.png, and publishes fleet-report.json alongside the signed APK.
 
 Local controller checks may use geometry fixtures; Blender output inspection and production GLB/Godot captures occur in CI. Screenshot FPS from software rendering is not Android performance telemetry.
+
+## Pyldriver hero pass
+
+Display spelling is PYLDRIVER (Pylman + driver). The stable internal ID and filenames remain piledriver to preserve existing selections and lap records.
+
+tools/piledriver_detail.py authors the dedicated sculpted hull, lower swept frame and wind deflector, integrated hover fairings, suspended runners, hollow turbine bells with stators, plum lacquer/carbon/brass finish textures, body-following seams, shoulder vents, fasteners, livery and seat details. Existing handling and cockpit camera placement remain. The five tail rigs retain their names; exhaust attachment points match the revised nozzle layout.
+
+CI captures front, tail, side, top and cockpit views. All geometry remains subject to the 40,000-triangle budget and named-rig/vertex-color checks.

@@ -99,6 +99,15 @@ func _ready() -> void:
 		row.add_child(button)
 	spawn_craft()
 	update_camera()
+	if "--fleet-tail" in OS.get_cmdline_user_args():action("TAIL")
+	if "--fleet-cockpit" in OS.get_cmdline_user_args():action("COCKPIT")
+	if "--fleet-side" in OS.get_cmdline_user_args():
+		orbit=-PI/2
+		elevation=.04
+		update_camera()
+	if "--fleet-top" in OS.get_cmdline_user_args():
+		camera.position=craft.position+Vector3(0,10,.01)
+		camera.look_at(craft.position,Vector3(0,0,-1))
 
 func spawn_craft() -> void:
 	craft=Node3D.new()
@@ -162,7 +171,10 @@ func _process(_delta: float) -> void:
 	if "--capture" in OS.get_cmdline_user_args():
 		frames+=1
 		if frames==35:
-			get_viewport().get_texture().get_image().save_png(OS.get_environment("GITHUB_WORKSPACE")+"/build/Fleet-"+Fleet.IDS[selected]+".png")
+			var suffix := ""
+			for view in ["tail","cockpit","side","top"]:
+				if "--fleet-"+view in OS.get_cmdline_user_args():suffix="-"+view
+			get_viewport().get_texture().get_image().save_png(OS.get_environment("GITHUB_WORKSPACE")+"/build/Fleet-"+Fleet.IDS[selected]+suffix+".png")
 			visual.stop_audio()
 			await get_tree().create_timer(.15).timeout
 			get_tree().quit()
