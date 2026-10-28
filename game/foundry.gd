@@ -134,7 +134,7 @@ func _ready() -> void:
 	if "--cockpit-view" in OS.get_cmdline_user_args():
 		body.position = Vector3(2.05, 0.62, 0.3)
 		yaw = 1.8
-		pitch = -0.26
+		pitch = -0.42
 	if "--vehicle-tail" in OS.get_cmdline_user_args():
 		body.position = Vector3(2.4, 0.1, -2.8)
 		yaw = 2.55
@@ -190,7 +190,7 @@ func ui() -> void:
 	reset.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
 	reset.position = Vector2(-200, 25)
 	reset.size = Vector2(170, 55)
-	reset.pressed.connect(func(): body.position = Vector3(3.2, 0.1, 5.7); yaw = 0.58; pitch = -0.1; stick = Vector2.ZERO)
+	reset.pressed.connect(func(): body.position = Vector3(3.2, 0.1, 5.7); inspection_mode = false; yaw = 0.58; pitch = -0.1; stick = Vector2.ZERO)
 	layer.add_child(reset)
 	quality_button = Button.new()
 	quality_button.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
@@ -213,6 +213,7 @@ func ui() -> void:
 	showcase.size = Vector2(170, 55)
 	showcase.pressed.connect(func():
 		cancel_comparison()
+		inspection_mode = false
 		show_tail = not show_tail
 		body.position = Vector3(2.4, 0.1, -2.8) if show_tail else Vector3(3.2, 0.1, 5.7)
 		yaw = 2.55 if show_tail else 0.58
@@ -227,9 +228,10 @@ func ui() -> void:
 	cockpit_button.size = Vector2(170, 55)
 	cockpit_button.pressed.connect(func():
 		cancel_comparison()
-		body.position = Vector3(2.05, 0.1, 0.3)
+		body.position = Vector3(2.05, 0.62, 0.3)
+		inspection_mode = true
 		yaw = 1.8
-		pitch = -0.12
+		pitch = -0.42
 		stick = Vector2.ZERO)
 	layer.add_child(cockpit_button)
 
@@ -293,6 +295,14 @@ func _physics_process(delta: float) -> void:
 		body.rotation.y = yaw
 		camera.rotation.x = pitch
 		return
+	if inspection_mode:
+		if stick.length() > 0.05 or Input.is_physical_key_pressed(KEY_W) or Input.is_physical_key_pressed(KEY_A) or Input.is_physical_key_pressed(KEY_S) or Input.is_physical_key_pressed(KEY_D):
+			inspection_mode = false
+		else:
+			body.velocity = Vector3.ZERO
+			body.rotation.y = yaw
+			camera.rotation.x = pitch
+			return
 	if comparing:
 		body.position = Vector3(3.2, 0.1, 5.7)
 		body.velocity = Vector3.ZERO
@@ -348,6 +358,7 @@ func apply_quality(use_balanced: bool) -> void:
 	quality_button.text = "BALANCED" if balanced else "REFERENCE"
 
 func start_comparison() -> void:
+	inspection_mode = false
 	if comparing:
 		return
 	saved_position = body.position
@@ -438,6 +449,7 @@ func comparison_frame() -> void:
 		shutdown_for_test()
 
 var show_tail := false
+var inspection_mode := false
 
 func _exit_tree() -> void:
 	if has_node("KestrelHum"):
