@@ -711,6 +711,8 @@ func test_loop() -> void:
 	feedback.muted=true
 	feedback.update_feedback(0.1,20,1,0,0,0,true)
 	assert(feedback.sound.volume_db == -80)
+	feedback.update_feedback(1.0,36,1.0,0.7,5,0.12,true,true,62)
+	assert(feedback.telemetry.last_mode=="BOOST" and feedback.telemetry.last_speed==129)
 	print("SCENEFORGE_KESTREL_FEEDBACK_OK")
 	print("SCENEFORGE_CITY_LOOP_OK")
 	shutdown()

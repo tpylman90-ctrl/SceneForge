@@ -46,7 +46,7 @@ func text(x: int,y: int,value: String,scale: int,color: Color) -> void:
 func update(speed: float, thrust: float, steer: float, slip: float, boosting: bool = false, charge: float = 100.0) -> void:
 	image.fill(Color("07151e"))
 	last_speed = int(absf(speed)*3.6)
-	last_mode = "BOOST" if boosting else "REVERSE" if speed < -0.05 else ("DRIVE" if absf(speed)>0.1 else "HOLD")
+	last_mode = "BOOST" if boosting else ("REVERSE" if speed < -0.05 else ("DRIVE" if absf(speed)>0.1 else "HOLD"))
 	text(12,9,"KESTREL / MK I",2,CYAN)
 	text(370,9,last_mode,2,AMBER)
 	rect(12,31,488,1,DIM)
