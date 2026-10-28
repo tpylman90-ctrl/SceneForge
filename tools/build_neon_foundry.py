@@ -481,7 +481,7 @@ for side in [-1,1]:
 # Aggressive idle stance: rigid, perfectly still, pitched nose-down by 6 degrees.
 vehicle_objects=[o for o in bpy.context.scene.objects if o not in vehicle_before and o.type=='MESH']
 from mathutils import Matrix
-pitch=Matrix.Rotation(math.radians(6),'X')
+pitch=Matrix.Rotation(math.radians(6),3,'X')
 for obj in vehicle_objects:
  bpy.context.view_layer.objects.active=obj
  bpy.ops.object.select_all(action='DESELECT');obj.select_set(True)
@@ -553,6 +553,8 @@ for o in bpy.context.scene.objects:
    for li in face.loop_indices:
     world=o.matrix_world @ o.data.vertices[o.data.loops[li].vertex_index].co
     uv[li].uv=((world.x+14)/28,(world.y+11.5)/19)
+ if o.data.materials[0]==M['kestrel_carbon']:
+  for uv in o.data.uv_layers.active.data:uv.uv*=8
  # Weighted normals preserve broad planar faces and smooth the beveled edges.
  mod=o.modifiers.new('Weighted corner normals','WEIGHTED_NORMAL');mod.keep_sharp=True;mod.weight=50
  bpy.ops.object.modifier_apply(modifier=mod.name)
