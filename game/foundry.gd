@@ -349,8 +349,8 @@ func ui() -> void:
 	layer.add_child(help_label)
 	var row := HBoxContainer.new()
 	row.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM)
-	row.position = Vector2(-505, -78)
-	row.size = Vector2(1010, 54)
+	row.position = Vector2(-565, -78)
+	row.size = Vector2(1130, 54)
 	row.add_theme_constant_override("separation", 10)
 	layer.add_child(row)
 	mode_button = make_button("WALK", func(): set_inspection(not orbit_mode))
@@ -364,6 +364,7 @@ func ui() -> void:
 	row.add_child(make_button("SOUND", func():
 		var sound: AudioStreamPlayer3D = get_node("KestrelHum")
 		sound.volume_db = -80 if sound.volume_db > -50 else -25, 100))
+	row.add_child(make_button("TRACK", func(): get_tree().change_scene_to_file("res://city_loop.tscn"), 100))
 	row.add_child(make_button("STATS", func():
 		stats_panel.visible = not stats_panel.visible
 		fps_label.visible = stats_panel.visible
