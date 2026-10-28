@@ -380,6 +380,7 @@ faces=[tuple(reversed(range(10)))]
 for j in range(len(ys)-1):
  for i in range(10):
   if i==5 and ys[j]<1.65 and ys[j+1]>-1.4:continue
+  if i in [2,3,4] and ys[j]<1.22 and ys[j+1]>-.75:continue
   faces.append((j*10+i,j*10+(i+1)%10,(j+1)*10+(i+1)%10,(j+1)*10+i))
 faces.append(tuple((len(ys)-1)*10+i for i in range(10)))
 hero_mesh('Swept slate monocoque',verts,faces,'kestrel_slate',.015)
@@ -395,6 +396,7 @@ for j in range(len(ys)-1):
 hero_mesh('Carbon beak inset',verts,faces,'kestrel_carbon')
 # Swept flank panels taper like overlapping flight feathers.
 for side in [-1,1]:
+ driver_before=set(bpy.context.scene.objects)
  for i in range(3):
   y=-1.35+i*.67
   pts=[]
@@ -409,6 +411,47 @@ for side in [-1,1]:
  # Slim swept mirrors rather than rectangular stalk-mounted boxes.
  pipe('Mirror arm',(cx+side*.83,cy-.65,1.35),(cx+side*1.24,cy-.82,1.35),.024,'trim')
  o=box('Camera mirror',(cx+side*1.25,cy-.87,1.37),(.22,.32,.065),'kestrel_slate',.025);o.rotation_euler.z=side*.3
+
+
+ if side==1:
+  for part in bpy.context.scene.objects:
+   if part not in driver_before and part.type=='MESH':part['driver_door']=True
+# Independently rigged driver door, fitted to the removed side shell faces.
+door_before=set(bpy.context.scene.objects)
+door_ys=np.linspace(-3.15,2.5,49)
+active_segments=[j for j in range(48) if door_ys[j]<1.22 and door_ys[j+1]>-.75]
+samples=door_ys[min(active_segments):max(active_segments)+2]
+verts=[]
+for y in samples:
+ w,lo,hi=dims(y)
+ for xx,zz in cross[2:6]:verts.append((cx+xx*w,cy+y,lo+zz*(hi-lo)))
+outer=len(verts)
+verts.extend([(x-.045,y,z) for x,y,z in verts])
+faces=[]
+for j in range(len(samples)-1):
+ for i in range(3):
+  a=j*4+i;c=(j+1)*4+i
+  faces.append((a,a+1,c+1,c))
+  faces.append((a+outer,c+outer,c+1+outer,a+1+outer))
+ for i in [0,3]:
+  a=j*4+i;c=(j+1)*4+i
+  faces.append((a,c,c+outer,a+outer))
+for row in [0,len(samples)-1]:
+ for i in range(3):
+  a=row*4+i
+  faces.append((a,a+outer,a+1+outer,a+1))
+hero_mesh('Driver door shell',verts,faces,'kestrel_slate',.008)
+panel=[(1.04,cy-.65,.89),(1.16,cy+.95,.92),(.86,cy+.95,1.19),(.89,cy-.65,1.15)]
+hero_mesh('Driver door inner trim',panel,[(0,1,2,3)],'kestrel_carbon')
+box('Driver armrest',(1.04,cy+.1,1.12),(.13,.64,.065),'rubber',.02)
+box('Driver interior latch',(.99,cy-.18,1.22),(.06,.18,.035),'steel',.008)
+for i in range(6):pipe('Inner door fastener',(1.08,cy-.58+i*.27,.96),(1.095,cy-.58+i*.27,.96),.013,'steel',8)
+for obj in bpy.context.scene.objects:
+ if obj not in door_before and obj.type=='MESH':obj['driver_door']=True
+# The guides stay on the fixed chassis and become visible when the door opens.
+for z in [.85,1.19]:
+ pipe('Door rearward guide',(1.16,cy+.45,z),(1.16,cy+2.08,z),.023,'steel',10)
+ box('Guide mount',(1.16,cy+1.65,z),(.16,.13,.12),'trim',.01)
 
 # Long open cockpit, recessed through the monocoque's upper deck.
 floor=[(-.5,cy-1.36,.73),(.5,cy-1.36,.73),(.7,cy-.6,.73),(.7,cy+1.5,.73),(-.7,cy+1.5,.73),(-.7,cy-.6,.73)]
@@ -562,11 +605,20 @@ box('yard retaining wall',(0,-24.5,1),(38,.35,2),'skyline')
 # Batch scenery and vehicle separately; keep tail panels independently addressable.
 for mat in M.values():
  for vehicle in [False,True]:
-  obs=[o for o in bpy.context.scene.objects if o.type=='MESH' and len(o.data.materials) and o.data.materials[0]==mat and bool(o.get('is_vehicle',False))==vehicle and not o.get('tail_vector',0)]
+  obs=[o for o in bpy.context.scene.objects if o.type=='MESH' and len(o.data.materials) and o.data.materials[0]==mat and bool(o.get('is_vehicle',False))==vehicle and not o.get('tail_vector',0) and not o.get('driver_door',False)]
   if not obs:continue
   bpy.ops.object.select_all(action='DESELECT')
   for o in obs:o.select_set(True)
   bpy.context.view_layer.objects.active=obs[0];bpy.ops.object.join();obs[0].name=('Kestrel_' if vehicle else 'Foundry_')+mat.name
+# Preserve the complete animated door under one named transform.
+door_root=bpy.data.objects.new('DriverDoor',None);bpy.context.collection.objects.link(door_root)
+for mat in M.values():
+ obs=[o for o in bpy.context.scene.objects if o.type=='MESH' and o.get('driver_door',False) and len(o.data.materials) and o.data.materials[0]==mat]
+ if not obs:continue
+ bpy.ops.object.select_all(action='DESELECT')
+ for obj in obs:obj.select_set(True)
+ bpy.context.view_layer.objects.active=obs[0];bpy.ops.object.join()
+ obj=obs[0];obj.name='DriverDoor_'+mat.name;obj.parent=door_root
 # UV cube projection in world scale after batching keeps surface grain consistent.
 for o in bpy.context.scene.objects:
  if o.type!='MESH': continue

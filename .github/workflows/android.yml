@@ -122,6 +122,11 @@ jobs:
           test -s build/Kestrel-tail.png
           timeout 120 xvfb-run -a godot --audio-driver Dummy --path game --rendering-method gl_compatibility --resolution 1280x720 -- --capture --cockpit-view
           test -s build/Kestrel-cockpit.png
+          timeout 120 xvfb-run -a godot --audio-driver Dummy --path game --rendering-method gl_compatibility --resolution 1280x720 -- --capture --door-open
+          test -s build/Kestrel-door-open.png
+          timeout 120 xvfb-run -a godot --audio-driver Dummy --path game --rendering-method gl_compatibility --resolution 1280x720 -- --door-motion-smoke 2>&1 | tee build/door-motion.log
+          if grep -E 'SCRIPT ERROR:|ERROR:' build/door-motion.log; then exit 1; fi
+          grep SCENEFORGE_DOOR_MOTION_OK build/door-motion.log
           timeout 120 xvfb-run -a godot --audio-driver Dummy --path game --rendering-method gl_compatibility --resolution 1280x720 -- --capture --rear-view
           test -s build/NeonFoundry-rear.png
           timeout 120 xvfb-run -a godot --audio-driver Dummy --path game --rendering-method gl_compatibility --resolution 1280x720 -- --benchmark-smoke 2>&1 | tee build/comparison-smoke.log
@@ -209,5 +214,5 @@ jobs:
           if ! gh release view pipeline-latest >/dev/null 2>&1; then
             gh release create pipeline-latest --target "$GITHUB_SHA" --prerelease --title "SceneForge — latest Android test" --notes "Permanently signed Android build. Download SceneForge.apk."
           fi
-          gh release upload pipeline-latest build/SceneForge.apk build/SceneForge-debug.apk build/SHA256SUMS.txt build/BUILD.txt build/NeonFoundry-preview.png build/NeonFoundry-ingame.png build/NeonFoundry-road.png build/Kestrel-hovercar.png build/Kestrel-tail.png build/Kestrel-cockpit.png build/NeonFoundry-rear.png build/asset-report.json --clobber
+          gh release upload pipeline-latest build/SceneForge.apk build/SceneForge-debug.apk build/SHA256SUMS.txt build/BUILD.txt build/NeonFoundry-preview.png build/NeonFoundry-ingame.png build/NeonFoundry-road.png build/Kestrel-hovercar.png build/Kestrel-tail.png build/Kestrel-cockpit.png build/Kestrel-door-open.png build/NeonFoundry-rear.png build/asset-report.json --clobber
           gh release edit pipeline-latest --notes "Successful pipeline build #$GITHUB_RUN_NUMBER from commit $GITHUB_SHA. Permanent release signing verified. Download SceneForge.apk; the debug variant remains available separately."

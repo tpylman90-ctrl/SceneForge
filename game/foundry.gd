@@ -11,6 +11,21 @@ var stick := Vector2.ZERO
 var stick_ring: Control
 var fps_label: Label
 var elapsed := 0.0
+var orbit_mode := true
+var cockpit_locked := false
+var orbit_angle := 0.58
+var orbit_elevation := 0.20
+var orbit_radius := 5.7
+var touch_points: Dictionary = {}
+var driver_door: Node3D
+var door_open := false
+var door_busy := false
+var door_button: Button
+var mode_button: Button
+var help_label: Label
+var stats_panel: Control
+var last_door_tween: Tween
+var saved_orbit := false
 var sun: DirectionalLight3D
 var quality_button: Button
 var compare_button: Button
@@ -36,6 +51,21 @@ func _ready() -> void:
 				material.vertex_color_use_as_albedo = true
 		if "asphalt" in node.name or "grime" in node.name or "skyline" in node.name:
 			node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+
+	var door_visual: Node3D = scenery.find_child("DriverDoor", true, false)
+	assert(door_visual != null, "Missing rigged DriverDoor")
+	var door_body := AnimatableBody3D.new()
+	door_body.name = "DriverDoorMechanism"
+	add_child(door_body)
+	door_visual.reparent(door_body, true)
+	var door_shape := CollisionShape3D.new()
+	var door_box := BoxShape3D.new()
+	door_box.size = Vector3(0.16, 0.65, 2.2)
+	door_shape.shape = door_box
+	door_shape.position = Vector3(1.16, 1.3, 0.65)
+	door_body.add_child(door_shape)
+	driver_door = door_body
+
 	var environment := WorldEnvironment.new()
 	var settings := Environment.new()
 	var sky := Sky.new()
@@ -126,27 +156,28 @@ func _ready() -> void:
 		sound.play()
 	ui()
 	apply_quality(true)
-	if "--vehicle-view" in OS.get_cmdline_user_args():
-		body.position = Vector3(3.2, 0.1, 5.7)
-		yaw = 0.58
-		pitch = -0.1
 
-	if "--cockpit-view" in OS.get_cmdline_user_args():
-		body.position = Vector3(2.05, 0.62, 0.3)
-		yaw = 1.8
-		pitch = -0.42
-	if "--vehicle-tail" in OS.get_cmdline_user_args():
-		body.position = Vector3(2.4, 0.1, -2.8)
-		yaw = 2.55
-		pitch = -0.09
-	if "--rear-view" in OS.get_cmdline_user_args():
-		body.position = Vector3(0, 0.1, 5)
-		yaw = PI
-		pitch = 0.03
-	if "--road-closeup" in OS.get_cmdline_user_args():
-		body.position = Vector3(0, 0.1, 4.5)
-		pitch = -0.8
-	if "--benchmark-smoke" in OS.get_cmdline_user_args():
+	set_inspection(true)
+	var args := OS.get_cmdline_user_args()
+	if "--vehicle-tail" in args:
+		inspection_preset("tail")
+	if "--cockpit-view" in args or "--door-open" in args:
+		inspection_preset("cockpit")
+	if "--rear-view" in args or "--road-closeup" in args:
+		set_inspection(false)
+		if "--rear-view" in args:
+			body.position = Vector3(0, 0.1, 5)
+			yaw = PI
+			pitch = 0.03
+		else:
+			body.position = Vector3(0, 0.1, 4.5)
+			yaw = 0
+			pitch = -0.8
+	if "--door-open" in args:
+		toggle_door()
+	if "--door-motion-smoke" in args:
+		call_deferred("test_door_motion")
+	if "--benchmark-smoke" in args:
 		start_comparison()
 
 func light(pos: Vector3, color: Color, energy: float, radius: float) -> void:
@@ -168,87 +199,69 @@ func collider(pos: Vector3, size: Vector3) -> void:
 	wall.add_child(shape)
 	add_child(wall)
 
+
+func make_button(label: String, action: Callable, width: float = 112) -> Button:
+	var button := Button.new()
+	button.text = label
+	button.custom_minimum_size = Vector2(width, 54)
+	button.pressed.connect(action)
+	return button
+
 func ui() -> void:
 	var layer := CanvasLayer.new()
 	add_child(layer)
 	var title := Label.new()
-	title.text = "SCENEFORGE  /  NEON FOUNDRY\nRepair bay · Kestrel · open cockpit study 10"
-	title.position = Vector2(28, 20)
-	title.add_theme_font_size_override("font_size", 23)
+	title.text = "K E S T R E L"
+	title.position = Vector2(26, 20)
+	title.add_theme_font_size_override("font_size", 32)
 	layer.add_child(title)
-	var help := Label.new()
-	help.text = "LEFT: MOVE      RIGHT: LOOK      •      Walk into the workshop\nDesktop: WASD / arrows · drag to look"
-	help.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT)
-	help.position = Vector2(28, -88)
-	help.add_theme_font_size_override("font_size", 18)
-	layer.add_child(help)
+	var subtitle := Label.new()
+	subtitle.text = "NEON FOUNDRY  /  VEHICLE INSPECTION"
+	subtitle.position = Vector2(28, 64)
+	subtitle.add_theme_font_size_override("font_size", 15)
+	layer.add_child(subtitle)
 	fps_label = Label.new()
-	fps_label.position = Vector2(28, 90)
+	fps_label.position = Vector2(28, 89)
+	fps_label.visible = false
 	layer.add_child(fps_label)
-	var reset := Button.new()
-	reset.text = "RESET VIEW"
-	reset.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
-	reset.position = Vector2(-200, 25)
-	reset.size = Vector2(170, 55)
-	reset.pressed.connect(func(): body.position = Vector3(3.2, 0.1, 5.7); inspection_mode = false; yaw = 0.58; pitch = -0.1; stick = Vector2.ZERO)
-	layer.add_child(reset)
-	quality_button = Button.new()
-	quality_button.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
-	quality_button.position = Vector2(-200, 92)
-	quality_button.size = Vector2(170, 55)
-	quality_button.pressed.connect(func(): apply_quality(not balanced))
-	layer.add_child(quality_button)
-	compare_button = Button.new()
-	compare_button.text = "COMPARE FPS"
-	compare_button.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
-	compare_button.position = Vector2(-200, 159)
-	compare_button.size = Vector2(170, 55)
-	compare_button.pressed.connect(start_comparison)
-
-	layer.add_child(compare_button)
-	var showcase := Button.new()
-	showcase.text = "FRONT / TAIL"
-	showcase.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
-	showcase.position = Vector2(-200, 226)
-	showcase.size = Vector2(170, 55)
-	showcase.pressed.connect(func():
-		cancel_comparison()
-		inspection_mode = false
-		show_tail = not show_tail
-		body.position = Vector3(2.4, 0.1, -2.8) if show_tail else Vector3(3.2, 0.1, 5.7)
-		yaw = 2.55 if show_tail else 0.58
-		pitch = -0.09 if show_tail else -0.1
-		stick = Vector2.ZERO)
-
-	layer.add_child(showcase)
-	var cockpit_button := Button.new()
-	cockpit_button.text = "COCKPIT VIEW"
-	cockpit_button.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
-	cockpit_button.position = Vector2(-200, 360)
-	cockpit_button.size = Vector2(170, 55)
-	cockpit_button.pressed.connect(func():
-		cancel_comparison()
-		body.position = Vector3(2.05, 0.62, 0.3)
-		inspection_mode = true
-		yaw = 1.8
-		pitch = -0.42
-		stick = Vector2.ZERO)
-	layer.add_child(cockpit_button)
-
-	var mute := Button.new()
-	mute.text = "HUM ON / OFF"
-	mute.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
-	mute.position = Vector2(-200, 293)
-	mute.size = Vector2(170, 55)
-	mute.pressed.connect(func():
-		var sound: AudioStreamPlayer3D = get_node("KestrelHum")
-		sound.volume_db = -80 if sound.volume_db > -50 else -25)
-	layer.add_child(mute)
 	result_label = Label.new()
-	result_label.position = Vector2(28, 120)
-	result_label.add_theme_font_size_override("font_size", 18)
+	result_label.position = Vector2(28, 112)
+	result_label.add_theme_font_size_override("font_size", 17)
 	layer.add_child(result_label)
-	reset.pressed.connect(func(): cancel_comparison())
+	help_label = Label.new()
+	help_label.position = Vector2(28, 151)
+	help_label.add_theme_font_size_override("font_size", 16)
+	layer.add_child(help_label)
+	var row := HBoxContainer.new()
+	row.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM)
+	row.position = Vector2(-505, -78)
+	row.size = Vector2(1010, 54)
+	row.add_theme_constant_override("separation", 10)
+	layer.add_child(row)
+	mode_button = make_button("WALK", func(): set_inspection(not orbit_mode))
+	row.add_child(mode_button)
+	row.add_child(make_button("FRONT", func(): inspection_preset("front"), 100))
+	row.add_child(make_button("TAIL", func(): inspection_preset("tail"), 100))
+	row.add_child(make_button("COCKPIT", func(): inspection_preset("cockpit")))
+	door_button = make_button("OPEN DOOR", toggle_door, 140)
+	row.add_child(door_button)
+	row.add_child(make_button("SOUND", func():
+		var sound: AudioStreamPlayer3D = get_node("KestrelHum")
+		sound.volume_db = -80 if sound.volume_db > -50 else -25, 100))
+	row.add_child(make_button("STATS", func():
+		stats_panel.visible = not stats_panel.visible
+		fps_label.visible = stats_panel.visible, 100))
+	var stats := VBoxContainer.new()
+	stats.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
+	stats.position = Vector2(-205, 24)
+	stats.size = Vector2(180, 120)
+	stats.visible = false
+	layer.add_child(stats)
+	stats_panel = stats
+	quality_button = make_button("BALANCED", func(): apply_quality(not balanced), 180)
+	stats.add_child(quality_button)
+	compare_button = make_button("COMPARE FPS", start_comparison, 180)
+	stats.add_child(compare_button)
 	stick_ring = Control.new()
 	stick_ring.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	stick_ring.draw.connect(func():
@@ -258,7 +271,126 @@ func ui() -> void:
 	stick_ring.visible = false
 	layer.add_child(stick_ring)
 
+func set_inspection(enabled: bool) -> void:
+	orbit_mode = enabled
+	inspection_mode = false
+	touch_points.clear()
+	stick = Vector2.ZERO
+	move_touch = -1
+	look_touch = -1
+	stick_ring.visible = false
+	body.velocity = Vector3.ZERO
+	mode_button.text = "WALK" if enabled else "INSPECT"
+	help_label.text = "Drag to orbit · Pinch / scroll to zoom" if enabled else "Left: move · Right: look"
+	if not enabled:
+		body.position = Vector3(3.2, 0.1, 5.7)
+		yaw = 0.58
+		pitch = -0.1
+		body.rotation = Vector3(0, yaw, 0)
+		camera.position = Vector3(0, 1.65, 0)
+		camera.rotation = Vector3(pitch, 0, 0)
+
+func inspection_preset(which: String) -> void:
+	cancel_comparison()
+	set_inspection(true)
+	cockpit_locked = which == "cockpit"
+	if which == "front":
+		orbit_angle = 0.58
+		orbit_elevation = 0.20
+		orbit_radius = 5.7
+	elif which == "tail":
+		orbit_angle = 2.55
+		orbit_elevation = 0.22
+		orbit_radius = 4.5
+
+func update_orbit() -> void:
+	if cockpit_locked:
+		camera.global_position = Vector3(2.45, 2.65, 0.25)
+		camera.look_at(Vector3(0, 1.18, 0.8))
+		return
+	var center := Vector3(0, 1.05, 0.8)
+	var pos := center + Vector3(sin(orbit_angle) * cos(orbit_elevation), sin(orbit_elevation), cos(orbit_angle) * cos(orbit_elevation)) * orbit_radius
+	pos.x = clampf(pos.x, -6.7, 6.7)
+	pos.y = maxf(pos.y, 0.4)
+	pos.z = clampf(pos.z, -2.6, 9.0)
+	camera.global_position = pos
+	camera.look_at(center)
+
+func toggle_door() -> void:
+	if door_busy:
+		return
+	door_busy = true
+	door_button.disabled = true
+	door_open = not door_open
+	var kick := Vector3(0.52, 0.04, 0)
+	var slide := Vector3(0.52, 0.21, -1.65)
+	last_door_tween = create_tween()
+	last_door_tween.set_process_mode(Tween.TWEEN_PROCESS_PHYSICS)
+	last_door_tween.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN_OUT)
+	if door_open:
+		last_door_tween.tween_property(driver_door, "position", kick, 0.45)
+		last_door_tween.tween_property(driver_door, "position", slide, 0.9)
+	else:
+		last_door_tween.tween_property(driver_door, "position", kick, 0.9)
+		last_door_tween.tween_property(driver_door, "position", Vector3.ZERO, 0.45)
+	last_door_tween.finished.connect(func():
+		door_busy = false
+		door_button.disabled = false
+		door_button.text = "CLOSE DOOR" if door_open else "OPEN DOOR")
+
+func test_door_motion() -> void:
+	toggle_door()
+	await last_door_tween.finished
+	assert(driver_door.position.distance_to(Vector3(0.52, 0.21, -1.65)) < 0.01)
+	toggle_door()
+	await last_door_tween.finished
+	assert(driver_door.position.length() < 0.01)
+	print("SCENEFORGE_DOOR_MOTION_OK")
+	shutdown_for_test()
+
+func _input(event: InputEvent) -> void:
+	if event is InputEventScreenTouch and not event.pressed:
+		touch_points.erase(event.index)
+
 func _unhandled_input(event: InputEvent) -> void:
+
+	if orbit_mode and not comparing:
+		if event is InputEventScreenTouch:
+			if event.pressed:
+				touch_points[event.index] = event.position
+			else:
+				touch_points.erase(event.index)
+		elif event is InputEventScreenDrag:
+			cockpit_locked = false
+			if touch_points.size() >= 2:
+				var points: Array = touch_points.values()
+				var first: Vector2 = points[0]
+				var second: Vector2 = points[1]
+				var old_span: float = first.distance_to(second)
+				touch_points[event.index] = event.position
+				points = touch_points.values()
+				first = points[0]
+				second = points[1]
+				var new_span: float = first.distance_to(second)
+				if new_span > 5:
+					orbit_radius = clampf(orbit_radius * old_span / new_span, 3.0, 8.5)
+			else:
+				touch_points[event.index] = event.position
+				orbit_angle -= event.relative.x * 0.005
+				orbit_elevation = clampf(orbit_elevation + event.relative.y * 0.004, -0.05, 1.05)
+		elif event is InputEventMouseMotion and Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
+			cockpit_locked = false
+			orbit_angle -= event.relative.x * 0.005
+			orbit_elevation = clampf(orbit_elevation + event.relative.y * 0.004, -0.05, 1.05)
+		elif event is InputEventMouseButton and event.pressed:
+			if event.button_index == MOUSE_BUTTON_WHEEL_UP:
+				orbit_radius = maxf(3.0, orbit_radius - 0.4)
+			elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
+				orbit_radius = minf(8.5, orbit_radius + 0.4)
+		elif event is InputEventMagnifyGesture:
+			cockpit_locked = false
+			orbit_radius = clampf(orbit_radius / event.factor, 3.0, 8.5)
+		return
 	if comparing:
 		return
 	var screen := get_viewport().get_visible_rect().size
@@ -290,6 +422,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		pitch = clampf(pitch - event.relative.y * 0.003, -1.1, 1.1)
 
 func _physics_process(delta: float) -> void:
+	if orbit_mode and not comparing:
+		body.velocity = Vector3.ZERO
+		return
 
 	if "--cockpit-view" in OS.get_cmdline_user_args():
 		body.rotation.y = yaw
@@ -327,13 +462,21 @@ func _physics_process(delta: float) -> void:
 
 var capture_frames := 0
 func _process(_delta: float) -> void:
+	if orbit_mode and not comparing:
+		update_orbit()
+		elapsed += _delta
+		if elapsed > 0.5:
+			fps_label.text = "%d FPS · %s" % [Engine.get_frames_per_second(), "BALANCED" if balanced else "REFERENCE"]
+			elapsed = 0
 	if comparing:
 		comparison_frame()
 	if "--capture" in OS.get_cmdline_user_args():
 		capture_frames += 1
 		if capture_frames == 35:
 			var filename := "NeonFoundry-ingame.png"
-			if "--cockpit-view" in OS.get_cmdline_user_args():
+			if "--door-open" in OS.get_cmdline_user_args():
+				filename = "Kestrel-door-open.png"
+			elif "--cockpit-view" in OS.get_cmdline_user_args():
 				filename = "Kestrel-cockpit.png"
 			elif "--vehicle-view" in OS.get_cmdline_user_args():
 				filename = "Kestrel-hovercar.png"
@@ -358,6 +501,9 @@ func apply_quality(use_balanced: bool) -> void:
 	quality_button.text = "BALANCED" if balanced else "REFERENCE"
 
 func start_comparison() -> void:
+	saved_orbit = orbit_mode
+	set_inspection(false)
+	fps_label.visible = true
 	inspection_mode = false
 	if comparing:
 		return
@@ -445,6 +591,8 @@ func comparison_frame() -> void:
 	if file:
 		file.store_string(JSON.stringify(report, "  "))
 	print("SCENEFORGE_COMPARISON ", JSON.stringify(report))
+	if saved_orbit:
+		set_inspection(true)
 	if smoke:
 		shutdown_for_test()
 
