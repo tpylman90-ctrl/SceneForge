@@ -96,6 +96,9 @@ func _ready() -> void:
 	add_child(body)
 	ui()
 	apply_quality(true)
+	if "--road-closeup" in OS.get_cmdline_user_args():
+		body.position = Vector3(0, 0.1, 4.5)
+		pitch = -0.8
 	if "--benchmark-smoke" in OS.get_cmdline_user_args():
 		start_comparison()
 
@@ -230,7 +233,7 @@ func _process(_delta: float) -> void:
 	if "--capture" in OS.get_cmdline_user_args():
 		capture_frames += 1
 		if capture_frames == 35:
-			get_viewport().get_texture().get_image().save_png(OS.get_environment("GITHUB_WORKSPACE") + "/build/NeonFoundry-ingame.png")
+			get_viewport().get_texture().get_image().save_png(OS.get_environment("GITHUB_WORKSPACE") + ("/build/NeonFoundry-road.png" if "--road-closeup" in OS.get_cmdline_user_args() else "/build/NeonFoundry-ingame.png"))
 			get_tree().quit()
 
 # Bounded A/B: same camera, workload and renderer; two phases, no auto tuning.

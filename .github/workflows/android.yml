@@ -104,6 +104,8 @@ jobs:
           sudo apt-get install -y xvfb libgl1-mesa-dri
           timeout 120 xvfb-run -a godot --audio-driver Dummy --path game --rendering-method gl_compatibility --resolution 1280x720 -- --capture
           test -s build/NeonFoundry-ingame.png
+          timeout 120 xvfb-run -a godot --audio-driver Dummy --path game --rendering-method gl_compatibility --resolution 1280x720 -- --capture --road-closeup
+          test -s build/NeonFoundry-road.png
           timeout 120 xvfb-run -a godot --audio-driver Dummy --path game --rendering-method gl_compatibility --resolution 1280x720 -- --benchmark-smoke 2>&1 | tee build/comparison-smoke.log
           if grep -E 'SCRIPT ERROR:|ERROR:' build/comparison-smoke.log; then exit 1; fi
           grep SCENEFORGE_COMPARISON build/comparison-smoke.log
@@ -189,5 +191,5 @@ jobs:
           if ! gh release view pipeline-latest >/dev/null 2>&1; then
             gh release create pipeline-latest --target "$GITHUB_SHA" --prerelease --title "SceneForge — latest Android test" --notes "Permanently signed Android build. Download SceneForge.apk."
           fi
-          gh release upload pipeline-latest build/SceneForge.apk build/SceneForge-debug.apk build/SHA256SUMS.txt build/BUILD.txt build/NeonFoundry-preview.png build/NeonFoundry-ingame.png build/asset-report.json --clobber
+          gh release upload pipeline-latest build/SceneForge.apk build/SceneForge-debug.apk build/SHA256SUMS.txt build/BUILD.txt build/NeonFoundry-preview.png build/NeonFoundry-ingame.png build/NeonFoundry-road.png build/asset-report.json --clobber
           gh release edit pipeline-latest --notes "Successful pipeline build #$GITHUB_RUN_NUMBER from commit $GITHUB_SHA. Permanent release signing verified. Download SceneForge.apk; the debug variant remains available separately."
