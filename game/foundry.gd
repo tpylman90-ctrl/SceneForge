@@ -80,6 +80,8 @@ func _ready() -> void:
 	for side in [-1.0, 1.0]:
 		collider(Vector3(side * 7.8, 4.0, 0), Vector3(0.3, 8, 24))
 	collider(Vector3(0, 1.1, 11.35), Vector3(15, 2.2, 0.15))
+	collider(Vector3(-4.05, 0.9, 3.2), Vector3(2.65, 1.8, 4.5))
+	collider(Vector3(-6.25, 0.5, 2.5), Vector3(0.5, 1, 0.5))
 	collider(Vector3(0, -0.15, 0), Vector3(28, 0.3, 24))
 	collider(Vector3(-4.5, 2.5, -4), Vector3(5, 5, 1))
 	collider(Vector3(4.5, 2.5, -4), Vector3(5, 5, 1))
@@ -110,6 +112,14 @@ func _ready() -> void:
 	add_child(body)
 	ui()
 	apply_quality(true)
+	if "--vehicle-view" in OS.get_cmdline_user_args():
+		body.position = Vector3(-0.3, 0.1, 7.3)
+		yaw = 0.73
+		pitch = -0.12
+	if "--rear-view" in OS.get_cmdline_user_args():
+		body.position = Vector3(0, 0.1, 5)
+		yaw = PI
+		pitch = 0.03
 	if "--road-closeup" in OS.get_cmdline_user_args():
 		body.position = Vector3(0, 0.1, 4.5)
 		pitch = -0.8
@@ -139,7 +149,7 @@ func ui() -> void:
 	var layer := CanvasLayer.new()
 	add_child(layer)
 	var title := Label.new()
-	title.text = "SCENEFORGE  /  NEON FOUNDRY\nRepair bay · district architecture study 07"
+	title.text = "SCENEFORGE  /  NEON FOUNDRY\nRepair bay · Kestrel hover coupe · study 08"
 	title.position = Vector2(28, 20)
 	title.add_theme_font_size_override("font_size", 23)
 	layer.add_child(title)
@@ -247,7 +257,7 @@ func _process(_delta: float) -> void:
 	if "--capture" in OS.get_cmdline_user_args():
 		capture_frames += 1
 		if capture_frames == 35:
-			get_viewport().get_texture().get_image().save_png(OS.get_environment("GITHUB_WORKSPACE") + ("/build/NeonFoundry-road.png" if "--road-closeup" in OS.get_cmdline_user_args() else "/build/NeonFoundry-ingame.png"))
+			get_viewport().get_texture().get_image().save_png(OS.get_environment("GITHUB_WORKSPACE") + ("/build/Kestrel-hovercar.png" if "--vehicle-view" in OS.get_cmdline_user_args() else ("/build/NeonFoundry-rear.png" if "--rear-view" in OS.get_cmdline_user_args() else ("/build/NeonFoundry-road.png" if "--road-closeup" in OS.get_cmdline_user_args() else "/build/NeonFoundry-ingame.png"))))
 			get_tree().quit()
 
 # Bounded A/B: same camera, workload and renderer; two phases, no auto tuning.

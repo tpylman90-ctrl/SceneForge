@@ -26,6 +26,7 @@ material('puddle',(.055,.1,.13),.65,.09)
 material('window_warm',(.25,.17,.09),0,.65,.32)
 material('window_cool',(.07,.14,.18),0,.55,.2)
 material('grime',(.045,.055,.052),0,.98)
+material('vehicle_glass',(.025,.065,.085),.6,.16)
 
 # Original seamless PBR texture maps, built offline with Blender's bundled NumPy.
 # Each material gets albedo, roughness and tangent-space normals exported in GLB.
@@ -337,6 +338,100 @@ for z in [.4,1.1,1.8]:pipe('fence rail',(-7,-11.35,z),(7,-11.35,z),.025,'steel',
 for x in [-10,-4,3,10]:
  box('rear district mass',(x,-18,4.5),(5,5,9),'skyline')
  box('rear roof',(x,-18,9.1),(5.2,5.2,.2),'skyline')
+
+
+# NF Kestrel: original parked hover coupe. Shaped body, no wheel placeholders.
+cx,cy=-4.05,-3.2
+def car_loft(name,sections,mat):
+ verts=[]
+ # Cross section wraps lower pan, chamfered shoulders and upper deck.
+ for y,w,bottom,top in sections:
+  verts.extend([(cx-w*.72,cy+y,bottom),(cx+w*.72,cy+y,bottom),
+   (cx+w,cy+y,bottom+.08),(cx+w,cy+y,top-.07),
+   (cx+w*.72,cy+y,top),(cx-w*.72,cy+y,top),
+   (cx-w,cy+y,top-.07),(cx-w,cy+y,bottom+.08)])
+ faces=[tuple(reversed(range(8)))]
+ for j in range(len(sections)-1):
+  for i in range(8):faces.append((j*8+i,j*8+(i+1)%8,(j+1)*8+(i+1)%8,(j+1)*8+i))
+ faces.append(tuple((len(sections)-1)*8+i for i in range(8)))
+ mesh=bpy.data.meshes.new(name);mesh.from_pydata(verts,[],faces);mesh.update()
+ obj=bpy.data.objects.new(name,mesh);bpy.context.collection.objects.link(obj);obj.data.materials.append(M[mat])
+ bpy.context.view_layer.objects.active=obj;obj.select_set(True)
+ mod=obj.modifiers.new('Body edge radii','BEVEL');mod.width=.035;mod.segments=3
+ bpy.ops.object.modifier_apply(modifier=mod.name)
+ return obj
+car_loft('Kestrel lower pan',[(-2.18,.55,.5,.66),(-1.9,.9,.48,.78),(-.8,1.02,.48,.86),(.8,1.02,.49,.86),(1.8,.89,.51,.8),(2.05,.7,.56,.73)],'trim')
+car_loft('Kestrel painted shell',[(-2.12,.52,.67,.83),(-1.75,.92,.7,1.02),(-.65,1.02,.78,1.2),(.85,1.0,.8,1.22),(1.8,.85,.73,1.06),(2.0,.68,.7,.91)],'orange')
+car_loft('Kestrel opaque canopy',[(-.65,.69,1.15,1.24),(-.15,.74,1.17,1.77),(.65,.7,1.19,1.83),(1.12,.55,1.17,1.42)],'vehicle_glass')
+# Windshield surround and roof rail follow the canopy instead of enclosing a box.
+for side in [-1,1]:
+ pipe('windshield pillar',(cx+side*.69,cy-.63,1.2),(cx+side*.74,cy-.15,1.77),.035,'steel')
+ pipe('roof rail',(cx+side*.74,cy-.15,1.77),(cx+side*.7,cy+.65,1.83),.035,'trim')
+ pipe('rear canopy pillar',(cx+side*.7,cy+.65,1.83),(cx+side*.55,cy+1.12,1.38),.035,'steel')
+ box('side sill',(cx+side*1.02,cy,.78),(.1,2.35,.12),'steel')
+ box('door seam',(cx+side*1.027,cy+.4,1.02),(.008,.018,.28),'trim',.001)
+ box('recessed door handle',(cx+side*1.03,cy+.48,1.12),(.025,.23,.04),'trim',.005)
+ pipe('mirror stalk',(cx+side*.82,cy-.52,1.25),(cx+side*1.12,cy-.57,1.3),.025,'steel')
+ box('mirror pod',(cx+side*1.14,cy-.6,1.31),(.22,.21,.09),'trim')
+ # Four independent repulsor pods with metallic bells and luminous annuli.
+ for y in [-1.3,1.32]:
+  x=cx+side*1.02
+  pipe('repulsor neck',(x,cy+y,.58),(x,cy+y,.83),.22,'trim',20)
+  pipe('repulsor housing',(x,cy+y,.44),(x,cy+y,.64),.34,'steel',24)
+  pipe('repulsor lower ring',(x,cy+y,.4),(x,cy+y,.445),.345,'cyan',24)
+  pipe('repulsor nozzle',(x,cy+y,.37),(x,cy+y,.4),.25,'trim',24)
+  for a in range(0,360,90):
+   t=math.radians(a)
+   pipe('pod fastener',(x+.27*math.cos(t),cy+y+.27*math.sin(t),.65),(x+.27*math.cos(t),cy+y+.27*math.sin(t),.69),.025,'trim',8)
+ # Headlamps sit within a dark recess; tail lamps are narrow amber strips.
+ box('headlamp recess',(cx+side*.57,cy-1.91,.87),(.5,.09,.14),'trim')
+ box('headlamp lens',(cx+side*.57,cy-1.963,.89),(.38,.02,.055),'white',.008)
+ box('tail lamp recess',(cx+side*.5,cy+1.99,.86),(.44,.07,.13),'trim')
+ box('tail lamp',(cx+side*.5,cy+2.031,.88),(.34,.015,.045),'amber',.006)
+ fin=box('rear stabilizer',(cx+side*1.08,cy+1.34,1.0),(.34,.85,.06),'steel')
+ fin.rotation_euler.y=side*.12
+box('hood center spine',(cx,cy-1.22,1.1),(.14,.9,.045),'trim')
+for side in [-1,1]:
+ for i in range(6):
+  box('hood heat extractor',(cx+side*.45,cy-1.23+i*.09,1.15),(.3,.035,.02),'trim',.003)
+for i in range(8):box('rear cooling slat',(cx-.49+i*.14,cy+1.52,1.12),(.065,.5,.04),'trim',.004)
+box('front splitter',(cx,cy-1.99,.62),(1.45,.3,.065),'steel')
+box('rear diffuser',(cx,cy+1.92,.58),(1.5,.23,.12),'trim')
+for x in [-.5,0,.5]:box('diffuser vane',(cx+x,cy+1.96,.55),(.035,.35,.16),'steel',.004)
+text('KESTREL', (cx-.36,cy-2.16,.74),.115,'white')
+# Discreet workshop charging pedestal by the parking position.
+box('charger plinth',(-6.25,-2.5,.45),(.4,.45,.9),'trim')
+box('charger cap',(-6.25,-2.5,.94),(.48,.5,.12),'orange')
+box('charger status',(-6.25,-2.76,.75),(.2,.025,.1),'cyan')
+hose('charging lead',[(-6.0,-2.5,.8),(-5.7,-2.6,.38),(-5.4,-2.8,.25),(-5.1,-2.9,.8)],.025)
+# Rear service yard: continuous ground and detailed visible warehouse fronts.
+box('rear yard ground',(0,-18.5,-.12),(40,14,.12),'skyline',.01)
+for index,x in enumerate([-10,-4,3,10]):
+ height=9.0
+ # Street-facing loading shutters are on the +Y side of the rear warehouses.
+ box('loading opening',(x,-15.43,1.55),(3.2,.15,3.1),'trim')
+ box('loading shutter',(x,-15.32,1.5),(2.9,.08,2.9),'steel')
+ for z in [.3,.65,1,1.35,1.7,2.05,2.4,2.75]:
+  box('shutter rib',(x,-15.26,z),(2.83,.06,.035),'trim',.003)
+ box('loading canopy',(x,-15.0,3.3),(3.5,1.1,.15),'trim')
+ box('loading threshold',(x,-15.05,.11),(3.4,.7,.22),'concrete')
+ for z in [4.6,6.6]:
+  for dx in [-1.4,-.45,.45,1.4]:
+   box('rear window frame',(x+dx,-15.43,z),(.7,.12,1),'trim')
+   box('rear window',(x+dx,-15.35,z),(.55,.025,.8),'window_warm' if (index+int(dx*3))%3==0 else 'window_cool')
+ box('warehouse roof coping',(x,-15.45,9.05),(5.2,.32,.22),'trim')
+ pipe('yard downpipe',(x+2.1,-15.3,.25),(x+2.1,-15.3,8.8),.065,'rust')
+ for z in [2,5,8]:box('yard pipe clamp',(x+2.1,-15.24,z),(.2,.1,.07),'steel')
+ # No new lights: a dim panel suggests an occupied warehouse.
+ box('loading number plate',(x,-15.27,3.75),(.8,.05,.35),'orange')
+ for dx in [-1.7,1.7]:
+  pipe('yard safety bollard',(x+dx,-14.65,0),(x+dx,-14.65,.85),.09,'trim',10)
+  pipe('yard bollard band',(x+dx,-14.65,.6),(x+dx,-14.65,.72),.095,'orange',10)
+# Stacked yard cargo and low separation wall hide the ground horizon.
+for x,y in [(-7,-13.3),(6,-13.5),(11,-14)]:
+ box('yard cargo',(x,y,.6),(1.4,1,.0+1.2),'wall')
+ box('yard cargo upper',(x+.12,y,.0+1.65),(1.1,.8,.9),'trim')
+box('yard retaining wall',(0,-24.5,1),(38,.35,2),'skyline')
 
 # Batch geometry by material to keep draw calls bounded.
 for mat in M.values():
