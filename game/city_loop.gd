@@ -23,6 +23,11 @@ var left := false
 var right := false
 var cockpit := false
 var hud: Label
+var left_button: Button
+var right_button: Button
+var lap_banner: Label
+var banner_time := 0.0
+var lap_running := false
 var lap := 1
 var checkpoint := 0
 var lap_time := 0.0
@@ -122,6 +127,7 @@ func _ready() -> void:
 		steer = 0.7
 		feedback.update_feedback(1.0,speed,1.0,steer,5,0.12,cockpit,true,62)
 		update_camera(1.0)
+		right_button.set_pressed_no_signal(true)
 		boost_button.text="BOOST / 062%"
 		hud.text = "KESTREL MK I / NEON LOOP\nD 129 KM/H  /  BOOST ACTIVE"
 	if "--track-overview" in OS.get_cmdline_user_args():
@@ -137,8 +143,30 @@ func _ready() -> void:
 	if "--track-smoke" in OS.get_cmdline_user_args():
 		call_deferred("test_loop")
 
+func road_material() -> StandardMaterial3D:
+	# Fine albedo grain only: no displacement, normal-map shimmer or extra light.
+	var road := material("ffffff")
+	road.roughness=0.86
+	var noise := FastNoiseLite.new()
+	noise.seed=4421
+	noise.noise_type=FastNoiseLite.TYPE_SIMPLEX_SMOOTH
+	noise.frequency=0.7
+	noise.fractal_octaves=2
+	var ramp := Gradient.new()
+	ramp.set_color(0,Color("24343f"))
+	ramp.set_color(1,Color("2b3b46"))
+	var texture := NoiseTexture2D.new()
+	texture.width=256
+	texture.height=256
+	texture.noise=noise
+	texture.color_ramp=ramp
+	texture.seamless=true
+	texture.generate_mipmaps=true
+	road.albedo_texture=texture
+	return road
+
 func build_city() -> void:
-	var asphalt := material("263440")
+	var asphalt := road_material()
 	var concrete := material("475b66")
 	var dark := material("192932")
 	var wall := material("344b5b")
@@ -163,14 +191,18 @@ func build_city() -> void:
 		var verts := [p-normal*8,q-normalize_safe(n2)*8,q+normalize_safe(n2)*8,p+normal*8]
 		for index in [0,2,1,0,3,2]:
 			road.set_normal(Vector3.UP)
-			road.add_vertex(verts[index])
+			var point: Vector3=verts[index]
+			road.set_uv(Vector2(point.x,point.z)*0.2)
+			road.add_vertex(point)
 		var mid := (p+q)*0.5
 		var angle := atan2(forward.x,forward.z)
 		for side in [-1.0,1.0]:
 			block(mid+normal*side*8.7+Vector3.UP*0.35,Vector3(1.1,0.7,p.distance_to(q)+0.08),concrete,angle)
 			if i % 2 == 0:
 				block(mid+normal*side*8.12+Vector3.UP*0.5,Vector3(0.035,0.08,p.distance_to(q)*0.8),cyan,angle)
-			if i % 4 == 0:
+			if side < 0 and absf(p.x)>54:
+				block(mid+normal*side*7.4+Vector3.UP*0.015,Vector3(0.48,0.03,p.distance_to(q)+0.02),orange if i%2==0 else concrete,angle)
+			elif i % 4 == 0:
 				block(mid+normal*side*7.4+Vector3.UP*0.012,Vector3(0.35,0.025,p.distance_to(q)),orange,angle)
 		if i % 3 == 0:
 			block(mid+Vector3.UP*0.015,Vector3(0.16,0.025,1.4),trim,angle)
@@ -268,6 +300,16 @@ func build_districts(wall: Material, trim: Material, dark: Material, cyan: Mater
 		block(center+Vector3.UP*4.8,Vector3(8,1.6,0.4),dark,angle)
 		block(center+Vector3.UP*3.9,Vector3(8,0.12,0.45),orange if district%2==0 else cyan,angle)
 		district_sign("%02d / %s"%[district+1,DISTRICTS[district]],center+Vector3.UP*4.8,forward,Color("e0eced"))
+	# Corner boards sit outside the barriers, facing approaching drivers.
+	for index in [54,58,62,118,122,126]:
+		var p := route[index]
+		var forward := (route[(index+1)%COUNT]-p).normalized()
+		var normal := Vector3(forward.z,0,-forward.x)
+		var angle := atan2(forward.x,forward.z)
+		var point := p+normal*9.8
+		block(point+Vector3.UP*0.55,Vector3(0.12,1.1,0.12),trim,angle)
+		block(point+Vector3.UP*1.4,Vector3(1.7,1.0,0.3),dark,angle)
+		district_sign("››",point+Vector3.UP*1.4,forward,Color("ffc078"))
 	# Transit skybridge: a generous clear span above the racing surface.
 	var p := route[34]
 	var forward := (route[35]-p).normalized()
@@ -332,6 +374,23 @@ func ui_button(row: Control, text: String, action: Callable, width: float = 125)
 	row.add_child(button)
 	return button
 
+func style_steering(button: Button) -> void:
+	button.custom_minimum_size=Vector2(208,90)
+	button.add_theme_font_size_override("font_size",23)
+	button.focus_mode=Control.FOCUS_NONE
+	var normal := StyleBoxFlat.new()
+	normal.bg_color=Color(0.025,0.07,0.095,0.78)
+	normal.border_color=Color(0.35,0.65,0.72,0.65)
+	normal.set_border_width_all(2)
+	normal.set_corner_radius_all(8)
+	var pressed: StyleBoxFlat=normal.duplicate()
+	pressed.bg_color=Color(0.08,0.32,0.39,0.92)
+	pressed.border_color=Color("91f1f0")
+	button.add_theme_stylebox_override("normal",normal)
+	button.add_theme_stylebox_override("hover",normal)
+	button.add_theme_stylebox_override("pressed",pressed)
+	button.add_theme_color_override("font_pressed_color",Color("dfffff"))
+
 func build_ui() -> void:
 	var layer := CanvasLayer.new()
 	layer.name="DrivingUI"
@@ -340,6 +399,15 @@ func build_ui() -> void:
 	hud.position = Vector2(24,20)
 	hud.add_theme_font_size_override("font_size",24)
 	layer.add_child(hud)
+	lap_banner=Label.new()
+	lap_banner.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
+	lap_banner.position=Vector2(-250,110)
+	lap_banner.size=Vector2(500,64)
+	lap_banner.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER
+	lap_banner.add_theme_font_size_override("font_size",22)
+	lap_banner.add_theme_color_override("font_color",Color("ffc685"))
+	lap_banner.visible=false
+	layer.add_child(lap_banner)
 	var top := HBoxContainer.new()
 	top.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
 	top.position = Vector2(-460,20)
@@ -352,13 +420,17 @@ func build_ui() -> void:
 	ui_button(top,"FOUNDRY",func(): shutdown("res://main.tscn"),125)
 	var row := HBoxContainer.new()
 	row.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT)
-	row.position = Vector2(24,-110)
+	row.position = Vector2(24,-130)
 	row.add_theme_constant_override("separation",16)
 	layer.add_child(row)
-	var l := ui_button(row,"◀ LEFT",func(): pass,160)
+	var l := ui_button(row,"◀ LEFT",func(): pass,208)
+	left_button=l
+	style_steering(l)
 	l.button_down.connect(func(): left=true)
 	l.button_up.connect(func(): left=false)
-	var r := ui_button(row,"RIGHT ▶",func(): pass,160)
+	var r := ui_button(row,"RIGHT ▶",func(): pass,208)
+	right_button=r
+	style_steering(r)
 	r.button_down.connect(func(): right=true)
 	r.button_up.connect(func(): right=false)
 	var pedals := HBoxContainer.new()
@@ -397,6 +469,9 @@ func reset_car() -> void:
 	checkpoint = 0
 	lap = 1
 	lap_time = 0
+	lap_running=false
+	banner_time=0
+	lap_banner.visible=false
 	throttle=false
 	brake=false
 	boost=false
@@ -433,7 +508,10 @@ func track_progress(index: int) -> void:
 	elif checkpoint == 2 and index >= 94 and index <= 102:
 		checkpoint=3
 	elif checkpoint == 3 and index <= 4:
-		if best == 0 or lap_time < best:
+		var record := best == 0 or lap_time < best
+		lap_banner.text="LAP %d  /  %.1f s\n%s"%[lap,lap_time,"NEW PERSONAL BEST" if record else "LAP COMPLETE"]
+		banner_time=3.0
+		if record:
 			best=lap_time
 		lap+=1
 		lap_time=0
@@ -450,7 +528,7 @@ func _notification(what: int) -> void:
 
 func _input(event: InputEvent) -> void:
 	var screen := get_viewport().get_visible_rect().size
-	var control_top := screen.y-120
+	var control_top := screen.y-160
 	var pedal_left := screen.x-410
 	if event is InputEventScreenTouch:
 		if event.pressed and (event.position.y >= control_top or Rect2(screen.x-410,screen.y-210,390,80).has_point(event.position)):
@@ -474,8 +552,8 @@ func _input(event: InputEvent) -> void:
 			continue
 		if point.y < control_top:
 			continue
-		left = left or (point.x >= 24 and point.x < 192)
-		right = right or (point.x >= 192 and point.x < 370)
+		left = left or (point.x >= 0 and point.x < 240)
+		right = right or (point.x >= 240 and point.x < 480)
 		brake = brake or (point.x >= pedal_left and point.x < pedal_left+178)
 		throttle = throttle or (point.x >= pedal_left+178 and point.x < screen.x-20)
 	get_viewport().set_input_as_handled()
@@ -502,6 +580,8 @@ func _physics_process(delta: float) -> void:
 	var turn := float(right or Input.is_physical_key_pressed(KEY_D) or Input.is_physical_key_pressed(KEY_RIGHT))-float(left or Input.is_physical_key_pressed(KEY_A) or Input.is_physical_key_pressed(KEY_LEFT))
 	update_boost(delta,boost_requested,stopping)
 	var previous_speed := speed
+	left_button.set_pressed_no_signal(turn < -0.1)
+	right_button.set_pressed_no_signal(turn > 0.1)
 	steer = move_toward(steer,turn,delta*chassis.steering_response)
 	if stopping:
 		if speed > 0.0:
@@ -541,7 +621,12 @@ func _physics_process(delta: float) -> void:
 	var slip := clampf(absf(travel_velocity.dot(side))/maxf(absf(speed),1),0,1)
 	feedback.update_feedback(delta,speed,1.0 if gas and not stopping else (0.35 if speed < -0.1 and stopping else 0.0),steer,(speed-previous_speed)/maxf(delta,0.001),slip,cockpit,boost_active,boost_energy)
 	if absf(speed) > 0.1:
+		lap_running=true
+	if lap_running:
 		lap_time += delta
+	banner_time=maxf(0,banner_time-delta)
+	lap_banner.visible=banner_time > 0
+	lap_banner.modulate.a=minf(1,banner_time*2)
 	if speed > 0.1:
 		track_progress(nearest["index"])
 	update_camera(delta)
@@ -599,6 +684,21 @@ func test_loop() -> void:
 	touch.index=1
 	_input(touch)
 	assert(not boost and not left)
+	# Generous edge hit areas and dragging between directions.
+	touch.index=3
+	touch.pressed=true
+	touch.position=Vector2(5,screen.y-10)
+	_input(touch)
+	assert(left and not right)
+	var drag := InputEventScreenDrag.new()
+	drag.index=3
+	drag.position=Vector2(475,screen.y-10)
+	_input(drag)
+	assert(right and not left)
+	touch.pressed=false
+	_input(touch)
+	assert(not left and not right)
+	assert(left_button.custom_minimum_size.x==208 and left_button.custom_minimum_size.y==90)
 	# Geometric continuity, road containment and ordered lap gates.
 	for i in range(COUNT):
 		assert(route[i].distance_to(route[(i+1)%COUNT]) < 3.3)
@@ -626,6 +726,10 @@ func test_loop() -> void:
 	for frame in range(240):
 		_physics_process(1.0/60)
 	assert(speed==0)
+	var stopped_time := lap_time
+	for frame in range(60):
+		_physics_process(1.0/60)
+	assert(lap_time > stopped_time+0.9, "Lap clock must include time spent stopped after launch")
 	reset_car()
 	brake=true
 	for frame in range(120):
