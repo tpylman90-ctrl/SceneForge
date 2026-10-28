@@ -27,7 +27,11 @@ var saved_yaw := 0.0
 var saved_pitch := 0.0
 
 func _ready() -> void:
-	add_child(load("res://assets/neon_foundry.glb").instantiate())
+	var scenery := load("res://assets/neon_foundry.glb").instantiate()
+	add_child(scenery)
+	for node in scenery.find_children("*", "MeshInstance3D", true, false):
+		if "asphalt" in node.name:
+			node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	var environment := WorldEnvironment.new()
 	var settings := Environment.new()
 	var sky := Sky.new()
@@ -53,8 +57,8 @@ func _ready() -> void:
 	sun.light_energy = 0.65
 	sun.shadow_enabled = true
 	sun.directional_shadow_max_distance = 24.0
-	sun.shadow_bias = 0.07
-	sun.shadow_normal_bias = 0.8
+	sun.shadow_bias = 0.15
+	sun.shadow_normal_bias = 1.5
 	add_child(sun)
 	var reflections := ReflectionProbe.new()
 	reflections.position = Vector3(0, 2.5, 0)
