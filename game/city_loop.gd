@@ -90,7 +90,7 @@ func _ready() -> void:
 	var factory := preload("res://foundry.gd").new()
 	factory.build_cockpit_details()
 	var details: Node3D = factory.get_node("KestrelCockpitInstruments")
-	details.reparent(car)
+	details.reparent(car, false)
 	factory.free()
 	for node in car.find_children("*", "MeshInstance3D", true, false):
 		for surface in range(node.mesh.get_surface_count()):
@@ -372,6 +372,23 @@ func _process(_delta: float) -> void:
 			get_tree().quit()
 
 func test_loop() -> void:
+	# Android must allow a steering finger and a thrust finger together.
+	var touch := InputEventScreenTouch.new()
+	touch.index=1
+	touch.pressed=true
+	touch.position=Vector2(100,640)
+	_input(touch)
+	touch.index=2
+	touch.position=Vector2(1150,640)
+	_input(touch)
+	assert(left and throttle)
+	touch.index=1
+	touch.pressed=false
+	_input(touch)
+	assert(not left and throttle)
+	touch.index=2
+	_input(touch)
+	assert(not throttle)
 	# Geometric continuity, road containment and ordered lap gates.
 	for i in range(COUNT):
 		assert(route[i].distance_to(route[(i+1)%COUNT]) < 3.3)
