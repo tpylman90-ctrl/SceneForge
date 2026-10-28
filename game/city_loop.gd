@@ -305,6 +305,9 @@ func build_city() -> void:
 		var a := TAU*i/28
 		var pos := Vector3(104*cos(a),0,66*sin(a))
 		var height := rng.randf_range(11,27)
+		# Leave an open parcel for the freight yard at the new lobe.
+		if i in [11,12]:
+			continue
 		block(pos+Vector3.UP*height/2,Vector3(12,height,12),wall)
 		block(pos+Vector3.UP*(height+0.15),Vector3(12.5,0.3,12.5),trim)
 		# Windows on all four facades keep the full lap visually finished.
@@ -358,6 +361,9 @@ func build_districts(wall: Material, trim: Material, dark: Material, cyan: Mater
 		var a := TAU*i/28
 		var pos := Vector3(88*cos(a),0,66*sin(a))
 		var height := rng.randf_range(11,27)
+		# Leave an open parcel for the freight yard at the new lobe.
+		if i in [11,12]:
+			continue
 		block(pos+Vector3.UP*0.3,Vector3(12.6,0.6,12.6),concrete)
 		for side in [-1.0,1.0]:
 			for rib in [-5.5,5.5]:
