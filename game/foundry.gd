@@ -130,6 +130,11 @@ func _ready() -> void:
 		body.position = Vector3(3.2, 0.1, 5.7)
 		yaw = 0.58
 		pitch = -0.1
+
+	if "--cockpit-view" in OS.get_cmdline_user_args():
+		body.position = Vector3(2.05, 0.62, 0.3)
+		yaw = 1.8
+		pitch = -0.26
 	if "--vehicle-tail" in OS.get_cmdline_user_args():
 		body.position = Vector3(2.4, 0.1, -2.8)
 		yaw = 2.55
@@ -167,7 +172,7 @@ func ui() -> void:
 	var layer := CanvasLayer.new()
 	add_child(layer)
 	var title := Label.new()
-	title.text = "SCENEFORGE  /  NEON FOUNDRY\nRepair bay · Kestrel · predator showcase 09"
+	title.text = "SCENEFORGE  /  NEON FOUNDRY\nRepair bay · Kestrel · open cockpit study 10"
 	title.position = Vector2(28, 20)
 	title.add_theme_font_size_override("font_size", 23)
 	layer.add_child(title)
@@ -213,7 +218,21 @@ func ui() -> void:
 		yaw = 2.55 if show_tail else 0.58
 		pitch = -0.09 if show_tail else -0.1
 		stick = Vector2.ZERO)
+
 	layer.add_child(showcase)
+	var cockpit_button := Button.new()
+	cockpit_button.text = "COCKPIT VIEW"
+	cockpit_button.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
+	cockpit_button.position = Vector2(-200, 360)
+	cockpit_button.size = Vector2(170, 55)
+	cockpit_button.pressed.connect(func():
+		cancel_comparison()
+		body.position = Vector3(2.05, 0.1, 0.3)
+		yaw = 1.8
+		pitch = -0.12
+		stick = Vector2.ZERO)
+	layer.add_child(cockpit_button)
+
 	var mute := Button.new()
 	mute.text = "HUM ON / OFF"
 	mute.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
@@ -269,6 +288,11 @@ func _unhandled_input(event: InputEvent) -> void:
 		pitch = clampf(pitch - event.relative.y * 0.003, -1.1, 1.1)
 
 func _physics_process(delta: float) -> void:
+
+	if "--cockpit-view" in OS.get_cmdline_user_args():
+		body.rotation.y = yaw
+		camera.rotation.x = pitch
+		return
 	if comparing:
 		body.position = Vector3(3.2, 0.1, 5.7)
 		body.velocity = Vector3.ZERO
@@ -299,7 +323,9 @@ func _process(_delta: float) -> void:
 		capture_frames += 1
 		if capture_frames == 35:
 			var filename := "NeonFoundry-ingame.png"
-			if "--vehicle-view" in OS.get_cmdline_user_args():
+			if "--cockpit-view" in OS.get_cmdline_user_args():
+				filename = "Kestrel-cockpit.png"
+			elif "--vehicle-view" in OS.get_cmdline_user_args():
 				filename = "Kestrel-hovercar.png"
 			elif "--vehicle-tail" in OS.get_cmdline_user_args():
 				filename = "Kestrel-tail.png"

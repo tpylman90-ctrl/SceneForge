@@ -378,11 +378,13 @@ for y in ys:
  for xx,zz in cross:verts.append((cx+xx*w,cy+y,lo+zz*(hi-lo)))
 faces=[tuple(reversed(range(10)))]
 for j in range(len(ys)-1):
- for i in range(10):faces.append((j*10+i,j*10+(i+1)%10,(j+1)*10+(i+1)%10,(j+1)*10+i))
+ for i in range(10):
+  if i==5 and ys[j]<1.65 and ys[j+1]>-1.4:continue
+  faces.append((j*10+i,j*10+(i+1)%10,(j+1)*10+(i+1)%10,(j+1)*10+i))
 faces.append(tuple((len(ys)-1)*10+i for i in range(10)))
 hero_mesh('Swept slate monocoque',verts,faces,'kestrel_slate',.015)
 # Carbon hood inset follows the descending beak, with a slender raised center ridge.
-verts=[];ys=np.linspace(-2.92,-.65,28)
+verts=[];ys=np.linspace(-2.92,-1.42,28)
 for y in ys:
  w,lo,hi=dims(y)
  for f in np.linspace(-1,1,9):
@@ -407,30 +409,56 @@ for side in [-1,1]:
  # Slim swept mirrors rather than rectangular stalk-mounted boxes.
  pipe('Mirror arm',(cx+side*.83,cy-.65,1.35),(cx+side*1.24,cy-.82,1.35),.024,'trim')
  o=box('Camera mirror',(cx+side*1.25,cy-.87,1.37),(.22,.32,.065),'kestrel_slate',.025);o.rotation_euler.z=side*.3
-# Continuous teardrop canopy: curved in both directions, opaque polarized finish.
-verts=[];canopy_rows=33;canopy_cols=33
-for j,t in enumerate(np.linspace(0,1,canopy_rows)):
- y=-.92+2.53*t
- w=.83*(math.sin(math.pi*t)**.55)*(1-.25*t)+.012
- h=.88*(math.sin(math.pi*t)**.7)
- base=1.2+.02*math.sin(math.pi*t)
- for a in np.linspace(0,math.pi,canopy_cols):
-  verts.append((cx+w*math.cos(a),cy+y,base+h*math.sin(a)))
-faces=[]
-for j in range(canopy_rows-1):
- for i in range(canopy_cols-1):faces.append((j*canopy_cols+i,(j+1)*canopy_cols+i,(j+1)*canopy_cols+i+1,j*canopy_cols+i+1))
-canopy=hero_mesh('Polarized teardrop canopy',verts,faces,'vehicle_glass')
-for p in canopy.data.polygons:p.use_smooth=True
+
+# Long open cockpit, recessed through the monocoque's upper deck.
+floor=[(-.5,cy-1.36,.73),(.5,cy-1.36,.73),(.7,cy-.6,.73),(.7,cy+1.5,.73),(-.7,cy+1.5,.73),(-.7,cy-.6,.73)]
+hero_mesh('Recessed cockpit floor',floor,[tuple(range(6))],'trim')
 for side in [-1,1]:
- points=[]
- for t in np.linspace(0,1,49):
-  y=-.92+2.53*t;w=.83*(math.sin(math.pi*t)**.55)*(1-.25*t)+.012
-  points.append((cx+side*w,cy+y,1.2+.02*math.sin(math.pi*t)))
- # A thin continuous seal preserves the seamless glass silhouette.
- hose('Canopy seal',points,.018)
- # Side door latch and inset split line.
- pipe('Door seam',(cx+side*1.03,cy-.5,1.21),(cx+side*1.2,cy+.5,1.26),.01,'trim',8)
- box('Flush door latch',(cx+side*1.17,cy+.57,1.2),(.025,.2,.035),'steel',.008)
+ wall=[(side*.7,cy-1.35,.73),(side*.7,cy+1.5,.73),(side*.73,cy+1.5,1.22),(side*.73,cy-.6,1.26),(side*.5,cy-1.35,1.16)]
+ hero_mesh('Cockpit inner sidewall',wall,[(0,1,2,3,4)],'kestrel_carbon')
+ rail=[(side*.52,cy-1.47,1.19),(side*.57,cy-.48,1.7),(side*.57,cy+.47,1.78),(side*.48,cy+1.29,1.61),(side*.48,cy+1.67,1.23)]
+ for a,c in zip(rail,rail[1:]):pipe('Swept open canopy rail',a,c,.035,'kestrel_slate',12)
+ pipe('Canopy accent',(side*.57,cy-.42,1.716),(side*.57,cy+.4,1.79),.009,'repulsor_glow',8)
+ hose('Cockpit rim seal',[(side*.5,cy-1.4,1.17),(side*.73,cy-.6,1.25),(side*.73,cy+.7,1.28),(side*.57,cy+1.6,1.2)],.018)
+ pipe('Rear structural brace',(side*.63,cy+1.42,.8),(side*.48,cy+1.29,1.61),.035,'steel',10)
+ for yy in [-.6,-.15,.3,.75,1.2]:
+  pipe('Cockpit sill fastener',(side*.737,cy+yy,1.24),(side*.754,cy+yy,1.24),.014,'steel',8)
+ box('Flush door latch',(side*1.17,cy+.57,1.2),(.025,.2,.035),'steel',.008)
+wind=[(-.5,cy-1.44,1.19),(.5,cy-1.44,1.19),(.57,cy-.48,1.69),(-.57,cy-.48,1.69)]
+hero_mesh('Swept wind deflector',wind,[(0,1,2,3)],'vehicle_glass')
+pipe('Windshield top rail',wind[3],wind[2],.025,'trim',12)
+pipe('Rear rollover bridge',(-.48,cy+1.29,1.61),(.48,cy+1.29,1.61),.045,'kestrel_slate',12)
+# Reclined seat: shell, separate padding, bolsters, headrest and orange harness.
+box('Seat mounting tray',(0,cy+.38,.765),(.7,.88,.07),'steel',.02)
+box('Seat cushion',(0,cy+.23,.86),(.56,.62,.14),'rubber',.06)
+seat=box('Reclined seat shell',(0,cy+.8,1.22),(.69,.16,.8),'kestrel_carbon',.06);seat.rotation_euler.x=-.37
+pad=box('Back padding',(0,cy+.7,1.24),(.51,.1,.67),'rubber',.055);pad.rotation_euler.x=-.37
+head=box('Headrest',(0,cy+.93,1.64),(.39,.16,.24),'rubber',.05);head.rotation_euler.x=-.25
+for side in [-1,1]:
+ bolster=box('Seat bolster',(side*.3,cy+.3,.98),(.1,.63,.24),'rubber',.045);bolster.rotation_euler.y=side*.18
+ belt=box('Shoulder harness',(side*.16,cy+.63,1.26),(.055,.018,.55),'kestrel_orange',.008);belt.rotation_euler.x=-.37
+ pipe('Harness anchor',(side*.22,cy+.77,1.54),(side*.22,cy+.87,1.54),.022,'steel',8)
+box('Harness buckle',(0,cy+.06,.96),(.12,.055,.08),'steel',.012)
+# Visible dashboard, flight yoke, throttle and footwell.
+box('Dashboard shell',(0,cy-.83,1.1),(1.02,.38,.24),'kestrel_carbon',.055)
+screen=box('Screen bezel',(0,cy-.7,1.25),(.5,.24,.025),'trim',.015);screen.rotation_euler.x=-.45
+screen=box('Instrument display',(0,cy-.69,1.27),(.43,.19,.01),'window_cool',.005);screen.rotation_euler.x=-.45
+for i in range(5):box('Display telemetry',(-.16+i*.07,cy-.695,1.284),(.028,.08,.005),'repulsor_glow',.001)
+for side in [-1,1]:
+ pipe('Yoke grip',(side*.21,cy-.36,1.02),(side*.21,cy-.31,1.2),.035,'rubber',12)
+ box('Yoke thumb control',(side*.21,cy-.34,1.22),(.045,.06,.025),'kestrel_orange',.006)
+pipe('Yoke crossbar',(-.21,cy-.36,1.04),(.21,cy-.36,1.04),.03,'steel',12)
+pipe('Yoke column',(0,cy-.36,1.04),(0,cy-.58,.77),.035,'trim',12)
+for side in [-1,1]:
+ pedal=box('Foot pedal',(side*.19,cy-1,.85),(.19,.22,.04),'steel',.012);pedal.rotation_euler.x=-.5
+ for i in range(3):box('Pedal grip',(side*.19,cy-1.06+i*.06,.88),(.15,.015,.015),'rubber',.001)
+ box('Side console',(side*.57,cy+.02,1),(.19,.78,.15),'trim',.025)
+ for i in range(5):pipe('Console switch',(side*.57,cy-.22+i*.11,1.09),(side*.57,cy-.22+i*.11,1.13),.012,'steel',8)
+pipe('Throttle lever',(-.57,cy+.25,1.1),(-.57,cy+.16,1.24),.022,'steel',10)
+box('Throttle grip',(-.57,cy+.16,1.24),(.095,.11,.045),'rubber',.015)
+hose('Cockpit wiring',[(-.66,cy-1,.76),(-.66,cy-.3,.77),(-.66,cy+.8,.77),(-.57,cy+1.3,1.1)],.014)
+hero_mesh('Rear cockpit spine',[(-.47,cy+1.3,1.61),(.47,cy+1.3,1.61),(.26,cy+1.97,1.23),(-.26,cy+1.97,1.23)],[(0,1,2,3)],'kestrel_slate')
+
 # Four downward magnetic repulsors, fairings and visible suspension connections.
 for side in [-1,1]:
  for yy in [-1.4,1.25]:
