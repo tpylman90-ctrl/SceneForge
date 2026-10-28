@@ -3,6 +3,7 @@ extends Node3D
 # A bounded first driving prototype: one closed city loop, no external assets.
 const COUNT := 128
 const WIDTH := 16.0
+const DISTRICTS := ["FOUNDRY ROW","TRANSIT","FREIGHT DOCKS","EXCHANGE"]
 var route: PackedVector3Array = []
 var car: Node3D
 var camera: Camera3D
@@ -12,6 +13,12 @@ var heading := 0.0
 var steer := 0.0
 var throttle := false
 var brake := false
+var boost := false
+var boost_active := false
+var boost_energy := 100.0
+var boost_cooldown := 0.0
+var boost_locked := false
+var boost_button: Button
 var left := false
 var right := false
 var cockpit := false
@@ -109,11 +116,14 @@ func _ready() -> void:
 		var tangent := (route[21]-route[20]).normalized()
 		heading = atan2(tangent.x,tangent.z)
 		car.rotation.y = heading
-		speed = 24
+		speed = 36
+		boost_active=true
+		boost_energy=62
 		steer = 0.7
-		feedback.update_feedback(1.0,speed,0.85,steer,5,0.12,cockpit)
+		feedback.update_feedback(1.0,speed,1.0,steer,5,0.12,cockpit,true,62)
 		update_camera(1.0)
-		hud.text = "KESTREL MK I / NEON LOOP\nD 086 KM/H  /  VECTOR ACTIVE"
+		boost_button.text="BOOST / 062%"
+		hud.text = "KESTREL MK I / NEON LOOP\nD 129 KM/H  /  BOOST ACTIVE"
 	if "--track-smoke" in OS.get_cmdline_user_args():
 		call_deferred("test_loop")
 
@@ -195,6 +205,7 @@ func build_city() -> void:
 	block(Vector3(64,7,0),Vector3(20.6,1.0,0.7),dark)
 	for i in range(16):
 		block(Vector3(56.5+i,0.025,0),Vector3(1,0.04,0.8),trim if i%2==0 else dark)
+	build_districts(wall,trim,dark,cyan,orange,warm,concrete)
 	flush_batches()
 	var sign := Label3D.new()
 	sign.text = "NEON LOOP  /  START"
@@ -203,6 +214,98 @@ func build_city() -> void:
 	sign.position = Vector3(64,7,-0.4)
 	sign.rotation.y = PI
 	add_child(sign)
+
+
+func district_sign(label: String, point: Vector3, forward: Vector3, color: Color) -> void:
+	var sign := Label3D.new()
+	sign.text=label
+	sign.font_size=64
+	sign.pixel_size=0.008
+	sign.modulate=color
+	sign.position=point-forward*0.23
+	sign.rotation.y=atan2(forward.x,forward.z)+PI
+	add_child(sign)
+
+func build_districts(wall: Material, trim: Material, dark: Material, cyan: Material, orange: Material, warm: Material, concrete: Material) -> void:
+	# Facade depth, cornices, rooftop machinery and vertical service ribs.
+	var rng := RandomNumberGenerator.new()
+	rng.seed=8431
+	for i in range(28):
+		var a := TAU*i/28
+		var pos := Vector3(88*cos(a),0,66*sin(a))
+		var height := rng.randf_range(11,27)
+		block(pos+Vector3.UP*0.3,Vector3(12.6,0.6,12.6),concrete)
+		for side in [-1.0,1.0]:
+			for rib in [-5.5,5.5]:
+				block(pos+Vector3(rib,height/2,side*6.15),Vector3(0.3,height,0.3),trim)
+				block(pos+Vector3(side*6.15,height/2,rib),Vector3(0.3,height,0.3),trim)
+			for floor_index in range(2,int(height/3)):
+				block(pos+Vector3(0,floor_index*3-0.9,side*6.2),Vector3(11.3,0.16,0.5),dark)
+				block(pos+Vector3(side*6.2,floor_index*3-0.9,0),Vector3(0.5,0.16,11.3),dark)
+		block(pos+Vector3(2,height+0.8,0),Vector3(3,1.2,2.4),dark)
+		for vent in range(5):
+			block(pos+Vector3(1.0+vent*0.45,height+1.44,0),Vector3(0.16,0.08,2),trim)
+		if i%4==0:
+			block(pos+Vector3(-4,height+2.0,1),Vector3(0.12,4,0.12),trim)
+	for district in range(4):
+		var index := 8+district*32
+		var p := route[index]
+		var forward := (route[(index+1)%COUNT]-p).normalized()
+		var normal := Vector3(forward.z,0,-forward.x)
+		var angle := atan2(forward.x,forward.z)
+		var center := p+normal*14
+		block(center+Vector3.UP*2.4,Vector3(0.5,4.8,0.5),trim,angle)
+		block(center+Vector3.UP*4.8,Vector3(8,1.6,0.4),dark,angle)
+		block(center+Vector3.UP*3.9,Vector3(8,0.12,0.45),orange if district%2==0 else cyan,angle)
+		district_sign("%02d / %s"%[district+1,DISTRICTS[district]],center+Vector3.UP*4.8,forward,Color("e0eced"))
+	# Transit skybridge: a generous clear span above the racing surface.
+	var p := route[34]
+	var forward := (route[35]-p).normalized()
+	var normal := Vector3(forward.z,0,-forward.x)
+	var angle := atan2(forward.x,forward.z)
+	block(p+Vector3.UP*8,Vector3(27,2.4,4),wall,angle)
+	for side in [-1.0,1.0]:
+		block(p+normal*side*11.8+Vector3.UP*3.4,Vector3(0.9,6.8,3.5),trim,angle)
+		block(p+forward*side*2.03+Vector3.UP*8,Vector3(24,0.7,0.04),dark,angle)
+		block(p+forward*side*2.08+Vector3.UP*7.45,Vector3(25,0.08,0.04),cyan,angle)
+	for level in [6.85,9.2]:
+		block(p+Vector3.UP*level,Vector3(27.5,0.18,4.4),trim,angle)
+	district_sign("TRANSIT / MAGLEV",p-forward*2+Vector3.UP*8,forward,Color("8fe8e9"))
+	# Freight Docks: stacked ribbed containers and an orange yard crane.
+	p=route[68]
+	forward=(route[69]-p).normalized()
+	normal=Vector3(forward.z,0,-forward.x)
+	angle=atan2(forward.x,forward.z)
+	for column in range(3):
+		var center := p+normal*(16+column*5)
+		for level in range(1+(column%2)):
+			block(center+Vector3.UP*(1.3+level*2.6),Vector3(4,2.5,8),orange if column%2==0 else wall,angle)
+			for rib in range(7):
+				block(center+forward*(-3+rib)+Vector3.UP*(1.3+level*2.6)-normal*2.05,Vector3(0.1,2.3,0.12),trim,angle)
+	block(p+normal*30+Vector3.UP*7,Vector3(1.2,14,1.2),orange,angle)
+	block(p+normal*24+Vector3.UP*14,Vector3(14,0.8,1.2),orange,angle)
+	block(p+normal*18+Vector3.UP*11.5,Vector3(0.08,4.4,0.08),dark,angle)
+	# Exchange tower and blue architectural strips create a fourth silhouette.
+	p=route[100]
+	forward=(route[101]-p).normalized()
+	normal=Vector3(forward.z,0,-forward.x)
+	var tower := p-normal*20
+	block(tower+Vector3.UP*14,Vector3(8,28,8),wall)
+	block(tower+Vector3.UP*28.3,Vector3(9,0.6,9),trim)
+	for side in [-1.0,1.0]:
+		block(tower+Vector3(side*4.04,15,0),Vector3(0.06,24,0.18),cyan)
+		block(tower+Vector3(0,15,side*4.04),Vector3(0.18,24,0.06),cyan)
+	for level in range(4,27,4):
+		block(tower+Vector3.UP*level,Vector3(8.1,0.18,8.1),dark)
+	# Warm service arches on Foundry Row contrast with the cool transit section.
+	for index in [4,12,20]:
+		p=route[index]
+		forward=(route[index+1]-p).normalized()
+		normal=Vector3(forward.z,0,-forward.x)
+		angle=atan2(forward.x,forward.z)
+		block(p+normal*12+Vector3.UP*3,Vector3(0.3,6,0.3),trim,angle)
+		block(p+normal*10+Vector3.UP*6,Vector3(4,0.22,0.3),trim,angle)
+		block(p+normal*10+Vector3.UP*5.84,Vector3(3,0.06,0.16),warm,angle)
 
 func arrow_points(center: Vector3, forward: Vector3) -> PackedVector3Array:
 	var side := Vector3(forward.z,0,-forward.x)
@@ -252,6 +355,13 @@ func build_ui() -> void:
 	pedals.position = Vector2(-410,-110)
 	pedals.add_theme_constant_override("separation",16)
 	layer.add_child(pedals)
+	var booster := HBoxContainer.new()
+	booster.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT)
+	booster.position = Vector2(-410,-200)
+	layer.add_child(booster)
+	boost_button = ui_button(booster,"BOOST / 100%",func(): pass,376)
+	boost_button.button_down.connect(func(): boost=true)
+	boost_button.button_up.connect(func(): boost=false)
 	var b := ui_button(pedals,"BRAKE / REV",func(): pass,170)
 	b.button_down.connect(func(): brake=true)
 	b.button_up.connect(func(): brake=false)
@@ -278,6 +388,11 @@ func reset_car() -> void:
 	lap_time = 0
 	throttle=false
 	brake=false
+	boost=false
+	boost_active=false
+	boost_energy=100
+	boost_cooldown=0
+	boost_locked=false
 	left=false
 	right=false
 	driving_touches.clear()
@@ -317,6 +432,7 @@ func _notification(what: int) -> void:
 	if what == NOTIFICATION_APPLICATION_FOCUS_OUT:
 		throttle=false
 		brake=false
+		boost=false
 		left=false
 		right=false
 		driving_touches.clear()
@@ -326,7 +442,7 @@ func _input(event: InputEvent) -> void:
 	var control_top := screen.y-120
 	var pedal_left := screen.x-410
 	if event is InputEventScreenTouch:
-		if event.pressed and event.position.y >= control_top:
+		if event.pressed and (event.position.y >= control_top or Rect2(screen.x-410,screen.y-210,390,80).has_point(event.position)):
 			driving_touches[event.index] = event.position
 		elif not event.pressed:
 			driving_touches.erase(event.index)
@@ -340,7 +456,11 @@ func _input(event: InputEvent) -> void:
 	right=false
 	throttle=false
 	brake=false
+	boost=false
 	for point in driving_touches.values():
+		if Rect2(screen.x-410,screen.y-210,390,80).has_point(point):
+			boost=true
+			continue
 		if point.y < control_top:
 			continue
 		left = left or (point.x >= 24 and point.x < 192)
@@ -349,10 +469,27 @@ func _input(event: InputEvent) -> void:
 		throttle = throttle or (point.x >= pedal_left+178 and point.x < screen.x-20)
 	get_viewport().set_input_as_handled()
 
+func update_boost(delta: float, requested: bool, stopping: bool) -> void:
+	boost_active = requested and not stopping and speed >= 0 and not boost_locked and boost_energy > 0
+	if boost_active:
+		boost_energy = maxf(0,boost_energy-chassis.boost_drain*delta)
+		boost_cooldown = 0.8
+		if boost_energy == 0:
+			boost_locked=true
+			boost_active=false
+	else:
+		boost_cooldown = maxf(0,boost_cooldown-delta)
+		if boost_cooldown == 0:
+			boost_energy = minf(100,boost_energy+chassis.boost_recharge*delta)
+		if boost_energy >= 25:
+			boost_locked=false
+
 func _physics_process(delta: float) -> void:
-	var gas := throttle or Input.is_physical_key_pressed(KEY_W) or Input.is_physical_key_pressed(KEY_UP)
+	var boost_requested := boost or Input.is_physical_key_pressed(KEY_SHIFT)
+	var gas := throttle or boost_requested or Input.is_physical_key_pressed(KEY_W) or Input.is_physical_key_pressed(KEY_UP)
 	var stopping := brake or Input.is_physical_key_pressed(KEY_S) or Input.is_physical_key_pressed(KEY_DOWN)
 	var turn := float(right or Input.is_physical_key_pressed(KEY_D) or Input.is_physical_key_pressed(KEY_RIGHT))-float(left or Input.is_physical_key_pressed(KEY_A) or Input.is_physical_key_pressed(KEY_LEFT))
+	update_boost(delta,boost_requested,stopping)
 	var previous_speed := speed
 	steer = move_toward(steer,turn,delta*chassis.steering_response)
 	if stopping:
@@ -367,7 +504,12 @@ func _physics_process(delta: float) -> void:
 	elif gas:
 		reverse_hold = 0.0
 		# Thrust first stops backward travel, then accelerates forward.
-		speed = move_toward(speed,0,chassis.braking*delta) if speed < 0 else minf(chassis.max_forward_speed,speed+chassis.acceleration*delta)
+		if speed < 0:
+			speed = move_toward(speed,0,chassis.braking*delta)
+		else:
+			var limit: float = chassis.max_forward_speed + (chassis.boost_speed_bonus if boost_active else 0.0)
+			var push: float = chassis.acceleration * (chassis.boost_acceleration_multiplier if boost_active else 1.0)
+			speed = move_toward(speed,limit,(push if speed < limit else 5.0)*delta)
 	else:
 		reverse_hold = 0.0
 		speed = move_toward(speed,0,chassis.coast_drag*delta)
@@ -386,16 +528,17 @@ func _physics_process(delta: float) -> void:
 	car.rotation = Vector3(0,heading,0)
 	var side := Vector3(forward.z,0,-forward.x)
 	var slip := clampf(absf(travel_velocity.dot(side))/maxf(absf(speed),1),0,1)
-	feedback.update_feedback(delta,speed,1.0 if gas and not stopping else (0.35 if speed < -0.1 and stopping else 0.0),steer,(speed-previous_speed)/maxf(delta,0.001),slip,cockpit)
+	feedback.update_feedback(delta,speed,1.0 if gas and not stopping else (0.35 if speed < -0.1 and stopping else 0.0),steer,(speed-previous_speed)/maxf(delta,0.001),slip,cockpit,boost_active,boost_energy)
 	if absf(speed) > 0.1:
 		lap_time += delta
 	if speed > 0.1:
 		track_progress(nearest["index"])
 	update_camera(delta)
-	hud.text = "NEON LOOP / LAP %d\n%s %03d KM/H  ·  %.1f s\nBEST %s  ·  %d FPS" % [lap,"R" if speed < -0.05 else "D",int(absf(speed)*3.6),lap_time,"—" if best==0 else "%.1f s"%best,Engine.get_frames_per_second()]
+	boost_button.text = "%s / %03d%%" % ["BOOST" if not boost_locked else "RECHARGING",int(boost_energy)]
+	hud.text = "NEON LOOP / LAP %d\n%s %03d KM/H  ·  %.1f s\nBEST %s  ·  %d FPS\n%s" % [lap,"R" if speed < -0.05 else "D",int(absf(speed)*3.6),lap_time,"—" if best==0 else "%.1f s"%best,Engine.get_frames_per_second(),DISTRICTS[int(nearest["index"])/32]]
 
 func update_camera(delta: float) -> void:
-	camera.fov = lerpf(camera.fov,74.0+clampf(absf(speed)/chassis.max_forward_speed,0,1)*7.0,1-exp(-delta*3))
+	camera.fov = lerpf(camera.fov,74.0+clampf(absf(speed)/chassis.max_forward_speed,0,1)*7.0+(3.0 if boost_active else 0.0),1-exp(-delta*3))
 	if cockpit:
 		camera.global_transform = feedback.global_transform*Transform3D(Basis.from_euler(Vector3(chassis.cockpit_pitch,PI,0)),chassis.cockpit_eye)
 	else:
@@ -430,6 +573,19 @@ func test_loop() -> void:
 	touch.index=2
 	_input(touch)
 	assert(not throttle)
+	touch.index=1
+	touch.pressed=true
+	touch.position=Vector2(100,screen.y-80)
+	_input(touch)
+	touch.index=2
+	touch.position=Vector2(screen.x-130,screen.y-170)
+	_input(touch)
+	assert(left and boost and not throttle, "Boost and steering must work with two fingers")
+	touch.pressed=false
+	_input(touch)
+	touch.index=1
+	_input(touch)
+	assert(not boost and not left)
 	# Geometric continuity, road containment and ordered lap gates.
 	for i in range(COUNT):
 		assert(route[i].distance_to(route[(i+1)%COUNT]) < 3.3)
@@ -496,6 +652,33 @@ func test_loop() -> void:
 		if lap>1:
 			break
 	assert(lap==2, "Driving model could not complete a city lap")
+	# Capacitor drains, locks out at empty, recharges and respects braking.
+	reset_car()
+	for tick in range(240):
+		update_boost(1.0/60,true,false)
+	assert(boost_energy < 5 and boost_locked and not boost_active)
+	for tick in range(180):
+		update_boost(1.0/60,false,false)
+	assert(boost_energy > 25 and not boost_locked)
+	update_boost(0.1,true,true)
+	assert(not boost_active)
+	reset_car()
+	throttle=true
+	boost=true
+	# Follow the route while accelerating beyond normal cruise speed.
+	var peak := 0.0
+	for tick in range(210):
+		var nearest := closest_segment(car.position)
+		var target: Vector3 = route[(int(nearest["index"])+5)%COUNT]
+		var to_target := target-car.position
+		var error := wrapf(atan2(to_target.x,to_target.z)-heading,-PI,PI)
+		left=error>0.015
+		right=error< -0.015
+		_physics_process(1.0/60)
+		peak=maxf(peak,speed)
+	assert(peak > chassis.max_forward_speed+2, "Boost must exceed normal cruise speed")
+	boost=false
+	print("SCENEFORGE_BOOST_OK")
 	# Verify physical feedback, live instruments and chassis attachment contracts.
 	assert(feedback.get_node("ComponentMounts").get_child_count()==8)
 	assert(chassis.chassis_id=="kestrel" and chassis.lateral_grip>0)

@@ -142,6 +142,7 @@ jobs:
           if grep -E 'SCRIPT ERROR:|ERROR:' build/city-loop.log; then exit 1; fi
           grep SCENEFORGE_CITY_LOOP_OK build/city-loop.log
           grep SCENEFORGE_KESTREL_FEEDBACK_OK build/city-loop.log
+          grep SCENEFORGE_BOOST_OK build/city-loop.log
           timeout 120 xvfb-run -a godot --audio-driver Dummy --path game --rendering-method gl_compatibility --resolution 1280x720 res://city_loop.tscn -- --capture 2>&1 | tee build/loop-track-render.log
           test -s build/NeonLoop-track.png
           timeout 120 xvfb-run -a godot --audio-driver Dummy --path game --rendering-method gl_compatibility --resolution 1280x720 res://city_loop.tscn -- --capture --track-cockpit --track-action --sound-on 2>&1 | tee build/loop-cockpit-render.log

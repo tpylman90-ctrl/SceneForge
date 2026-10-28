@@ -43,10 +43,10 @@ func text(x: int,y: int,value: String,scale: int,color: Color) -> void:
 					rect(x+col*scale,y+row*scale,scale,scale,color)
 		x+=6*scale
 
-func update(speed: float, thrust: float, steer: float, slip: float) -> void:
+func update(speed: float, thrust: float, steer: float, slip: float, boosting: bool = false, charge: float = 100.0) -> void:
 	image.fill(Color("07151e"))
 	last_speed = int(absf(speed)*3.6)
-	last_mode = "REVERSE" if speed < -0.05 else ("DRIVE" if absf(speed)>0.1 else "HOLD")
+	last_mode = "BOOST" if boosting else "REVERSE" if speed < -0.05 else ("DRIVE" if absf(speed)>0.1 else "HOLD")
 	text(12,9,"KESTREL / MK I",2,CYAN)
 	text(370,9,last_mode,2,AMBER)
 	rect(12,31,488,1,DIM)
@@ -77,5 +77,5 @@ func update(speed: float, thrust: float, steer: float, slip: float) -> void:
 	rect(65,175,106,5,DIM)
 	rect(116+int(steer*48),173,5,9,AMBER)
 	text(192,174,"MAGNETIC HOLD" if last_mode=="HOLD" else "VECTOR ACTIVE",1,CYAN)
-	text(372,174,"NF-01 / ONLINE",1,CYAN)
+	text(372,174,"CAP %03d"%int(charge),1,AMBER if boosting else CYAN)
 	texture.update(image)

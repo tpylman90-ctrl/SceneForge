@@ -129,7 +129,7 @@ func set_cockpit(enabled: bool) -> void:
 		mesh.set_surface_override_material(entry["surface"],entry["inside"] if enabled else entry["outside"])
 	display_clock = 1.0
 
-func update_feedback(delta: float, signed_speed: float, drive: float, steering: float, acceleration: float, slip: float, cockpit: bool) -> void:
+func update_feedback(delta: float, signed_speed: float, drive: float, steering: float, acceleration: float, slip: float, cockpit: bool, boosting: bool = false, charge: float = 100.0) -> void:
 	last_drive = drive
 	motion_clock += delta
 	var amount := clampf(absf(signed_speed)/20,0,1)
@@ -144,17 +144,17 @@ func update_feedback(delta: float, signed_speed: float, drive: float, steering: 
 		tails[i].transform = tail_rest[i]*Transform3D(vector,Vector3.ZERO)
 		var yy := 3.24-absf(i-2)*0.06
 		var base := Vector3((i-2)*0.42,0.2+yy*sin(deg_to_rad(6))+1.125*cos(deg_to_rad(6)),0.8-yy*cos(deg_to_rad(6))+1.125*sin(deg_to_rad(6)))
-		var length := 0.10+drive*0.58+absf(signed_speed)/32*0.20
+		var length := 0.10+drive*0.58+absf(signed_speed)/32*0.20+(0.35 if boosting else 0.0)
 		var nozzle_motion := tails[i].transform*tail_rest[i].affine_inverse()
 		var axis := nozzle_motion.basis*Basis(Vector3.RIGHT,PI/2)*Basis.from_scale(Vector3(1,length,1))
 		exhaust.multimesh.set_instance_transform(i,Transform3D(axis,nozzle_motion*(base+Vector3(0,0,-length*0.5))))
 	if sound != null:
-		sound.pitch_scale = 0.78+absf(signed_speed)/32*0.65+drive*0.12
+		sound.pitch_scale = 0.78+absf(signed_speed)/32*0.65+drive*0.12+(0.18 if boosting else 0.0)
 		sound.volume_db = -80 if muted else -25+drive*5+amount*2
 	display_clock += delta
 	if display_clock >= (0.1 if cockpit else 0.5):
 		display_clock = 0.0
-		telemetry.update(signed_speed,drive,steering,slip)
+		telemetry.update(signed_speed,drive,steering,slip,boosting,charge)
 
 func stop_audio() -> void:
 	if sound != null:

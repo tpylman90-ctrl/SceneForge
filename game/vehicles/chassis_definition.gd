@@ -13,6 +13,10 @@ extends Resource
 @export var lateral_grip := 9.0
 @export var steering_response := 5.0
 @export var reverse_delay := 0.3
+@export var boost_speed_bonus := 10.0
+@export var boost_acceleration_multiplier := 1.6
+@export var boost_drain := 28.0
+@export var boost_recharge := 18.0
 @export var cockpit_eye := Vector3(0, 1.829, 0.418)
 @export var cockpit_pitch := -0.10472
 @export var mount_points: Dictionary = {
