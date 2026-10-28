@@ -458,7 +458,8 @@ floor=[(-.5,cy-1.36,.73),(.5,cy-1.36,.73),(.7,cy-.6,.73),(.7,cy+1.5,.73),(-.7,cy
 hero_mesh('Recessed cockpit floor',floor,[tuple(range(6))],'trim')
 for side in [-1,1]:
  wall=[(side*.7,cy-1.35,.73),(side*.7,cy+1.5,.73),(side*.73,cy+1.5,1.22),(side*.73,cy-.6,1.26),(side*.5,cy-1.35,1.16)]
- hero_mesh('Cockpit inner sidewall',wall,[(0,1,2,3,4)],'kestrel_carbon')
+ inner_wall=hero_mesh('Cockpit inner sidewall',wall,[(0,1,2,3,4)],'kestrel_carbon')
+ if side==1:inner_wall['driver_door']=True
  rail=[(side*.52,cy-1.47,1.19),(side*.57,cy-.48,1.7),(side*.57,cy+.47,1.78),(side*.48,cy+1.29,1.61),(side*.48,cy+1.67,1.23)]
  for a,c in zip(rail,rail[1:]):pipe('Swept open canopy rail',a,c,.035,'kestrel_slate',12)
  pipe('Canopy accent',(side*.57,cy-.42,1.716),(side*.57,cy+.4,1.79),.009,'repulsor_glow',8)

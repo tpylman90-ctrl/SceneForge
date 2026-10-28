@@ -250,7 +250,8 @@ func ui() -> void:
 		sound.volume_db = -80 if sound.volume_db > -50 else -25, 100))
 	row.add_child(make_button("STATS", func():
 		stats_panel.visible = not stats_panel.visible
-		fps_label.visible = stats_panel.visible, 100))
+		fps_label.visible = stats_panel.visible
+		result_label.visible = stats_panel.visible, 100))
 	var stats := VBoxContainer.new()
 	stats.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
 	stats.position = Vector2(-205, 24)
