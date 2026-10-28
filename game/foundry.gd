@@ -122,7 +122,7 @@ func ui() -> void:
 	var layer := CanvasLayer.new()
 	add_child(layer)
 	var title := Label.new()
-	title.text = "SCENEFORGE  /  NEON FOUNDRY\nRepair bay · performance study 03"
+	title.text = "SCENEFORGE  /  NEON FOUNDRY\nRepair bay · road surface study 04"
 	title.position = Vector2(28, 20)
 	title.add_theme_font_size_override("font_size", 23)
 	layer.add_child(title)
@@ -254,6 +254,7 @@ func start_comparison() -> void:
 	move_touch = -1
 	look_touch = -1
 	stick_ring.visible = false
+	fps_label.text = "Same-view comparison running"
 	comparing = true
 	phase = 0
 	phase_frames = 0
@@ -310,6 +311,7 @@ func comparison_frame() -> void:
 		last_tick = Time.get_ticks_usec()
 		return
 	comparing = false
+	fps_label.text = "BALANCED · comparison complete"
 	quality_button.disabled = false
 	compare_button.disabled = false
 	body.position = saved_position

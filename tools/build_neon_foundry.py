@@ -47,7 +47,7 @@ def image_map(name,arr,color=False):
     im.pixels.foreach_set(rgba.ravel())
     im.pack()
     return im
-for name in ['asphalt','concrete','wall','trim','steel','rust','orange']:
+for name in ['concrete','wall','trim','steel','rust','orange']:
     mat=M[name]; nodes=mat.node_tree.nodes; links=mat.node_tree.links; p=nodes.get('Principled BSDF')
     coarse=noise_grid(8); medium=noise_grid(40); grain=rng.random((N,N))
     height=.5*coarse+.3*medium+.2*grain
@@ -75,6 +75,45 @@ for name in ['asphalt','concrete','wall','trim','steel','rust','orange']:
             nm=nodes.new('ShaderNodeNormalMap');nm.inputs['Strength'].default_value=.35
             links.new(tex.outputs['Color'],nm.inputs['Color']);links.new(nm.outputs['Normal'],p.inputs['Normal'])
 
+# Unique road atlas: dry aggregate and water share one opaque surface.
+# No repeated road UVs, raised water polygons, alpha blending or extra draw pass.
+N=1024
+road_rng=np.random.default_rng(2026)
+xx,yy=np.meshgrid(np.linspace(-14,14,N),np.linspace(-11.5,7.5,N))
+macro=.55*noise_grid(7)+.3*noise_grid(19)+.15*noise_grid(47)
+aggregate=road_rng.random((N,N))
+wet=np.zeros((N,N))
+for i in range(26):
+    cx=road_rng.uniform(-6.2,6.2);cy=road_rng.uniform(-9,3)
+    rx=road_rng.uniform(.3,1.3);ry=road_rng.uniform(.17,.55)
+    angle=road_rng.uniform(-math.pi,math.pi)
+    px=(xx-cx)*math.cos(angle)+(yy-cy)*math.sin(angle)
+    py=-(xx-cx)*math.sin(angle)+(yy-cy)*math.cos(angle)
+    distance=(px/rx)**2+(py/ry)**2
+    boundary=distance+.12*np.sin(xx*9+yy*7)+.08*np.sin(xx*19-yy*12)
+    falloff=np.clip((1.2-boundary)/.5,0,1)
+    falloff=falloff*falloff*(3-2*falloff)
+    wet=np.maximum(wet,falloff)
+road_base=np.array([.045,.058,.067])
+albedo=road_base[None,None,:]*(.9+.14*macro[:,:,None]+.1*(aggregate[:,:,None]-.5))
+albedo*=1-.24*wet[:,:,None]
+rough=np.clip(.78+.12*(macro-.5)-.63*wet,.12,.9)
+height=(aggregate-.5)*.025*(1-wet)
+dy,dx=np.gradient(height)
+normal=np.dstack((-dx,-dy,np.ones_like(height)))
+normal/=np.linalg.norm(normal,axis=2)[:,:,None]
+mat=M['asphalt'];p=mat.node_tree.nodes.get('Principled BSDF')
+p.inputs['Metallic'].default_value=.03
+for label,data,socket,col in [('Albedo',np.power(albedo,1/2.2),'Base Color',True),('Roughness',rough,'Roughness',False),('Normal',normal*.5+.5,None,False)]:
+    tex=mat.node_tree.nodes.new('ShaderNodeTexImage')
+    tex.image=image_map('RoadAtlas_'+label,data,col);tex.extension='EXTEND'
+    if socket:mat.node_tree.links.new(tex.outputs['Color'],p.inputs[socket])
+    else:
+        nm=mat.node_tree.nodes.new('ShaderNodeNormalMap');nm.inputs['Strength'].default_value=.3
+        mat.node_tree.links.new(tex.outputs['Color'],nm.inputs['Color'])
+        mat.node_tree.links.new(nm.outputs['Normal'],p.inputs['Normal'])
+N=512
+
 def box(n,loc,scale,mat,bevel=.025):
  bpy.ops.mesh.primitive_cube_add(size=1,location=loc); o=bpy.context.object; o.name=n; o.dimensions=scale; bpy.ops.object.transform_apply(location=False,rotation=False,scale=True); o.data.materials.append(M[mat])
  if bevel:
@@ -98,11 +137,7 @@ for x in [-8,8]:
   box('curb section',(x+(-1.48 if x>0 else 1.48),y,.04),(.15,.95,.25),'steel',.012)
 for x in range(-6,7,2):
  box('lane dash',(x,-5,.002),(.9,.08,.008),'orange',0)
-for i in range(20):
- x=random.uniform(-6,6); y=random.uniform(-9,3)
- bpy.ops.mesh.primitive_circle_add(vertices=24,radius=1,fill_type='NGON',location=(x,y,.008))
- o=bpy.context.object;o.name='irregular wet patch';o.scale=(random.uniform(.3,.9),random.uniform(.15,.4),1);o.data.materials.append(M['puddle'])
- for v in o.data.vertices:v.co*=random.uniform(.8,1.12)
+# Wet areas are baked into the road material; no floating puddle meshes.
 for x in [-5.8,5.8]:
  for y in [-6,-2,2]:
   box('drain surround',(x,y,.01),(.5,1,.03),'trim')
@@ -195,6 +230,12 @@ for o in bpy.context.scene.objects:
  bpy.ops.object.mode_set(mode='EDIT');bpy.ops.mesh.select_all(action='SELECT')
  bpy.ops.uv.cube_project(cube_size=2.0,correct_aspect=True)
  bpy.ops.object.mode_set(mode='OBJECT')
+ if o.data.materials[0]==M['asphalt']:
+  uv=o.data.uv_layers.active.data
+  for face in o.data.polygons:
+   for li in face.loop_indices:
+    world=o.matrix_world @ o.data.vertices[o.data.loops[li].vertex_index].co
+    uv[li].uv=((world.x+14)/28,(world.y+11.5)/19)
  # Weighted normals preserve broad planar faces and smooth the beveled edges.
  mod=o.modifiers.new('Weighted corner normals','WEIGHTED_NORMAL');mod.keep_sharp=True;mod.weight=50
  bpy.ops.object.modifier_apply(modifier=mod.name)
