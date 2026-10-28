@@ -246,6 +246,8 @@ func build_cockpit_details() -> void:
 	display.material_override = screen
 	display.position = Vector3(0, -1.481, 1.332)
 	display.rotation.x = -0.45
+	# Pilot faces Blender -Y: turn the artwork toward the seated reader.
+	display.rotate_object_local(Vector3.BACK, PI)
 	display.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	root.add_child(display)
 	for side in [-1.0, 1.0]:
