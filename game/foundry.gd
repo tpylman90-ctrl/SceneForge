@@ -2,7 +2,7 @@ extends Node3D
 
 var body: CharacterBody3D
 var camera: Camera3D
-var yaw := 0.62
+var yaw := 0.58
 var pitch := -0.1
 var move_touch := -1
 var look_touch := -1
@@ -72,6 +72,7 @@ func _ready() -> void:
 	reflections.box_projection = true
 	reflections.update_mode = ReflectionProbe.UPDATE_ONCE
 	add_child(reflections)
+	light(Vector3(2.5, 3.2, 1.0), Color("d5e8ff"), 2.2, 6.0)
 	light(Vector3(0, 3.3, -5.8), Color("ff9b4d"), 3.5, 6.0)
 	light(Vector3(0, 3.5, -2.0), Color("ffc175"), 2.0, 5.5)
 	light(Vector3(-5.4, 4.0, 6), Color("56dfff"), 2.3, 7.0)
@@ -94,7 +95,7 @@ func _ready() -> void:
 	for p in [Vector3(-3, 0.42, -1.5), Vector3(3.8, 0.42, -0.7), Vector3(5.2, 0.42, -1.2)]:
 		collider(p, Vector3(0.8, 0.84, 0.8))
 	body = CharacterBody3D.new()
-	body.position = Vector3(4.6, 0.1, 7.5)
+	body.position = Vector3(3.2, 0.1, 5.7)
 	var shape := CollisionShape3D.new()
 	var capsule := CapsuleShape3D.new()
 	capsule.radius = 0.28
@@ -126,12 +127,12 @@ func _ready() -> void:
 	ui()
 	apply_quality(true)
 	if "--vehicle-view" in OS.get_cmdline_user_args():
-		body.position = Vector3(4.6, 0.1, 7.5)
-		yaw = 0.62
+		body.position = Vector3(3.2, 0.1, 5.7)
+		yaw = 0.58
 		pitch = -0.1
 	if "--vehicle-tail" in OS.get_cmdline_user_args():
-		body.position = Vector3(3.8, 0.1, -2.9)
-		yaw = 2.34
+		body.position = Vector3(2.4, 0.1, -2.8)
+		yaw = 2.55
 		pitch = -0.09
 	if "--rear-view" in OS.get_cmdline_user_args():
 		body.position = Vector3(0, 0.1, 5)
@@ -184,7 +185,7 @@ func ui() -> void:
 	reset.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
 	reset.position = Vector2(-200, 25)
 	reset.size = Vector2(170, 55)
-	reset.pressed.connect(func(): body.position = Vector3(4.6, 0.1, 7.5); yaw = 0.62; pitch = -0.1; stick = Vector2.ZERO)
+	reset.pressed.connect(func(): body.position = Vector3(3.2, 0.1, 5.7); yaw = 0.58; pitch = -0.1; stick = Vector2.ZERO)
 	layer.add_child(reset)
 	quality_button = Button.new()
 	quality_button.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
@@ -208,8 +209,8 @@ func ui() -> void:
 	showcase.pressed.connect(func():
 		cancel_comparison()
 		show_tail = not show_tail
-		body.position = Vector3(3.8, 0.1, -2.9) if show_tail else Vector3(4.6, 0.1, 7.5)
-		yaw = 2.34 if show_tail else 0.62
+		body.position = Vector3(2.4, 0.1, -2.8) if show_tail else Vector3(3.2, 0.1, 5.7)
+		yaw = 2.55 if show_tail else 0.58
 		pitch = -0.09 if show_tail else -0.1
 		stick = Vector2.ZERO)
 	layer.add_child(showcase)
@@ -269,9 +270,9 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func _physics_process(delta: float) -> void:
 	if comparing:
-		body.position = Vector3(4.6, 0.1, 7.5)
+		body.position = Vector3(3.2, 0.1, 5.7)
 		body.velocity = Vector3.ZERO
-		body.rotation.y = 0.62
+		body.rotation.y = 0.58
 		camera.rotation.x = -0.1
 		return
 	var keys := Vector2(float(Input.is_physical_key_pressed(KEY_D) or Input.is_physical_key_pressed(KEY_RIGHT)) - float(Input.is_physical_key_pressed(KEY_A) or Input.is_physical_key_pressed(KEY_LEFT)), float(Input.is_physical_key_pressed(KEY_S) or Input.is_physical_key_pressed(KEY_DOWN)) - float(Input.is_physical_key_pressed(KEY_W) or Input.is_physical_key_pressed(KEY_UP)))
