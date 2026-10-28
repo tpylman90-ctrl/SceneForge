@@ -29,7 +29,7 @@ func _ready() -> void:
 	settings.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	settings.ambient_light_color = Color("7598b2")
 	settings.ambient_light_energy = 0.4
-	settings.reflected_light_source = Environment.REFLECTED_SOURCE_SKY
+	settings.reflected_light_source = Environment.REFLECTION_SOURCE_SKY
 	settings.tonemap_mode = Environment.TONE_MAPPER_FILMIC
 	environment.environment = settings
 	add_child(environment)
