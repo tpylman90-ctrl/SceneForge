@@ -27,7 +27,7 @@ var saved_yaw := 0.0
 var saved_pitch := 0.0
 
 func _ready() -> void:
-	var scenery := load("res://assets/neon_foundry.glb").instantiate()
+	var scenery: Node3D = load("res://assets/neon_foundry.glb").instantiate()
 	add_child(scenery)
 	for node in scenery.find_children("*", "MeshInstance3D", true, false):
 		if "asphalt" in node.name:
