@@ -11,6 +11,20 @@ var stick := Vector2.ZERO
 var stick_ring: Control
 var fps_label: Label
 var elapsed := 0.0
+var sun: DirectionalLight3D
+var quality_button: Button
+var compare_button: Button
+var result_label: Label
+var balanced := true
+var comparing := false
+var phase := 0
+var phase_frames := 0
+var last_tick := 0
+var samples: Array[float] = []
+var results: Array[Dictionary] = []
+var saved_position := Vector3.ZERO
+var saved_yaw := 0.0
+var saved_pitch := 0.0
 
 func _ready() -> void:
 	add_child(load("res://assets/neon_foundry.glb").instantiate())
@@ -33,7 +47,7 @@ func _ready() -> void:
 	settings.tonemap_mode = Environment.TONE_MAPPER_FILMIC
 	environment.environment = settings
 	add_child(environment)
-	var sun := DirectionalLight3D.new()
+	sun = DirectionalLight3D.new()
 	sun.rotation_degrees = Vector3(-35, -25, 0)
 	sun.light_color = Color("8cadcf")
 	sun.light_energy = 0.65
@@ -81,6 +95,9 @@ func _ready() -> void:
 	body.add_child(camera)
 	add_child(body)
 	ui()
+	apply_quality(true)
+	if "--benchmark-smoke" in OS.get_cmdline_user_args():
+		start_comparison()
 
 func light(pos: Vector3, color: Color, energy: float, radius: float) -> void:
 	var lamp := OmniLight3D.new()
@@ -105,7 +122,7 @@ func ui() -> void:
 	var layer := CanvasLayer.new()
 	add_child(layer)
 	var title := Label.new()
-	title.text = "SCENEFORGE  /  NEON FOUNDRY\nRepair bay · surface & lighting study 02"
+	title.text = "SCENEFORGE  /  NEON FOUNDRY\nRepair bay · performance study 03"
 	title.position = Vector2(28, 20)
 	title.add_theme_font_size_override("font_size", 23)
 	layer.add_child(title)
@@ -125,6 +142,24 @@ func ui() -> void:
 	reset.size = Vector2(170, 55)
 	reset.pressed.connect(func(): body.position = Vector3(0, 0.1, 7.5); yaw = 0; pitch = -0.06; stick = Vector2.ZERO)
 	layer.add_child(reset)
+	quality_button = Button.new()
+	quality_button.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
+	quality_button.position = Vector2(-200, 92)
+	quality_button.size = Vector2(170, 55)
+	quality_button.pressed.connect(func(): apply_quality(not balanced))
+	layer.add_child(quality_button)
+	compare_button = Button.new()
+	compare_button.text = "COMPARE FPS"
+	compare_button.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
+	compare_button.position = Vector2(-200, 159)
+	compare_button.size = Vector2(170, 55)
+	compare_button.pressed.connect(start_comparison)
+	layer.add_child(compare_button)
+	result_label = Label.new()
+	result_label.position = Vector2(28, 120)
+	result_label.add_theme_font_size_override("font_size", 18)
+	layer.add_child(result_label)
+	reset.pressed.connect(func(): cancel_comparison())
 	stick_ring = Control.new()
 	stick_ring.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	stick_ring.draw.connect(func():
@@ -135,6 +170,8 @@ func ui() -> void:
 	layer.add_child(stick_ring)
 
 func _unhandled_input(event: InputEvent) -> void:
+	if comparing:
+		return
 	var screen := get_viewport().get_visible_rect().size
 	if event is InputEventScreenTouch:
 		if event.pressed:
@@ -164,6 +201,12 @@ func _unhandled_input(event: InputEvent) -> void:
 		pitch = clampf(pitch - event.relative.y * 0.003, -1.1, 1.1)
 
 func _physics_process(delta: float) -> void:
+	if comparing:
+		body.position = Vector3(0, 0.1, 7.5)
+		body.velocity = Vector3.ZERO
+		body.rotation.y = 0
+		camera.rotation.x = -0.06
+		return
 	var keys := Vector2(float(Input.is_physical_key_pressed(KEY_D) or Input.is_physical_key_pressed(KEY_RIGHT)) - float(Input.is_physical_key_pressed(KEY_A) or Input.is_physical_key_pressed(KEY_LEFT)), float(Input.is_physical_key_pressed(KEY_S) or Input.is_physical_key_pressed(KEY_DOWN)) - float(Input.is_physical_key_pressed(KEY_W) or Input.is_physical_key_pressed(KEY_UP)))
 	var input := (stick + keys).limit_length()
 	body.rotation.y = yaw
@@ -177,13 +220,114 @@ func _physics_process(delta: float) -> void:
 	body.position.z = clampf(body.position.z, -8.0, 9.5)
 	elapsed += delta
 	if elapsed > 0.5:
-		fps_label.text = "Godot renderer preview" if "--capture" in OS.get_cmdline_user_args() else "%d FPS  |  Surface study 02" % Engine.get_frames_per_second()
+		fps_label.text = "Godot renderer preview" if "--capture" in OS.get_cmdline_user_args() else "%d FPS  |  %s" % [Engine.get_frames_per_second(), "BALANCED" if balanced else "REFERENCE"]
 		elapsed = 0
 
 var capture_frames := 0
 func _process(_delta: float) -> void:
+	if comparing:
+		comparison_frame()
 	if "--capture" in OS.get_cmdline_user_args():
 		capture_frames += 1
 		if capture_frames == 35:
 			get_viewport().get_texture().get_image().save_png(OS.get_environment("GITHUB_WORKSPACE") + "/build/NeonFoundry-ingame.png")
 			get_tree().quit()
+
+# Bounded A/B: same camera, workload and renderer; two phases, no auto tuning.
+# Monotonic presentation intervals are not GPU timer measurements.
+func apply_quality(use_balanced: bool) -> void:
+	balanced = use_balanced
+	var viewport := get_viewport()
+	viewport.scaling_3d_scale = 0.85 if balanced else 1.0
+	viewport.msaa_3d = Viewport.MSAA_2X
+	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS if balanced else DirectionalLight3D.SHADOW_PARALLEL_4_SPLITS
+	sun.directional_shadow_max_distance = 20.0 if balanced else 24.0
+	quality_button.text = "BALANCED" if balanced else "REFERENCE"
+
+func start_comparison() -> void:
+	if comparing:
+		return
+	saved_position = body.position
+	saved_yaw = yaw
+	saved_pitch = pitch
+	stick = Vector2.ZERO
+	move_touch = -1
+	look_touch = -1
+	stick_ring.visible = false
+	comparing = true
+	phase = 0
+	phase_frames = 0
+	samples.clear()
+	results.clear()
+	quality_button.disabled = true
+	compare_button.disabled = true
+	apply_quality(false)
+	last_tick = Time.get_ticks_usec()
+
+func cancel_comparison() -> void:
+	if not comparing:
+		return
+	comparing = false
+	quality_button.disabled = false
+	compare_button.disabled = false
+	result_label.text = "Comparison cancelled"
+	apply_quality(true)
+
+func comparison_frame() -> void:
+	var now := Time.get_ticks_usec()
+	var interval := float(now - last_tick) / 1000.0
+	last_tick = now
+	phase_frames += 1
+	var smoke := "--benchmark-smoke" in OS.get_cmdline_user_args()
+	var warmup := 3 if smoke else 90
+	var count := 8 if smoke else 240
+	result_label.text = "Comparing %s: %d / %d frames" % ["REFERENCE" if phase == 0 else "BALANCED", maxi(0, phase_frames - warmup), count]
+	if phase_frames <= warmup:
+		return
+	samples.append(interval)
+	if samples.size() < count:
+		return
+	var ordered := samples.duplicate()
+	ordered.sort()
+	var mean_ms := 0.0
+	for value in samples:
+		mean_ms += value
+	mean_ms /= samples.size()
+	results.append({
+		"profile": "reference" if phase == 0 else "balanced",
+		"mean_ms": mean_ms,
+		"median_ms": ordered[ordered.size() / 2],
+		"p95_ms": ordered[mini(ordered.size()-1, int(ceil(ordered.size() * 0.95))-1)],
+		"approx_fps": 1000.0 / maxf(mean_ms, 0.001),
+		"frames": samples.size(),
+		"draw_calls": Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME)
+	})
+	if phase == 0:
+		phase = 1
+		phase_frames = 0
+		samples.clear()
+		apply_quality(true)
+		last_tick = Time.get_ticks_usec()
+		return
+	comparing = false
+	quality_button.disabled = false
+	compare_button.disabled = false
+	body.position = saved_position
+	yaw = saved_yaw
+	pitch = saved_pitch
+	result_label.text = "Same-view comparison · REFERENCE %.1f FPS / BALANCED %.1f FPS\nFrame p95: %.1f ms / %.1f ms" % [results[0]["approx_fps"], results[1]["approx_fps"], results[0]["p95_ms"], results[1]["p95_ms"]]
+	var report := {
+		"measurement": "monotonic rendered-frame callback interval; not GPU time",
+		"os": OS.get_name(),
+		"adapter": RenderingServer.get_video_adapter_name(),
+		"viewport": [get_viewport().size.x, get_viewport().size.y],
+		"warmup_frames_per_phase": warmup,
+		"order": "reference then balanced; thermal and power state uncontrolled",
+		"results": results
+	}
+	var file := FileAccess.open("user://performance-comparison.json", FileAccess.WRITE)
+	if file:
+		file.store_string(JSON.stringify(report, "  "))
+	print("SCENEFORGE_COMPARISON ", JSON.stringify(report))
+	if smoke:
+		get_tree().quit()
