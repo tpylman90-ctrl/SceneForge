@@ -127,7 +127,7 @@ func _ready() -> void:
 		steer = 0.7
 		feedback.update_feedback(1.0,speed,1.0,steer,5,0.12,cockpit,true,62)
 		update_camera(1.0)
-		right_button.set_pressed_no_signal(true)
+		steering_feedback(right_button,true)
 		boost_button.text="BOOST / 062%"
 		hud.text = "KESTREL MK I / NEON LOOP\nD 129 KM/H  /  BOOST ACTIVE"
 	if "--track-overview" in OS.get_cmdline_user_args():
@@ -390,6 +390,18 @@ func style_steering(button: Button) -> void:
 	button.add_theme_stylebox_override("hover",normal)
 	button.add_theme_stylebox_override("pressed",pressed)
 	button.add_theme_color_override("font_pressed_color",Color("dfffff"))
+	button.set_meta("idle_style",normal)
+	button.set_meta("active_style",pressed)
+	button.set_meta("lit",false)
+
+func steering_feedback(button: Button, active: bool) -> void:
+	if bool(button.get_meta("lit",false))==active:
+		return
+	button.set_meta("lit",active)
+	var style: StyleBox=button.get_meta("active_style" if active else "idle_style")
+	button.add_theme_stylebox_override("normal",style)
+	button.add_theme_stylebox_override("hover",style)
+	button.add_theme_color_override("font_color",Color("dfffff") if active else Color.WHITE)
 
 func build_ui() -> void:
 	var layer := CanvasLayer.new()
@@ -580,8 +592,8 @@ func _physics_process(delta: float) -> void:
 	var turn := float(right or Input.is_physical_key_pressed(KEY_D) or Input.is_physical_key_pressed(KEY_RIGHT))-float(left or Input.is_physical_key_pressed(KEY_A) or Input.is_physical_key_pressed(KEY_LEFT))
 	update_boost(delta,boost_requested,stopping)
 	var previous_speed := speed
-	left_button.set_pressed_no_signal(turn < -0.1)
-	right_button.set_pressed_no_signal(turn > 0.1)
+	steering_feedback(left_button,turn < -0.1)
+	steering_feedback(right_button,turn > 0.1)
 	steer = move_toward(steer,turn,delta*chassis.steering_response)
 	if stopping:
 		if speed > 0.0:
@@ -690,14 +702,20 @@ func test_loop() -> void:
 	touch.position=Vector2(5,screen.y-10)
 	_input(touch)
 	assert(left and not right)
+	_physics_process(1.0/60)
+	assert(left_button.get_theme_stylebox("normal").bg_color.is_equal_approx(Color(0.08,0.32,0.39,0.92)))
 	var drag := InputEventScreenDrag.new()
 	drag.index=3
 	drag.position=Vector2(475,screen.y-10)
 	_input(drag)
 	assert(right and not left)
+	_physics_process(1.0/60)
+	assert(right_button.get_meta("lit") and not left_button.get_meta("lit"))
 	touch.pressed=false
 	_input(touch)
 	assert(not left and not right)
+	_physics_process(1.0/60)
+	assert(not right_button.get_meta("lit") and not left_button.get_meta("lit"))
 	assert(left_button.custom_minimum_size.x==208 and left_button.custom_minimum_size.y==90)
 	# Geometric continuity, road containment and ordered lap gates.
 	for i in range(COUNT):
