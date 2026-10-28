@@ -173,6 +173,90 @@ def build_piledriver(body,accent,carbon,steel,rubber,glow,glass):
   panel('Layered tail vector',[(x-.11,1.53,-1.8),(x+.11,1.53,-1.8),(x+.13,1.61,-2.78),(x-.13,1.61,-2.78)],carbon)
   rig('Kestrel_Tail_%d'%i,since(before),(x,1.48,-1.83))
 
+ # Deepen the racer silhouette with removable hard-shell armor that follows
+ # the lofted surface rather than floating as flat trim.
+ def side_surface(side,z,level=.54,offset=.022):
+  w,lo,hi=dims(z)
+  xfactor=1.0-.12*max(0.0,abs(level-.43)-.12)
+  return (side*(w*xfactor+offset),lo+(hi-lo)*level,z)
+ for side in [-1,1]:
+  # Three overlapping flank shells give the long body engineered depth and
+  # break the single-color hull into large, readable sculpted plates.
+  plate_paths=[
+   [(-2.43,.50),(-2.20,.76),(-1.62,.77),(-1.22,.55),(-1.48,.36),(-2.22,.36)],
+   [(-1.28,.52),(-.98,.80),(-.20,.80),(.30,.65),(.03,.40),(-.91,.39)],
+   [(.22,.54),(.63,.78),(1.42,.77),(2.18,.62),(2.60,.48),(1.88,.37),(.86,.39)],
+  ]
+  for index,path in enumerate(plate_paths):
+   pts=[side_surface(side,z,level,.040) for z,level in path]
+   panel("Layered plum flank shell",pts,body)
+   edge_path=[side_surface(side,z,level,.061) for z,level in path[:4]]
+   strip("Raised brass armor lip",edge_path,.020,accent)
+   # Recessed fasteners sit along the cut edges of each removable plate.
+   for z,level in path[::2]:
+    a=side_surface(side,z,level,.070);b=(a[0]+side*.025,a[1],a[2])
+    pipe("Flank armor captive pin",a,b,.023,steel,10)
+  # Deep shoulder cheeks form a close protective tub around the driver.
+  cockpit_outer=[
+   (side*.49,.94,-.92),(side*.66,1.03,-.72),
+   (side*.72,1.36,-.34),(side*.70,1.49,.34),
+   (side*.58,1.38,.78),(side*.45,1.16,.70)
+  ]
+  panel("Driver shoulder armor shell",cockpit_outer,body)
+  cockpit_inner=[
+   (side*.44,.98,-.72),(side*.53,1.12,-.58),
+   (side*.56,1.35,-.26),(side*.54,1.42,.28),
+   (side*.48,1.30,.58),(side*.41,1.12,.56)
+  ]
+  panel("Cockpit padded inner cheek",cockpit_inner,carbon)
+  strip("Cockpit shoulder brass rim",[
+   (side*.50,1.50,.27),(side*.55,1.44,-.25),(side*.50,1.20,-.69)
+  ],.023,accent)
+  # Tall contoured bolsters, thigh clamps and cross-belts make the seating
+  # envelope read as fitted around a driver instead of an empty chair.
+  box("Racing seat hip clamp",(side*.285,1.02,-.20),(.18,.31,.66),rubber,.065)
+  box("Racing seat shoulder clamp",(side*.29,1.42,-.50),(.20,.31,.35),carbon,.06)
+  box("Brass shoulder harness anchor",(side*.385,1.48,-.43),(.055,.11,.12),accent,.018)
+  pipe("Lower diagonal safety harness",(side*.34,1.28,-.08),(side*.12,1.05,-.45),.026,accent,10)
+  # Split the undersill into a swept lower keel and armored ribs; this gives
+  # the vehicle a deep, angled belly instead of a straight flat underside.
+  keel=[]
+  for z in np.linspace(-2.35,3.10,18):
+   w,lo,hi=dims(z);keel.append((side*w*.58,lo+.055,z))
+  strip("Swept carbon belly keel",keel,.052,carbon)
+  for z in [-1.95,-1.25,-.50,.28,1.02,1.72,2.40]:
+   w,lo,hi=dims(z)
+   pipe("Angled belly cross rib",(side*w*.56,lo+.065,z),(side*w*.83,lo+.11,z-.14),.032,steel,10)
+  # Layered cooling banks with individual vanes on the rear shoulders.
+  vent_outline=[
+   side_surface(side,-2.25,.60,.075),side_surface(side,-1.90,.79,.075),
+   side_surface(side,-1.48,.77,.075),side_surface(side,-1.62,.57,.075)
+  ]
+  panel("Shoulder extractor recess",vent_outline,carbon)
+  for i in range(5):
+   z=-2.18+i*.13
+   a=side_surface(side,z,.66,.10);b=side_surface(side,z-.055,.75,.10)
+   pipe("Machined shoulder vent vane",a,b,.022,steel,8)
+ # Raised dorsal nose armor and a faceted chin cap build the long racing beak.
+ hood=[
+  (-.30,dims(2.52)[2]+.035,2.52),
+  (-.25,dims(3.18)[2]+.035,3.18),
+  (0,dims(3.40)[2]+.040,3.40),
+  (.25,dims(3.18)[2]+.035,3.18),
+  (.30,dims(2.52)[2]+.035,2.52),
+  (0,dims(2.37)[2]+.055,2.37)
+ ]
+ panel("Layered dorsal nose armor",hood,body)
+ for side in [-1,1]:
+  pts=[(side*.30,dims(2.44)[2]+.07,2.44),
+       (side*.23,dims(3.18)[2]+.06,3.18),
+       (side*.10,dims(3.36)[2]+.06,3.36),
+       (side*.18,dims(2.70)[2]+.08,2.70)]
+  panel("Brass-edged nose cheek",pts,accent)
+  strip("Beak side seam",[(side*.24,dims(2.44)[2]+.075,2.44),
+                           (side*.20,dims(2.90)[2]+.075,2.90),
+                           (side*.10,dims(3.34)[2]+.075,3.34)],.014,steel)
+
  # Rear rises while the nose drops; curved belly was authored independently above.
  bpy.context.view_layer.update()
  def rake(world):
