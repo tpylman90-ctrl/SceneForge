@@ -226,6 +226,10 @@ func road_material() -> StandardMaterial3D:
 	road.albedo_texture=texture
 	return road
 
+func outer_building_position(index: int) -> Vector3:
+	var angle := TAU*index/28
+	return Vector3(104*cos(angle),0,66*sin(angle))
+
 func build_city() -> void:
 	var asphalt := road_material()
 	var concrete := material("475b66")
@@ -303,7 +307,7 @@ func build_city() -> void:
 	rng.seed = 8431
 	for i in range(28):
 		var a := TAU*i/28
-		var pos := Vector3(104*cos(a),0,66*sin(a))
+		var pos := outer_building_position(i)
 		var height := rng.randf_range(11,27)
 		# Leave an open parcel for the freight yard at the new lobe.
 		if i in [11,12]:
@@ -359,7 +363,7 @@ func build_districts(wall: Material, trim: Material, dark: Material, cyan: Mater
 	rng.seed=8431
 	for i in range(28):
 		var a := TAU*i/28
-		var pos := Vector3(88*cos(a),0,66*sin(a))
+		var pos := outer_building_position(i)
 		var height := rng.randf_range(11,27)
 		# Leave an open parcel for the freight yard at the new lobe.
 		if i in [11,12]:
@@ -760,6 +764,7 @@ func prepare_jump_capture() -> void:
 		_physics_process(1.0/60)
 	assert(airborne and car.position.y>RAMP_HEIGHT)
 	update_camera(1.0)
+	hud.text="NEON CROSS / CROSSING JUMP\nD %03d KM/H\nAIRBORNE / %.1f s"%[int(speed*3.6),air_time]
 
 func _physics_process(delta: float) -> void:
 	var boost_requested := boost or Input.is_physical_key_pressed(KEY_SHIFT)
