@@ -121,7 +121,8 @@ func _ready() -> void:
 	sound.unit_size = 4
 	sound.max_distance = 18
 	add_child(sound)
-	sound.play()
+	if DisplayServer.get_name() != "headless":
+		sound.play()
 	ui()
 	apply_quality(true)
 	if "--vehicle-view" in OS.get_cmdline_user_args():
@@ -306,7 +307,7 @@ func _process(_delta: float) -> void:
 			elif "--road-closeup" in OS.get_cmdline_user_args():
 				filename = "NeonFoundry-road.png"
 			get_viewport().get_texture().get_image().save_png(OS.get_environment("GITHUB_WORKSPACE") + "/build/" + filename)
-			get_tree().quit()
+			shutdown_for_test()
 
 # Bounded A/B: same camera, workload and renderer; two phases, no auto tuning.
 # Monotonic presentation intervals are not GPU timer measurements.
@@ -407,7 +408,7 @@ func comparison_frame() -> void:
 		file.store_string(JSON.stringify(report, "  "))
 	print("SCENEFORGE_COMPARISON ", JSON.stringify(report))
 	if smoke:
-		get_tree().quit()
+		shutdown_for_test()
 
 var show_tail := false
 
@@ -416,3 +417,11 @@ func _exit_tree() -> void:
 		var sound: AudioStreamPlayer3D = get_node("KestrelHum")
 		sound.stop()
 		sound.stream = null
+
+func shutdown_for_test() -> void:
+	var sound: AudioStreamPlayer3D = get_node("KestrelHum")
+	sound.stop()
+	sound.stream = null
+	# Playback is released by the audio mixer after a mix cycle.
+	await get_tree().create_timer(0.15).timeout
+	get_tree().quit()
