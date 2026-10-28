@@ -531,8 +531,9 @@ for i in range(9):
  box('Plasma intake slat',(cx-.31+i*.077,cy+1.88,1.31),(.026,.48,.035),'steel',.004)
 pipe('Plasma drive core',(cx,cy+2.0,1.03),(cx,cy+2.55,1.03),.24,'steel',32)
 pipe('Plasma drive throat',(cx,cy+2.48,1.03),(cx,cy+2.62,1.03),.17,'repulsor_glow',24)
-# Tail feathers remain separate named components for independent vectoring.
+# Tail vanes keep their complete nozzle assemblies under individual rig roots.
 for i in range(5):
+ tail_before=set(bpy.context.scene.objects)
  x=(i-2)*.24;fan=(i-2)*.18
  length=.86-abs(i-2)*.06
  pts=[(cx+x-.095,cy+2.38,1.08),(cx+x+.095,cy+2.38,1.08),
@@ -544,6 +545,8 @@ for i in range(5):
  pipe('Tail nozzle edge',pts[1],pts[2],.025,'steel',8)
  pipe('Tail nozzle edge',pts[4],pts[0],.025,'steel',8)
  pipe('Tail plasma slit',(cx+x+fan-.09,cy+2.4+length,1.125),(cx+x+fan+.09,cy+2.4+length,1.125),.018,'amber',8)
+ for part in bpy.context.scene.objects:
+  if part not in tail_before and part.type=='MESH':part['tail_vector']=i+1
 # Small inset service hardware, not raised block lettering.
 box('Nose service badge',(cx,cy-2.65,.805),(.18,.15,.012),'steel',.004)
 for side in [-1,1]:
@@ -555,6 +558,7 @@ vehicle_objects=[o for o in bpy.context.scene.objects if o not in vehicle_before
 from mathutils import Matrix
 pitch=Matrix.Rotation(math.radians(6),3,'X')
 for obj in vehicle_objects:
+ if obj.name.startswith('Yoke'):obj['pilot_yoke']=True
  bpy.context.view_layer.objects.active=obj
  bpy.ops.object.select_all(action='DESELECT');obj.select_set(True)
  bpy.ops.object.transform_apply(location=False,rotation=True,scale=True)
@@ -606,7 +610,7 @@ box('yard retaining wall',(0,-24.5,1),(38,.35,2),'skyline')
 # Batch scenery and vehicle separately; keep tail panels independently addressable.
 for mat in M.values():
  for vehicle in [False,True]:
-  obs=[o for o in bpy.context.scene.objects if o.type=='MESH' and len(o.data.materials) and o.data.materials[0]==mat and bool(o.get('is_vehicle',False))==vehicle and not o.get('tail_vector',0) and not o.get('driver_door',False)]
+  obs=[o for o in bpy.context.scene.objects if o.type=='MESH' and len(o.data.materials) and o.data.materials[0]==mat and bool(o.get('is_vehicle',False))==vehicle and not o.get('tail_vector',0) and not o.get('driver_door',False) and not o.get('pilot_yoke',False)]
   if not obs:continue
   bpy.ops.object.select_all(action='DESELECT')
   for o in obs:o.select_set(True)
@@ -620,6 +624,19 @@ for mat in M.values():
  for obj in obs:obj.select_set(True)
  bpy.context.view_layer.objects.active=obs[0];bpy.ops.object.join()
  obj=obs[0];obj.name='DriverDoor_'+mat.name;obj.parent=door_root
+# Original articulated controls and complete tail assemblies.
+def rig_parts(name,obs,pivot):
+ if not obs:return
+ bpy.ops.object.select_all(action='DESELECT')
+ for obj in obs:obj.select_set(True)
+ bpy.context.view_layer.objects.active=obs[0];bpy.ops.object.join()
+ obj=obs[0];obj.name=name+'_geometry'
+ for v in obj.data.vertices:v.co-=pivot
+ root=bpy.data.objects.new(name,None);bpy.context.collection.objects.link(root)
+ root.location=pivot;obj.parent=root
+rig_parts('Kestrel_Yoke',[o for o in bpy.context.scene.objects if o.type=='MESH' and o.get('pilot_yoke',False)],pitch @ Vector((0,-.36,1.04))+Vector((cx,cy,.2)))
+for i in range(5):
+ rig_parts('Kestrel_Tail_%d'%i,[o for o in bpy.context.scene.objects if o.type=='MESH' and o.get('tail_vector',0)==i+1],pitch @ Vector(((i-2)*.24,2.38,1.08))+Vector((cx,cy,.2)))
 # UV cube projection in world scale after batching keeps surface grain consistent.
 for o in bpy.context.scene.objects:
  if o.type!='MESH': continue
@@ -685,6 +702,7 @@ import struct
 payload=(dest/'neon_foundry.glb').read_bytes()
 json_length=struct.unpack_from('<I',payload,12)[0]
 gltf=json.loads(payload[20:20+json_length])
+assert {'Kestrel_Yoke',*[('Kestrel_Tail_%d'%i) for i in range(5)]}.issubset({n.get('name') for n in gltf['nodes']})
 assert all('COLOR_0' in p['attributes'] for m in gltf['meshes'] for p in m['primitives'])
 meshes=[o for o in bpy.context.scene.objects if o.type=='MESH'];triangles=sum(sum(len(p.vertices)-2 for p in o.data.polygons) for o in meshes)
 assert triangles<220000,triangles

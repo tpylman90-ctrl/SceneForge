@@ -238,6 +238,7 @@ func build_cockpit_details() -> void:
 	var bezel := cockpit_part(root, Vector3(0, -1.49, 1.31), Vector3(0.96, 0.38, 0.035), graphite)
 	bezel.rotation.x = -0.45
 	var display := MeshInstance3D.new()
+	display.name = "FlightDisplay"
 	var panel := QuadMesh.new()
 	panel.size = Vector2(0.89, 0.334)
 	display.mesh = panel
@@ -252,6 +253,9 @@ func build_cockpit_details() -> void:
 	display.rotate_object_local(Vector3.BACK, PI)
 	display.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	root.add_child(display)
+	var yoke_detail := Node3D.new()
+	yoke_detail.name = "YokeDetail"
+	root.add_child(yoke_detail)
 	for side in [-1.0, 1.0]:
 		# End caps and tiny instrument-retention screws.
 		cockpit_part(root, Vector3(side * 0.48, -1.49, 1.30), Vector3(0.035, 0.35, 0.065), silver).rotation.x = -0.45
@@ -263,14 +267,15 @@ func build_cockpit_details() -> void:
 			cockpit_part(root, Vector3(side * 0.57, yy, 1.097), Vector3(0.07, 0.065, 0.012), graphite)
 			cockpit_part(root, Vector3(side * 0.60, yy, 1.108), Vector3(0.018, 0.028, 0.008), amber if i == 0 else cyan)
 		# Sculpted yoke grip collars and illuminated thumb buttons.
-		cockpit_part(root, Vector3(side * 0.21, -1.135, 1.14), Vector3(0.075, 0.07, 0.045), graphite)
-		cockpit_part(root, Vector3(side * 0.21, -1.132, 1.224), Vector3(0.023, 0.025, 0.009), cyan)
+		cockpit_part(yoke_detail, Vector3(side * 0.21, -1.135, 1.14), Vector3(0.075, 0.07, 0.045), graphite)
+		cockpit_part(yoke_detail, Vector3(side * 0.21, -1.132, 1.224), Vector3(0.023, 0.025, 0.009), cyan)
 		for i in range(3):
-			cockpit_part(root, Vector3(side * 0.21, -1.133, 1.055 + i * 0.032), Vector3(0.072, 0.013, 0.009), rubber)
+			cockpit_part(yoke_detail, Vector3(side * 0.21, -1.133, 1.055 + i * 0.032), Vector3(0.072, 0.013, 0.009), rubber)
 	# Yoke hub, inset emblem and paired thumb selectors.
-	cockpit_part(root, Vector3(0, -1.16, 1.045), Vector3(0.19, 0.075, 0.085), graphite)
-	cockpit_part(root, Vector3(0, -1.16, 1.092), Vector3(0.08, 0.042, 0.008), silver)
-	cockpit_part(root, Vector3(0, -1.16, 1.098), Vector3(0.012, 0.03, 0.005), amber)
+	cockpit_part(yoke_detail, Vector3(0, -1.16, 1.045), Vector3(0.19, 0.075, 0.085), graphite)
+	cockpit_part(yoke_detail, Vector3(0, -1.16, 1.092), Vector3(0.08, 0.042, 0.008), silver)
+	cockpit_part(yoke_detail, Vector3(0, -1.16, 1.098), Vector3(0.012, 0.03, 0.005), amber)
+	batch_cockpit_parts(yoke_detail)
 	batch_cockpit_parts(root)
 
 

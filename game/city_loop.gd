@@ -22,7 +22,11 @@ var lap_time := 0.0
 var best := 0.0
 var capture_frames := 0
 var batches: Dictionary = {}
-var glass: Array[Dictionary] = []
+var chassis: Resource = preload("res://vehicles/kestrel.tres")
+var feedback
+var travel_velocity := Vector3.ZERO
+var sound_button: Button
+var shutting_down := false
 var driving_touches: Dictionary = {}
 
 func material(color: String, glow: bool = false) -> StandardMaterial3D:
@@ -79,31 +83,10 @@ func _ready() -> void:
 	car = Node3D.new()
 	car.name = "Kestrel"
 	add_child(car)
-	var source: Node3D = load("res://assets/neon_foundry.glb").instantiate()
-	add_child(source)
-	# Reuse the original craft, preserving its independently rigged door.
-	for child in source.get_children():
-		if str(child.name).begins_with("Kestrel_") or str(child.name).begins_with("TailVector") or child.name == "DriverDoor":
-			child.reparent(car, true)
-	remove_child(source)
-	source.queue_free()
-	assert(car.get_child_count() > 5, "Kestrel meshes missing from circuit")
-	var factory := preload("res://foundry.gd").new()
-	factory.build_cockpit_details()
-	var details: Node3D = factory.get_node("KestrelCockpitInstruments")
-	details.reparent(car, false)
-	factory.free()
-	for node in car.find_children("*", "MeshInstance3D", true, false):
-		for surface in range(node.mesh.get_surface_count()):
-			var mat: Material = node.get_active_material(surface)
-			if mat is StandardMaterial3D:
-				mat.vertex_color_use_as_albedo = true
-				if "vehicle_glass" in node.name:
-					var inside: StandardMaterial3D = mat.duplicate()
-					inside.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-					inside.albedo_color = Color(0.1, 0.18, 0.22, 0.12)
-					inside.metallic = 0.0
-					glass.append({"mesh": node, "surface": surface, "outside": mat, "inside": inside})
+	feedback = preload("res://vehicles/kestrel_feedback.gd").new()
+	feedback.name = "ChassisVisual"
+	car.add_child(feedback)
+	feedback.configure(chassis)
 	camera = Camera3D.new()
 	camera.current = true
 	camera.fov = 74
@@ -117,6 +100,20 @@ func _ready() -> void:
 	update_camera(1.0)
 	if "--track-cockpit" in OS.get_cmdline_user_args():
 		toggle_camera()
+	if "--sound-on" in OS.get_cmdline_user_args():
+		feedback.muted=false
+		sound_button.text="SOUND ON"
+	if "--track-action" in OS.get_cmdline_user_args():
+		set_physics_process(false)
+		car.position = route[20]
+		var tangent := (route[21]-route[20]).normalized()
+		heading = atan2(tangent.x,tangent.z)
+		car.rotation.y = heading
+		speed = 24
+		steer = 0.7
+		feedback.update_feedback(1.0,speed,0.85,steer,5,0.12,cockpit)
+		update_camera(1.0)
+		hud.text = "KESTREL MK I / NEON LOOP\nD 086 KM/H  /  VECTOR ACTIVE"
 	if "--track-smoke" in OS.get_cmdline_user_args():
 		call_deferred("test_loop")
 
@@ -233,9 +230,12 @@ func build_ui() -> void:
 	top.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
 	top.position = Vector2(-460,20)
 	layer.add_child(top)
-	ui_button(top,"VIEW",toggle_camera)
-	ui_button(top,"RESET",reset_car)
-	ui_button(top,"FOUNDRY",func(): get_tree().change_scene_to_file("res://main.tscn"))
+	ui_button(top,"VIEW",toggle_camera,100)
+	sound_button = ui_button(top,"SOUND OFF",func():
+		feedback.muted = not feedback.muted
+		sound_button.text = "SOUND OFF" if feedback.muted else "SOUND ON",110)
+	ui_button(top,"RESET",reset_car,100)
+	ui_button(top,"FOUNDRY",func(): shutdown("res://main.tscn"),125)
 	var row := HBoxContainer.new()
 	row.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT)
 	row.position = Vector2(24,-110)
@@ -265,7 +265,14 @@ func reset_car() -> void:
 	car.rotation = Vector3.ZERO
 	speed = 0.0
 	reverse_hold = 0.0
+	travel_velocity = Vector3.ZERO
 	steer = 0.0
+	if feedback != null:
+		feedback.rotation = Vector3.ZERO
+		feedback.position = Vector3.ZERO
+		feedback.visual_roll = 0
+		feedback.visual_pitch = 0
+		feedback.update_feedback(1.0,0,0,0,0,0,cockpit)
 	checkpoint = 0
 	lap = 1
 	lap_time = 0
@@ -277,9 +284,7 @@ func reset_car() -> void:
 
 func toggle_camera() -> void:
 	cockpit = not cockpit
-	for entry in glass:
-		var mesh: MeshInstance3D = entry["mesh"]
-		mesh.set_surface_override_material(entry["surface"], entry["inside"] if cockpit else entry["outside"])
+	feedback.set_cockpit(cockpit)
 
 func closest_segment(pos: Vector3) -> Dictionary:
 	var distance := INF
@@ -348,33 +353,40 @@ func _physics_process(delta: float) -> void:
 	var gas := throttle or Input.is_physical_key_pressed(KEY_W) or Input.is_physical_key_pressed(KEY_UP)
 	var stopping := brake or Input.is_physical_key_pressed(KEY_S) or Input.is_physical_key_pressed(KEY_DOWN)
 	var turn := float(right or Input.is_physical_key_pressed(KEY_D) or Input.is_physical_key_pressed(KEY_RIGHT))-float(left or Input.is_physical_key_pressed(KEY_A) or Input.is_physical_key_pressed(KEY_LEFT))
-	steer = move_toward(steer,turn,delta*4)
+	var previous_speed := speed
+	steer = move_toward(steer,turn,delta*chassis.steering_response)
 	if stopping:
 		if speed > 0.0:
-			speed = move_toward(speed,0,20*delta)
+			speed = move_toward(speed,0,chassis.braking*delta)
 			reverse_hold = 0.0
 		else:
 			# A short stop separates braking from deliberate reversing.
 			reverse_hold += delta
-			if reverse_hold >= 0.3:
-				speed = move_toward(speed,-8,5*delta)
+			if reverse_hold >= chassis.reverse_delay:
+				speed = move_toward(speed,-chassis.max_reverse_speed,5*delta)
 	elif gas:
 		reverse_hold = 0.0
 		# Thrust first stops backward travel, then accelerates forward.
-		speed = move_toward(speed,0,20*delta) if speed < 0 else minf(32,speed+10*delta)
+		speed = move_toward(speed,0,chassis.braking*delta) if speed < 0 else minf(chassis.max_forward_speed,speed+chassis.acceleration*delta)
 	else:
 		reverse_hold = 0.0
-		speed = move_toward(speed,0,2.8*delta)
-	heading -= steer*1.15*clampf(speed/8,-1,1)*delta
+		speed = move_toward(speed,0,chassis.coast_drag*delta)
+	heading -= steer*chassis.yaw_rate*clampf(speed/8,-1,1)*delta
 	var forward := Vector3(sin(heading),0,cos(heading))
-	car.position += forward*speed*delta
+	travel_velocity = travel_velocity.lerp(forward*speed,1-exp(-chassis.lateral_grip*delta))
+	car.position += travel_velocity*delta
 	var nearest := closest_segment(car.position)
 	var center: Vector3 = nearest["point"]
 	var offset := car.position-center
 	if offset.length() > 6.0:
 		car.position = center+offset.normalized()*6.0
 		speed = move_toward(speed,0,35*delta)
-	car.rotation = Vector3(0,heading,steer*0.055*clampf(speed/20,0,1))
+		var outward := offset.normalized()
+		travel_velocity -= outward*maxf(0,travel_velocity.dot(outward))
+	car.rotation = Vector3(0,heading,0)
+	var side := Vector3(forward.z,0,-forward.x)
+	var slip := clampf(absf(travel_velocity.dot(side))/maxf(absf(speed),1),0,1)
+	feedback.update_feedback(delta,speed,1.0 if gas and not stopping else (0.35 if speed < -0.1 and stopping else 0.0),steer,(speed-previous_speed)/maxf(delta,0.001),slip,cockpit)
 	if absf(speed) > 0.1:
 		lap_time += delta
 	if speed > 0.1:
@@ -383,9 +395,9 @@ func _physics_process(delta: float) -> void:
 	hud.text = "NEON LOOP / LAP %d\n%s %03d KM/H  ·  %.1f s\nBEST %s  ·  %d FPS" % [lap,"R" if speed < -0.05 else "D",int(absf(speed)*3.6),lap_time,"—" if best==0 else "%.1f s"%best,Engine.get_frames_per_second()]
 
 func update_camera(delta: float) -> void:
+	camera.fov = lerpf(camera.fov,74.0+clampf(absf(speed)/chassis.max_forward_speed,0,1)*7.0,1-exp(-delta*3))
 	if cockpit:
-		camera.global_position = car.to_global(Vector3(0,1.829,0.418))
-		camera.global_rotation = Vector3(-0.10472,PI+heading,0)
+		camera.global_transform = feedback.global_transform*Transform3D(Basis.from_euler(Vector3(-0.10472,PI,0)),Vector3(0,1.829,0.418))
 	else:
 		var desired := car.to_global(Vector3(0,3.6,-8.5))
 		camera.position = camera.position.lerp(desired,1-exp(-delta*8))
@@ -395,9 +407,9 @@ func _process(_delta: float) -> void:
 	if "--capture" in OS.get_cmdline_user_args():
 		capture_frames+=1
 		if capture_frames==35:
-			var file := "NeonLoop-cockpit.png" if cockpit else "NeonLoop-track.png"
+			var file := "NeonLoop-cockpit.png" if cockpit else ("NeonLoop-action.png" if "--track-action" in OS.get_cmdline_user_args() else "NeonLoop-track.png")
 			get_viewport().get_texture().get_image().save_png(OS.get_environment("GITHUB_WORKSPACE")+"/build/"+file)
-			get_tree().quit()
+			shutdown()
 
 func test_loop() -> void:
 	# Android must allow a steering finger and a thrust finger together.
@@ -468,7 +480,7 @@ func test_loop() -> void:
 	assert(speed < 0 and car.position.distance_to(closest_segment(car.position)["point"]) <= 6.01)
 	toggle_camera()
 	update_camera(1)
-	assert(camera.position.distance_to(car.to_global(Vector3(0,1.829,0.418))) < 0.01)
+	assert(camera.position.distance_to(feedback.to_global(Vector3(0,1.829,0.418))) < 0.01)
 	# Drive one complete lap through the same acceleration and steering code.
 	set_physics_process(false)
 	reset_car()
@@ -484,5 +496,36 @@ func test_loop() -> void:
 		if lap>1:
 			break
 	assert(lap==2, "Driving model could not complete a city lap")
+	# Verify physical feedback, live instruments and chassis attachment contracts.
+	assert(feedback.get_node("ComponentMounts").get_child_count()==8)
+	assert(chassis.chassis_id=="kestrel" and chassis.lateral_grip>0)
+	feedback.update_feedback(1.0,24,0.85,0.7,5,0.12,true)
+	assert(feedback.telemetry.last_speed==86 and feedback.telemetry.last_mode=="DRIVE")
+	assert(absf(feedback.visual_roll)>0.05)
+	assert(not feedback.yoke.transform.is_equal_approx(feedback.yoke_rest))
+	assert(not feedback.tails[0].transform.is_equal_approx(feedback.tail_rest[0]))
+	feedback.update_feedback(1.0,-4,0.3,0,0,0,true)
+	assert(feedback.telemetry.last_mode=="REVERSE")
+	assert(feedback.sound.pitch_scale>0.78)
+	feedback.muted=false
+	feedback.update_feedback(0.1,20,1,0,0,0,true)
+	assert(feedback.sound.volume_db > -30)
+	feedback.muted=true
+	feedback.update_feedback(0.1,20,1,0,0,0,true)
+	assert(feedback.sound.volume_db == -80)
+	print("SCENEFORGE_KESTREL_FEEDBACK_OK")
 	print("SCENEFORGE_CITY_LOOP_OK")
-	get_tree().quit()
+	shutdown()
+
+func shutdown(next_scene: String = "") -> void:
+	if shutting_down:
+		return
+	shutting_down=true
+	set_physics_process(false)
+	feedback.stop_audio()
+	await get_tree().create_timer(0.15).timeout
+	if next_scene.is_empty():
+		get_tree().quit()
+	else:
+		get_tree().change_scene_to_file(next_scene)
+
