@@ -21,6 +21,7 @@ const FONT := {
 var image := Image.create(512,192,false,Image.FORMAT_RGBA8)
 var texture: ImageTexture
 var last_speed := -1
+var craft_name := "KESTREL / MK I"
 var last_mode := ""
 const CYAN := Color("76dce5")
 const DIM := Color("375968")
@@ -47,7 +48,7 @@ func update(speed: float, thrust: float, steer: float, slip: float, boosting: bo
 	image.fill(Color("07151e"))
 	last_speed = int(absf(speed)*3.6)
 	last_mode = "BOOST" if boosting else ("REVERSE" if speed < -0.05 else ("DRIVE" if absf(speed)>0.1 else "HOLD"))
-	text(12,9,"KESTREL / MK I",2,CYAN)
+	text(12,9,craft_name,2,CYAN)
 	text(370,9,last_mode,2,AMBER)
 	rect(12,31,488,1,DIM)
 	rect(174,42,1,116,DIM)
@@ -79,3 +80,4 @@ func update(speed: float, thrust: float, steer: float, slip: float, boosting: bo
 	text(192,174,"MAGNETIC HOLD" if last_mode=="HOLD" else "VECTOR ACTIVE",1,CYAN)
 	text(372,174,"CAP %03d"%int(charge),1,AMBER if boosting else CYAN)
 	texture.update(image)
+

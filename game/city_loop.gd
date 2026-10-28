@@ -84,14 +84,15 @@ func track_name() -> String:
 func load_best() -> void:
 	var records := ConfigFile.new()
 	if records.load("user://records.cfg")==OK:
-		best=float(records.get_value("best",str(track_id),0.0))
+		var legacy: float=float(records.get_value("best",str(track_id),0.0)) if chassis.chassis_id=="kestrel" else 0.0
+		best=float(records.get_value("best",str(track_id)+"/"+chassis.chassis_id,legacy))
 	else:
 		best=0.0
 
 func save_best() -> void:
 	var records := ConfigFile.new()
 	records.load("user://records.cfg")
-	records.set_value("best",str(track_id),best)
+	records.set_value("best",str(track_id)+"/"+chassis.chassis_id,best)
 	records.save("user://records.cfg")
 
 func open_tracks() -> void:
@@ -136,6 +137,10 @@ func flush_batches() -> void:
 	batches.clear()
 
 func _ready() -> void:
+	var craft_index := clampi(int(get_tree().get_meta("sceneforge_craft",0)),0,4)
+	for index in range(5):
+		if "--craft-%d"%index in OS.get_cmdline_user_args():craft_index=index
+	chassis=preload("res://vehicles/fleet_catalog.gd").definition(craft_index)
 	track_id=int(get_tree().get_meta("sceneforge_track",0))
 	for index in range(3):
 		if "--circuit-%d"%index in OS.get_cmdline_user_args():
@@ -171,7 +176,7 @@ func _ready() -> void:
 	add_child(sun)
 	build_city()
 	car = Node3D.new()
-	car.name = "Kestrel"
+	car.name = chassis.chassis_id.capitalize()
 	add_child(car)
 	feedback = preload("res://vehicles/kestrel_feedback.gd").new()
 	feedback.name = "ChassisVisual"
@@ -208,7 +213,7 @@ func _ready() -> void:
 		update_camera(1.0)
 		steering_feedback(right_button,true)
 		boost_button.text="BOOST / 062%"
-		hud.text = "KESTREL MK I / "+track_name()+"\nD 129 KM/H  /  BOOST ACTIVE"
+		hud.text = chassis.display_name+" / "+track_name()+"\nD 129 KM/H  /  BOOST ACTIVE"
 	if "--track-jump" in OS.get_cmdline_user_args():
 		prepare_jump_capture()
 	if "--track-overview" in OS.get_cmdline_user_args():
@@ -685,7 +690,7 @@ func build_ui() -> void:
 	layer.add_child(lap_banner)
 	var top := HBoxContainer.new()
 	top.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
-	top.position = Vector2(-570,20)
+	top.position = Vector2(-670,20)
 	layer.add_child(top)
 	ui_button(top,"VIEW",toggle_camera,100)
 	sound_button = ui_button(top,"SOUND OFF",func():
@@ -693,6 +698,7 @@ func build_ui() -> void:
 		sound_button.text = "SOUND OFF" if feedback.muted else "SOUND ON",110)
 	ui_button(top,"RESET",reset_car,100)
 	ui_button(top,"TRACKS",open_tracks,105)
+	ui_button(top,"FLEET",func(): shutdown("res://fleet_hangar.tscn"),95)
 	ui_button(top,"FOUNDRY",func(): shutdown("res://main.tscn"),125)
 	var row := HBoxContainer.new()
 	row.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT)

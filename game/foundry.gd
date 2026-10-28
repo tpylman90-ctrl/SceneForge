@@ -366,6 +366,9 @@ func ui() -> void:
 		var sound: AudioStreamPlayer3D = get_node("KestrelHum")
 		sound.volume_db = -80 if sound.volume_db > -50 else -25, 100))
 	row.add_child(make_button("TRACK", func(): get_tree().change_scene_to_file("res://city_loop.tscn"), 100))
+	var fleet_button := make_button("FLEET", open_fleet, 130)
+	fleet_button.position=Vector2(1100,100)
+	layer.add_child(fleet_button)
 	row.add_child(make_button("STATS", func():
 		stats_panel.visible = not stats_panel.visible
 		fps_label.visible = stats_panel.visible
@@ -774,3 +777,10 @@ func shutdown_for_test() -> void:
 	# Playback is released by the audio mixer after a mix cycle.
 	await get_tree().create_timer(0.15).timeout
 	get_tree().quit()
+
+func open_fleet() -> void:
+	var sound: AudioStreamPlayer3D=get_node("KestrelHum")
+	sound.stop()
+	sound.stream=null
+	await get_tree().create_timer(.15).timeout
+	get_tree().change_scene_to_file("res://fleet_hangar.tscn")

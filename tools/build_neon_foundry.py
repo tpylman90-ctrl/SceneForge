@@ -553,6 +553,32 @@ for side in [-1,1]:
  for yy in [-1.8,-1.1,.0,1.2]:
   w,lo,hi=dims(yy)
   pipe('Flush panel fastener',(cx+side*w*.72,cy+yy,hi+.004),(cx+side*w*.72,cy+yy,hi+.015),.013,'steel',8)
+
+# Kestrel detail pass: layered service panels, heat shields and exposed linkages.
+for side in [-1,1]:
+ for yy in [-2.35,-1.95]:
+  w,lo,hi=dims(yy)
+  box('Recessed nose vent',(side*w*.54,cy+yy,hi+.02),(.12,.23,.018),'trim',.008)
+  for rib in range(4):
+   box('Nose vent blade',(side*w*.54,cy+yy-.075+rib*.05,hi+.035),(.11,.012,.012),'steel',.002)
+ for yy in [1.48,1.75]:
+  w,lo,hi=dims(yy)
+  box('Rear service inset',(side*(w+.015),cy+yy,.94),(.025,.20,.16),'trim',.006)
+  for rib in range(3):
+   box('Heat shield slot',(side*(w+.032),cy+yy-.06+rib*.06,.94),(.012,.025,.12),'steel',.002)
+ for yy in [-1.4,1.25]:
+  xx=side*(1.0 if yy<0 else 1.12)
+  pipe('Pod hydraulic rod',(side*.72,cy+yy+.15,.79),(xx,cy+yy+.15,.62),.025,'steel',10)
+  pipe('Pod actuator sleeve',(side*.72,cy+yy+.15,.79),(side*.88,cy+yy+.15,.70),.052,'trim',12)
+  for angle in range(0,360,90):
+   t=math.radians(angle)
+   box('Pod collar fastener',(xx+.28*math.cos(t),cy+yy+.28*math.sin(t),.61),(.035,.035,.035),'steel',.003)
+ for yy in [1.5,1.8,2.05]:
+  w,lo,hi=dims(yy)
+  pipe('Rear panel seam',(side*w*.6,cy+yy,hi+.013),(side*w*.92,cy+yy,hi-.07),.009,'trim',8)
+pipe('Rear chassis brace',(-.7,cy+1.7,.76),(-.4,cy+2.3,1.1),.035,'steel',10)
+pipe('Rear chassis brace',(.7,cy+1.7,.76),(.4,cy+2.3,1.1),.035,'steel',10)
+
 # Aggressive idle stance: rigid, perfectly still, pitched nose-down by 6 degrees.
 vehicle_objects=[o for o in bpy.context.scene.objects if o not in vehicle_before and o.type=='MESH']
 from mathutils import Matrix

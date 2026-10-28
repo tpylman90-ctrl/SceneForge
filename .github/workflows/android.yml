@@ -78,7 +78,8 @@ jobs:
             build/NeonFoundry-preview.png
             build/NeonFoundry.blend
             build/asset-report.json
-          key: foundry-blender-4.5.3-${{ hashFiles('tools/build_neon_foundry.py') }}
+            build/fleet-report.json
+          key: foundry-blender-4.5.3-${{ hashFiles('tools/build_neon_foundry.py', 'tools/build_fleet.py') }}
       - name: Build original Blender scenery
         if: steps.scenery.outputs.cache-hit != 'true'
         shell: bash
@@ -87,6 +88,9 @@ jobs:
           curl --fail --location --retry 3 https://download.blender.org/release/Blender4.5/blender-4.5.3-linux-x64.tar.xz -o /tmp/blender.tar.xz
           tar -xf /tmp/blender.tar.xz -C /tmp
           /tmp/blender-4.5.3-linux-x64/blender --background --threads 4 --python tools/build_neon_foundry.py
+          /tmp/blender-4.5.3-linux-x64/blender --background --threads 4 --python tools/build_fleet.py
+          test -s game/assets/fleet/aurora.glb
+          test -s build/fleet-report.json
           test -s game/assets/neon_foundry.glb
           test -s build/NeonFoundry-preview.png
       - name: Cache generated assets before runtime checks
@@ -98,7 +102,8 @@ jobs:
             build/NeonFoundry-preview.png
             build/NeonFoundry.blend
             build/asset-report.json
-          key: foundry-blender-4.5.3-${{ hashFiles('tools/build_neon_foundry.py') }}
+            build/fleet-report.json
+          key: foundry-blender-4.5.3-${{ hashFiles('tools/build_neon_foundry.py', 'tools/build_fleet.py') }}
       - name: Import and smoke test
         shell: bash
         run: |
@@ -177,6 +182,18 @@ jobs:
           done
           test -s build/Circuit-select.png
           if grep -E 'SCRIPT ERROR:|ERROR:' build/loop-*-render.log; then exit 1; fi
+      - name: Verify and capture selectable fleet
+        env:
+          LIBGL_ALWAYS_SOFTWARE: '1'
+        run: |
+          timeout 180 godot --headless --path game --script res://tests/fleet_test.gd 2>&1 | tee build/fleet-test.log
+          if grep -E 'SCRIPT ERROR:|ERROR:' build/fleet-test.log; then exit 1; fi
+          grep FLEET_OK build/fleet-test.log
+          for craft in 0 1 2 3 4; do
+            timeout 120 xvfb-run -a godot --audio-driver Dummy --path game --rendering-method gl_compatibility --resolution 1280x720 res://fleet_hangar.tscn -- --capture --craft-$craft 2>&1 | tee build/fleet-$craft-render.log
+          done
+          if grep -E 'SCRIPT ERROR:|ERROR:' build/fleet-*-render.log; then exit 1; fi
+          for name in kestrel piledriver shrike mantis aurora; do test -s build/Fleet-$name.png; done
       - name: Export and verify APK
         shell: bash
         run: |
@@ -259,5 +276,5 @@ jobs:
           if ! gh release view pipeline-latest >/dev/null 2>&1; then
             gh release create pipeline-latest --target "$GITHUB_SHA" --prerelease --title "SceneForge — latest Android test" --notes "Permanently signed Android build. Download SceneForge.apk."
           fi
-          gh release upload pipeline-latest build/SceneForge.apk build/SceneForge-debug.apk build/SHA256SUMS.txt build/BUILD.txt build/NeonFoundry-preview.png build/NeonFoundry-ingame.png build/NeonFoundry-road.png build/Kestrel-hovercar.png build/Kestrel-tail.png build/Kestrel-cockpit.png build/Kestrel-door-open.png build/Kestrel-driver-seat.png build/NeonFoundry-rear.png build/asset-report.json build/NeonLoop-track.png build/NeonLoop-cockpit.png build/NeonLoop-action.png build/NeonLoop-overview.png build/NeonCross-jump.png build/NeonCross-jump-cockpit.png build/Skyway-overview.png build/Skyway-cockpit.png build/Skyway-jump.png build/ViperRift-overview.png build/ViperRift-cockpit.png build/ViperRift-jump.png build/Circuit-select.png --clobber
+          gh release upload pipeline-latest build/SceneForge.apk build/SceneForge-debug.apk build/SHA256SUMS.txt build/BUILD.txt build/NeonFoundry-preview.png build/NeonFoundry-ingame.png build/NeonFoundry-road.png build/Kestrel-hovercar.png build/Kestrel-tail.png build/Kestrel-cockpit.png build/Kestrel-door-open.png build/Kestrel-driver-seat.png build/NeonFoundry-rear.png build/asset-report.json build/NeonLoop-track.png build/NeonLoop-cockpit.png build/NeonLoop-action.png build/NeonLoop-overview.png build/NeonCross-jump.png build/NeonCross-jump-cockpit.png build/Skyway-overview.png build/Skyway-cockpit.png build/Skyway-jump.png build/ViperRift-overview.png build/ViperRift-cockpit.png build/ViperRift-jump.png build/Circuit-select.png build/fleet-report.json build/Fleet-kestrel.png build/Fleet-piledriver.png build/Fleet-shrike.png build/Fleet-mantis.png build/Fleet-aurora.png --clobber
           gh release edit pipeline-latest --notes "Successful pipeline build #$GITHUB_RUN_NUMBER from commit $GITHUB_SHA. Permanent release signing verified. Download SceneForge.apk; the debug variant remains available separately."

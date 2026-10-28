@@ -18,7 +18,8 @@ var last_drive := 0.0
 
 func configure(definition: Resource) -> void:
 	chassis = definition
-	var source: Node3D = load("res://assets/neon_foundry.glb").instantiate()
+	var source: Node3D = load(chassis.visual_scene).instantiate()
+	telemetry.craft_name=chassis.display_name
 	add_child(source)
 	for child in source.get_children():
 		if str(child.name).begins_with("Kestrel_") or str(child.name).begins_with("TailVector") or child.name == "DriverDoor":
@@ -81,7 +82,7 @@ func configure(definition: Resource) -> void:
 func glow() -> StandardMaterial3D:
 	var m := StandardMaterial3D.new()
 	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	m.albedo_color = Color(0.2,0.8,1.0,0.45)
+	m.albedo_color = Color(chassis.accent_color,0.45)
 	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	m.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
 	return m
@@ -163,3 +164,4 @@ func stop_audio() -> void:
 
 func _exit_tree() -> void:
 	stop_audio()
+

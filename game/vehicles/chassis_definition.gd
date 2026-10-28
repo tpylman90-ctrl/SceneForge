@@ -3,6 +3,8 @@ extends Resource
 # Chassis identity, handling and compatible mount locations travel together.
 @export var chassis_id := "kestrel"
 @export var display_name := "KESTREL / MK I"
+@export var visual_scene := "res://assets/neon_foundry.glb"
+@export var accent_color := Color("66dcf0")
 @export var max_forward_speed := 32.0
 @export var max_reverse_speed := 8.0
 @export var reverse_acceleration := 5.0
@@ -29,3 +31,4 @@ extends Resource
 	"aero_left": Vector3(0.95, 1.25, -0.6),
 	"aero_right": Vector3(-0.95, 1.25, -0.6)
 }
+
