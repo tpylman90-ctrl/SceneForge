@@ -12,6 +12,10 @@ var stick_ring: Control
 var fps_label: Label
 var elapsed := 0.0
 var orbit_mode := true
+var seat_mode := false
+var seat_look_yaw := 0.0
+var seat_look_pitch := -0.10472
+var glass_surfaces: Array[Dictionary] = []
 var cockpit_locked := false
 var orbit_angle := 0.58
 var orbit_elevation := 0.20
@@ -49,6 +53,16 @@ func _ready() -> void:
 			var material: Material = node.get_active_material(surface)
 			if material is StandardMaterial3D:
 				material.vertex_color_use_as_albedo = true
+
+		if "vehicle_glass" in node.name:
+			for surface in range(node.mesh.get_surface_count()):
+				var original: StandardMaterial3D = node.get_active_material(surface)
+				var inside: StandardMaterial3D = original.duplicate()
+				inside.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+				inside.albedo_color = Color(0.1, 0.18, 0.22, 0.18)
+				inside.metallic = 0.0
+				inside.roughness = 0.18
+				glass_surfaces.append({"mesh": node, "surface": surface, "outside": original, "inside": inside})
 		if "asphalt" in node.name or "grime" in node.name or "skyline" in node.name:
 			node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 
@@ -175,6 +189,8 @@ func _ready() -> void:
 			pitch = -0.8
 	if "--door-open" in args:
 		toggle_door()
+	if "--seat-view" in args:
+		inspection_preset("seat")
 	if "--door-motion-smoke" in args:
 		call_deferred("test_door_motion")
 	if "--benchmark-smoke" in args:
@@ -243,6 +259,7 @@ func ui() -> void:
 	row.add_child(make_button("FRONT", func(): inspection_preset("front"), 100))
 	row.add_child(make_button("TAIL", func(): inspection_preset("tail"), 100))
 	row.add_child(make_button("COCKPIT", func(): inspection_preset("cockpit")))
+	row.add_child(make_button("SEAT", func(): inspection_preset("seat"), 100))
 	door_button = make_button("OPEN DOOR", toggle_door, 140)
 	row.add_child(door_button)
 	row.add_child(make_button("SOUND", func():
@@ -273,6 +290,7 @@ func ui() -> void:
 	layer.add_child(stick_ring)
 
 func set_inspection(enabled: bool) -> void:
+	set_seat_view(false)
 	orbit_mode = enabled
 	inspection_mode = false
 	touch_points.clear()
@@ -295,6 +313,8 @@ func inspection_preset(which: String) -> void:
 	cancel_comparison()
 	set_inspection(true)
 	cockpit_locked = which == "cockpit"
+	if which == "seat":
+		set_seat_view(true)
 	if which == "front":
 		orbit_angle = 0.58
 		orbit_elevation = 0.20
@@ -304,7 +324,24 @@ func inspection_preset(which: String) -> void:
 		orbit_elevation = 0.22
 		orbit_radius = 4.5
 
+func set_seat_view(enabled: bool) -> void:
+	seat_mode = enabled
+	camera.fov = 78.0 if enabled else 70.0
+	camera.near = 0.03 if enabled else 0.05
+	for entry in glass_surfaces:
+		var mesh: MeshInstance3D = entry["mesh"]
+		mesh.set_surface_override_material(entry["surface"], entry["inside"] if enabled else entry["outside"])
+	if enabled:
+		seat_look_yaw = 0.0
+		seat_look_pitch = -0.10472
+		help_label.text = "Driver's seat · Drag to look around · SEAT to re-center"
+
 func update_orbit() -> void:
+	if seat_mode:
+		# Pilot eye position follows the rigid 6-degree nose-down vehicle stance.
+		camera.global_position = Vector3(0, 1.829, 0.418)
+		camera.global_rotation = Vector3(seat_look_pitch, PI + seat_look_yaw, 0)
+		return
 	if cockpit_locked:
 		camera.global_position = Vector3(2.45, 2.65, 0.25)
 		camera.look_at(Vector3(0, 1.18, 0.8))
@@ -354,6 +391,27 @@ func _input(event: InputEvent) -> void:
 		touch_points.erase(event.index)
 
 func _unhandled_input(event: InputEvent) -> void:
+
+	if seat_mode and orbit_mode and not comparing:
+		if event is InputEventScreenTouch:
+			if event.pressed:
+				touch_points[event.index] = event.position
+			else:
+				touch_points.erase(event.index)
+		elif event is InputEventScreenDrag:
+			if touch_points.size() < 2:
+				seat_look_yaw = clampf(seat_look_yaw - event.relative.x * 0.004, -1.35, 1.35)
+				seat_look_pitch = clampf(seat_look_pitch - event.relative.y * 0.004, -0.9, 0.65)
+			touch_points[event.index] = event.position
+		elif event is InputEventMouseMotion and Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
+			seat_look_yaw = clampf(seat_look_yaw - event.relative.x * 0.004, -1.35, 1.35)
+			seat_look_pitch = clampf(seat_look_pitch - event.relative.y * 0.004, -0.9, 0.65)
+		elif event is InputEventMouseButton and event.pressed:
+			if event.button_index == MOUSE_BUTTON_WHEEL_UP:
+				camera.fov = maxf(60, camera.fov - 2)
+			elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
+				camera.fov = minf(90, camera.fov + 2)
+		return
 
 	if orbit_mode and not comparing:
 		if event is InputEventScreenTouch:
@@ -475,7 +533,9 @@ func _process(_delta: float) -> void:
 		capture_frames += 1
 		if capture_frames == 35:
 			var filename := "NeonFoundry-ingame.png"
-			if "--door-open" in OS.get_cmdline_user_args():
+			if "--seat-view" in OS.get_cmdline_user_args():
+				filename = "Kestrel-driver-seat.png"
+			elif "--door-open" in OS.get_cmdline_user_args():
 				filename = "Kestrel-door-open.png"
 			elif "--cockpit-view" in OS.get_cmdline_user_args():
 				filename = "Kestrel-cockpit.png"
