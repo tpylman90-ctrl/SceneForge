@@ -64,14 +64,15 @@ for name in ['asphalt','concrete','wall','trim','steel','rust','orange']:
         albedo*=.9
         rough=np.clip(.28+.5*medium,.22,.85)
     dy,dx=np.gradient(height)
-    normal=np.dstack((-dx*1.5,-dy*1.5,np.ones_like(height)))
+    normal=np.dstack((-dx*.5,-dy*.5,np.ones_like(height)))
     normal/=np.linalg.norm(normal,axis=2)[:,:,None]
     for label,data,socket,col in [('Albedo',albedo,'Base Color',True),('Roughness',rough,'Roughness',False),('Normal',normal*.5+.5,None,False)]:
+        if col: data=np.power(np.clip(data,0,1),1/2.2)
         tex=nodes.new('ShaderNodeTexImage');tex.image=image_map(name+'_'+label,data,col)
         tex.extension='REPEAT'
         if socket:links.new(tex.outputs['Color'],p.inputs[socket])
         else:
-            nm=nodes.new('ShaderNodeNormalMap');nm.inputs['Strength'].default_value=.6
+            nm=nodes.new('ShaderNodeNormalMap');nm.inputs['Strength'].default_value=.35
             links.new(tex.outputs['Color'],nm.inputs['Color']);links.new(nm.outputs['Normal'],p.inputs['Normal'])
 
 def box(n,loc,scale,mat,bevel=.025):

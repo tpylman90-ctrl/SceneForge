@@ -28,7 +28,7 @@ func _ready() -> void:
 	settings.background_mode = Environment.BG_SKY
 	settings.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	settings.ambient_light_color = Color("7598b2")
-	settings.ambient_light_energy = 0.4
+	settings.ambient_light_energy = 0.7
 	settings.reflected_light_source = Environment.REFLECTION_SOURCE_SKY
 	settings.tonemap_mode = Environment.TONE_MAPPER_FILMIC
 	environment.environment = settings
@@ -36,7 +36,7 @@ func _ready() -> void:
 	var sun := DirectionalLight3D.new()
 	sun.rotation_degrees = Vector3(-35, -25, 0)
 	sun.light_color = Color("8cadcf")
-	sun.light_energy = 0.45
+	sun.light_energy = 0.65
 	sun.shadow_enabled = true
 	sun.directional_shadow_max_distance = 24.0
 	sun.shadow_bias = 0.07
@@ -177,7 +177,7 @@ func _physics_process(delta: float) -> void:
 	body.position.z = clampf(body.position.z, -8.0, 9.5)
 	elapsed += delta
 	if elapsed > 0.5:
-		fps_label.text = "%d FPS  |  Surface study 02" % Engine.get_frames_per_second()
+		fps_label.text = "Godot renderer preview" if "--capture" in OS.get_cmdline_user_args() else "%d FPS  |  Surface study 02" % Engine.get_frames_per_second()
 		elapsed = 0
 
 var capture_frames := 0
