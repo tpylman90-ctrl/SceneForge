@@ -23,7 +23,7 @@ def build_piledriver(body,accent,carbon,steel,rubber,glow,glass):
   tex=material.node_tree.nodes.new('ShaderNodeTexImage');tex.image=image
   material.node_tree.links.new(tex.outputs['Color'],material.node_tree.nodes['Principled BSDF'].inputs['Base Color'])
  # Curved section loft: rounded chin, rising haunches and a genuine open cockpit.
- profile=[(-2.65,.60,.57,1.15),(-2.35,.96,.48,1.30),(-1.65,1.14,.41,1.32),(-.95,.91,.40,1.18),(.0,.85,.38,1.13),(1.20,.93,.39,1.22),(1.72,.98,.42,1.28),(2.25,.86,.45,1.17),(2.85,.64,.49,.94),(3.22,.41,.52,.75),(3.42,.28,.54,.67)]
+ profile=[(-2.65,.60,.84,1.38),(-2.35,.96,.66,1.48),(-1.65,1.10,.35,1.43),(-.95,.80,.20,1.20),(.0,.73,.26,1.12),(1.20,.84,.40,1.24),(1.72,.94,.39,1.22),(2.25,.81,.30,1.01),(2.85,.58,.24,.73),(3.22,.35,.23,.49),(3.42,.22,.25,.40)]
  sections=[]
  for i in range(len(profile)-1):
   for step in range(4):
@@ -53,7 +53,16 @@ def build_piledriver(body,accent,carbon,steel,rubber,glow,glass):
     w,lo,hi=dims(z);path.append((side*w*factor,lo+(hi-lo)*height+.008,z))
    strip('Fine brass body seam',path,.012,accent)
   # Layered flanks, carbon lower sills and flush maintenance hardware.
-  panel('Inset carbon sill',[(side*.88,.48,1.2),(side*.82,.43,-.65),(side*1.08,.52,-1.55),(side*.98,.68,-1.9),(side*.88,.69,-.4),(side*.94,.66,1.3)],carbon)
+  # Deep waist, rising diffuser and an exposed forebody: no flat slab belly.
+  sill=[]
+  for z in [-2.4,-1.7,-1.0,-.3,.5,1.2,1.8,2.4,3.05]:
+   w,lo,hi=dims(z);sill.append((side*w*.94,lo+.08,z))
+  strip('Sculpted lower brass chine',sill,.021,accent)
+  for za,zb in [(-2.35,-1.65),(-1.65,-.95),(-.95,0),(0,1.2),(1.2,2.25)]:
+   wa,la,ha=dims(za);wb,lb,hb=dims(zb)
+   panel('Recessed carbon undercut',[(side*wa*.94,la+.10,za),(side*wb*.94,lb+.10,zb),(side*wb*.99,lb+.24,zb),(side*wa*.99,la+.24,za)],carbon)
+  for z in [-1.9,-1.65,-1.4]:
+   pipe('Exposed sill cooling pipe',(side*.73,.43,z),(side*.86,.58,z-.24),.027,accent)
   panel('Raised rear purple haunch',[(side*.86,1.15,-.95),(side*1.16,1.37,-1.65),(side*.94,1.44,-2.35),(side*.61,1.26,-2.60),(side*.68,1.17,-1.45)],body)
   strip('Haunch brass edging',[(side*.86,1.17,-.95),(side*1.16,1.39,-1.65),(side*.94,1.46,-2.35),(side*.61,1.28,-2.60)],.014,accent)
   for z in [-2.22,-1.85,-1.48,.95,1.40,1.85,2.25]:
@@ -109,13 +118,18 @@ def build_piledriver(body,accent,carbon,steel,rubber,glow,glass):
   for i in range(3):
    panel('Swept purple tail vane',[(side*(.71+i*.12),1.32,-1.85),(side*(1.12+i*.18),1.56+i*.06,-3.05-i*.10),(side*(.86+i*.13),1.46,-2.86),(side*.65,1.26,-2.12)],body if i==0 else carbon)
   # Open low rim and a continuous swept roll frame; no tall glass screen.
-  rim=[(side*.61,1.23,1.37),(side*.70,1.09,.70),(side*.71,1.02,-.40),(side*.64,1.22,-1.20)]
+  rim=[(side*.50,1.24,1.37),(side*.46,1.10,.70),(side*.44,1.04,-.40),(side*.48,1.24,-1.20)]
   strip('Carbon cockpit rim',rim,.045,carbon)
   strip('Cockpit brass rim seam',[(x,y+.038,z) for x,y,z in rim],.014,accent)
   rail=[(side*.53,1.21,2.00),(side*.58,1.43,1.45),(side*.56,1.86,.32),(side*.51,1.98,-.45),(side*.49,1.90,-.95),(side*.58,1.35,-1.62)]
   strip('Swept brass roll hoop',rail,.032,accent)
   # Seat, harness and console detail are visible in side and cockpit views.
-  box('Seat side bolster',(side*.30,1.02,-.15),(.12,.24,.72),rubber,.055)
+  box('Seat hip bolster',(side*.27,.99,-.22),(.14,.28,.82),rubber,.055)
+  box('Seat torso bolster',(side*.27,1.31,-.49),(.14,.53,.26),rubber,.055)
+  box('Seat shoulder wing',(side*.30,1.54,-.55),(.17,.22,.29),carbon,.045)
+  panel('Fitted cockpit inner wall',[(side*.46,1.10,.75),(side*.44,1.04,-.40),(side*.48,1.24,-1.20),(side*.33,.78,-.95),(side*.34,.78,.78)],carbon)
+  box('Padded cockpit elbow rail',(side*.43,1.07,-.02),(.12,.12,.90),rubber,.04)
+  panel('Wraparound side console',[(side*.34,.88,.20),(side*.45,1.07,.20),(side*.46,1.10,.82),(side*.30,.94,.92)],carbon)
   box('Gold shoulder harness',(side*.15,1.37,-.46),(.08,.56,.035),accent,.015)
   for z in [.1,.35,.6]:box('Console engraved switch',(side*.61,1.12,z),(.065,.04,.055),steel,.008)
  pipe('Swept top cross brace',(-.51,1.98,-.45),(.51,1.98,-.45),.028,accent)
@@ -158,3 +172,14 @@ def build_piledriver(body,accent,carbon,steel,rubber,glow,glass):
   pipe('Vector plasma liner',(x,1.48,-2.29),(x,1.48,-2.35),.065,glow,16)
   panel('Layered tail vector',[(x-.11,1.53,-1.8),(x+.11,1.53,-1.8),(x+.13,1.61,-2.78),(x-.13,1.61,-2.78)],carbon)
   rig('Kestrel_Tail_%d'%i,since(before),(x,1.48,-1.83))
+
+ # Rear rises while the nose drops; curved belly was authored independently above.
+ bpy.context.view_layer.update()
+ def rake(world):
+  z=-world.y
+  return Vector((world.x,world.y,world.z-.065*z))
+ for obj in list(bpy.context.scene.objects):
+  if obj.type!='MESH':continue
+  world=obj.matrix_world.copy();inverse=world.inverted()
+  for vertex in obj.data.vertices:vertex.co=inverse@rake(world@vertex.co)
+  obj.data.update()
