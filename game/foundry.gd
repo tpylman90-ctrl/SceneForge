@@ -410,3 +410,9 @@ func comparison_frame() -> void:
 		get_tree().quit()
 
 var show_tail := false
+
+func _exit_tree() -> void:
+	if has_node("KestrelHum"):
+		var sound: AudioStreamPlayer3D = get_node("KestrelHum")
+		sound.stop()
+		sound.stream = null
