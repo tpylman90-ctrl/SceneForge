@@ -199,10 +199,10 @@ func build_jump_landmarks(trim: Material, orange: Material, cyan: Material) -> v
 		var normal := Vector3(forward.z,0,-forward.x)
 		var angle := atan2(forward.x,forward.z)
 		for side in [-1.0,1.0]:
-			block(p+normal*side*11.5+Vector3.UP*2.5,Vector3(0.35,5,0.35),trim,angle)
-		block(p+Vector3.UP*5,Vector3(23.5,0.65,0.4),trim,angle)
-		block(p+Vector3.UP*4.6,Vector3(22.5,0.08,0.5),orange if index==34 else cyan,angle)
-		district_sign("CROSSING JUMP / AUTO LAUNCH" if index==34 else "LANDING ZONE",p+Vector3.UP*5,forward,Color("ffca85") if index==34 else Color("85eeee"))
+			block(p+normal*side*11.5+Vector3.UP*3.75,Vector3(0.35,7.5,0.35),trim,angle)
+		block(p+Vector3.UP*7.5,Vector3(23.5,0.65,0.4),trim,angle)
+		block(p+Vector3.UP*7.1,Vector3(22.5,0.08,0.5),orange if index==34 else cyan,angle)
+		district_sign("CROSSING JUMP / AUTO LAUNCH" if index==34 else "LANDING ZONE",p+Vector3.UP*7.5,forward,Color("ffca85") if index==34 else Color("85eeee"))
 
 func road_material() -> StandardMaterial3D:
 	# Fine albedo grain only: no displacement, normal-map shimmer or extra light.
