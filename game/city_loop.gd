@@ -7,6 +7,7 @@ var route: PackedVector3Array = []
 var car: Node3D
 var camera: Camera3D
 var speed := 0.0
+var reverse_hold := 0.0
 var heading := 0.0
 var steer := 0.0
 var throttle := false
@@ -157,9 +158,11 @@ func build_city() -> void:
 		if i % 3 == 0:
 			block(mid+Vector3.UP*0.015,Vector3(0.16,0.025,1.4),trim,angle)
 		if i % 8 == 0:
-			# Repeated arrow chevrons indicate the clockwise lap direction.
-			for side in [-1.0,1.0]:
-				block(mid+normal*side*0.32+Vector3.UP*0.025,Vector3(0.12,0.025,0.85),orange,angle+side*0.7)
+			# Both strokes meet at a tip ahead along the actual route tangent.
+			var arrow := arrow_points(mid, forward)
+			for tail in [arrow[1], arrow[2]]:
+				var stroke: Vector3 = arrow[0]-tail
+				block((arrow[0]+tail)*0.5+Vector3.UP*0.025,Vector3(0.12,0.025,stroke.length()),orange,atan2(stroke.x,stroke.z))
 	var road_mesh := MeshInstance3D.new()
 	road_mesh.mesh = road.commit()
 	road_mesh.material_override = asphalt
@@ -204,6 +207,10 @@ func build_city() -> void:
 	sign.rotation.y = PI
 	add_child(sign)
 
+func arrow_points(center: Vector3, forward: Vector3) -> PackedVector3Array:
+	var side := Vector3(forward.z,0,-forward.x)
+	return PackedVector3Array([center+forward*0.55,center-forward*0.35+side*0.55,center-forward*0.35-side*0.55])
+
 func normalize_safe(v: Vector3) -> Vector3:
 	return v.normalized()
 
@@ -245,7 +252,7 @@ func build_ui() -> void:
 	pedals.position = Vector2(-410,-110)
 	pedals.add_theme_constant_override("separation",16)
 	layer.add_child(pedals)
-	var b := ui_button(pedals,"BRAKE",func(): pass,170)
+	var b := ui_button(pedals,"BRAKE / REV",func(): pass,170)
 	b.button_down.connect(func(): brake=true)
 	b.button_up.connect(func(): brake=false)
 	var gas := ui_button(pedals,"THRUST",func(): pass,190)
@@ -257,6 +264,7 @@ func reset_car() -> void:
 	heading = 0.0
 	car.rotation = Vector3.ZERO
 	speed = 0.0
+	reverse_hold = 0.0
 	steer = 0.0
 	checkpoint = 0
 	lap = 1
@@ -341,11 +349,23 @@ func _physics_process(delta: float) -> void:
 	var stopping := brake or Input.is_physical_key_pressed(KEY_S) or Input.is_physical_key_pressed(KEY_DOWN)
 	var turn := float(right or Input.is_physical_key_pressed(KEY_D) or Input.is_physical_key_pressed(KEY_RIGHT))-float(left or Input.is_physical_key_pressed(KEY_A) or Input.is_physical_key_pressed(KEY_LEFT))
 	steer = move_toward(steer,turn,delta*4)
-	var acceleration := 10.0 if gas else -2.8
 	if stopping:
-		acceleration = -20
-	speed = clampf(speed+acceleration*delta,0,32)
-	heading -= steer*1.15*clampf(speed/8,0,1)*delta
+		if speed > 0.0:
+			speed = move_toward(speed,0,20*delta)
+			reverse_hold = 0.0
+		else:
+			# A short stop separates braking from deliberate reversing.
+			reverse_hold += delta
+			if reverse_hold >= 0.3:
+				speed = move_toward(speed,-8,5*delta)
+	elif gas:
+		reverse_hold = 0.0
+		# Thrust first stops backward travel, then accelerates forward.
+		speed = move_toward(speed,0,20*delta) if speed < 0 else minf(32,speed+10*delta)
+	else:
+		reverse_hold = 0.0
+		speed = move_toward(speed,0,2.8*delta)
+	heading -= steer*1.15*clampf(speed/8,-1,1)*delta
 	var forward := Vector3(sin(heading),0,cos(heading))
 	car.position += forward*speed*delta
 	var nearest := closest_segment(car.position)
@@ -353,13 +373,14 @@ func _physics_process(delta: float) -> void:
 	var offset := car.position-center
 	if offset.length() > 6.0:
 		car.position = center+offset.normalized()*6.0
-		speed = maxf(0,speed-35*delta)
+		speed = move_toward(speed,0,35*delta)
 	car.rotation = Vector3(0,heading,steer*0.055*clampf(speed/20,0,1))
-	if speed > 0.1:
+	if absf(speed) > 0.1:
 		lap_time += delta
-	track_progress(nearest["index"])
+	if speed > 0.1:
+		track_progress(nearest["index"])
 	update_camera(delta)
-	hud.text = "NEON LOOP / LAP %d\n%03d KM/H  ·  %.1f s\nBEST %s  ·  %d FPS" % [lap,int(speed*3.6),lap_time,"—" if best==0 else "%.1f s"%best,Engine.get_frames_per_second()]
+	hud.text = "NEON LOOP / LAP %d\n%s %03d KM/H  ·  %.1f s\nBEST %s  ·  %d FPS" % [lap,"R" if speed < -0.05 else "D",int(absf(speed)*3.6),lap_time,"—" if best==0 else "%.1f s"%best,Engine.get_frames_per_second()]
 
 func update_camera(delta: float) -> void:
 	if cockpit:
@@ -400,6 +421,9 @@ func test_loop() -> void:
 	# Geometric continuity, road containment and ordered lap gates.
 	for i in range(COUNT):
 		assert(route[i].distance_to(route[(i+1)%COUNT]) < 3.3)
+		var forward := (route[(i+1)%COUNT]-route[i]).normalized()
+		var arrow := arrow_points(route[i],forward)
+		assert((arrow[0]-arrow[1]).dot(forward)>0.8 and (arrow[0]-arrow[2]).dot(forward)>0.8)
 		assert(closest_segment(route[i])["point"].distance_to(route[i]) < 0.01)
 		track_progress(i)
 	assert(lap==1 and checkpoint==3)
@@ -414,7 +438,34 @@ func test_loop() -> void:
 	brake=true
 	for i in range(60):
 		await get_tree().physics_frame
+	assert(speed < 0, "Holding brake must engage reverse after stopping")
+	# Release coasts to a stop without accidentally accelerating forward.
+	set_physics_process(false)
+	brake=false
+	for frame in range(240):
+		_physics_process(1.0/60)
 	assert(speed==0)
+	reset_car()
+	brake=true
+	for frame in range(120):
+		_physics_process(1.0/60)
+	assert(speed < -5 and car.position.z < 0, "Reverse must move backward from standstill")
+	var before := heading
+	right=true
+	_physics_process(1.0/60)
+	assert(heading > before, "Steering must reverse its yaw effect while backing up")
+	right=false
+	brake=false
+	throttle=true
+	for frame in range(60):
+		_physics_process(1.0/60)
+	assert(speed > 0, "Thrust must stop reverse and regain forward travel")
+	car.position = route[0]+Vector3(15,0,0)
+	speed=-8
+	throttle=false
+	brake=true
+	_physics_process(1.0/60)
+	assert(speed < 0 and car.position.distance_to(closest_segment(car.position)["point"]) <= 6.01)
 	toggle_camera()
 	update_camera(1)
 	assert(camera.position.distance_to(car.to_global(Vector3(0,1.829,0.418))) < 0.01)
