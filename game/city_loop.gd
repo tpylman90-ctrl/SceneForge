@@ -25,6 +25,7 @@ var speed := 0.0
 var reverse_hold := 0.0
 var heading := 0.0
 var steer := 0.0
+var yaw_velocity := 0.0
 var throttle := false
 var brake := false
 var boost := false
@@ -337,6 +338,7 @@ func build_city() -> void:
 		block(Vector3(72.5+i,0.025,0),Vector3(1,0.04,0.8),trim if i%2==0 else dark)
 	build_jump_landmarks(trim,orange,cyan)
 	build_districts(wall,trim,dark,cyan,orange,warm,concrete)
+	build_street_detail(concrete,dark,trim,orange,cyan,warm)
 	flush_batches()
 	var sign := Label3D.new()
 	sign.text = "NEON CROSS  /  START"
@@ -346,6 +348,41 @@ func build_city() -> void:
 	sign.rotation.y = PI
 	add_child(sign)
 
+
+func build_street_detail(concrete: Material, dark: Material, trim: Material, orange: Material, cyan: Material, warm: Material) -> void:
+	# Shared material batches: depth and readable silhouettes without extra lights.
+	for index in range(0,COUNT,4):
+		if index>=26 and index<=70 or index>=136 and index<=152:
+			continue
+		var p := route[index]
+		var forward := flat(route[(index+1)%COUNT]-p).normalized()
+		var normal := outward_at(index)
+		var angle := atan2(forward.x,forward.z)
+		var edge := p+normal*10.7
+		block(edge-Vector3.UP*0.05,Vector3(3.0,0.25,3.0),concrete,angle)
+		# Recessed drain and protective service bollards.
+		block(edge-normal*0.8+Vector3.UP*0.09,Vector3(0.45,0.06,1.8),dark,angle)
+		for rib in range(5):
+			block(edge-normal*0.8+forward*(rib-2)*0.3+Vector3.UP*0.13,Vector3(0.4,0.025,0.06),trim,angle)
+		if index%12==0:
+			block(edge+Vector3.UP*1.7,Vector3(0.3,3.4,0.3),dark,angle)
+			block(edge+Vector3.UP*3.2,Vector3(0.4,0.55,0.4),cyan if index<96 else warm,angle)
+			block(edge+Vector3.UP*3.6,Vector3(0.65,0.12,0.65),trim,angle)
+		else:
+			block(edge+Vector3.UP*0.85,Vector3(0.8,1.7,0.5),dark,angle)
+			block(edge-forward*0.28+Vector3.UP*1.15,Vector3(0.58,0.35,0.04),orange,angle)
+	# Inner facades: inset window bands, mechanical panels and rooftop housings.
+	for x in [-43.0,43.0]:
+		for z in [-10.0,10.0]:
+			var height := 12.0+(2.0 if z>0 else 0.0)
+			for side in [-1.0,1.0]:
+				for level in [3.0,6.0,9.0]:
+					block(Vector3(x,level,z+side*4.05),Vector3(12,0.22,0.35),dark)
+					for col in [-4.5,-1.5,1.5,4.5]:
+						block(Vector3(x+col,level+1,z+side*4.03),Vector3(1.2,1.3,0.06),warm if int(col+level)%3==0 else trim)
+			block(Vector3(x,height+0.7,z),Vector3(4,1.4,3),dark)
+			for rib in range(6):
+				block(Vector3(x-1.5+rib*0.6,height+1.43,z),Vector3(0.16,0.08,2.7),trim)
 
 func district_sign(label: String, point: Vector3, forward: Vector3, color: Color) -> void:
 	var sign := Label3D.new()
@@ -576,6 +613,7 @@ func reset_car() -> void:
 	reverse_hold = 0.0
 	travel_velocity = Vector3.ZERO
 	steer = 0.0
+	yaw_velocity = 0.0
 	if feedback != null:
 		feedback.rotation = Vector3.ZERO
 		feedback.position = Vector3.ZERO
@@ -800,9 +838,11 @@ func _physics_process(delta: float) -> void:
 	else:
 		reverse_hold = 0.0
 		speed = move_toward(speed,0,chassis.coast_drag*delta)
-	heading -= steer*chassis.yaw_rate*clampf(speed/8,-1,1)*delta*(0.3 if airborne else 1.0)
+	update_steering(delta)
 	var forward := Vector3(sin(heading),0,cos(heading))
-	travel_velocity = travel_velocity.lerp(forward*speed,1-exp(-chassis.lateral_grip*delta*(0.45 if airborne else 1.0)))
+	var speed_ratio := clampf(absf(speed)/chassis.max_forward_speed,0,1)
+	var grip: float = chassis.lateral_grip*lerpf(1.0,0.65,speed_ratio)*(0.45 if airborne else 1.0)
+	travel_velocity = travel_velocity.lerp(forward*speed,1-exp(-grip*delta))
 	car.position += travel_velocity*delta
 	var nearest := closest_segment(car.position,route_index)
 	route_index=int(nearest["index"])
@@ -835,6 +875,17 @@ func _physics_process(delta: float) -> void:
 	boost_button.text = "%s / %03d%%" % ["BOOST" if not boost_locked else "RECHARGING",int(boost_energy)]
 	hud.text = "NEON CROSS / LAP %d\n%s %03d KM/H  ·  %.1f s\nBEST %s  ·  %d FPS\n%s" % [lap,"R" if speed < -0.05 else "D",int(absf(speed)*3.6),lap_time,"—" if best==0 else "%.1f s"%best,Engine.get_frames_per_second(),("AIRBORNE / %.1f s"%air_time) if airborne else DISTRICTS[int(nearest["index"])/(COUNT/4)]]
 
+func update_steering(delta: float) -> void:
+	# Short yaw spool gives weight; countersteer and release settle promptly.
+	var ratio := clampf(absf(speed)/chassis.max_forward_speed,0,1)
+	var authority := lerpf(1.0,0.90,ratio)
+	var target: float = -steer*chassis.yaw_rate*clampf(speed/8,-1,1)*authority*(0.3 if airborne else 1.0)
+	var response := 8.0 if airborne else (11.0 if absf(steer)<0.1 or target*yaw_velocity<0 else 7.0)
+	yaw_velocity=lerpf(yaw_velocity,target,1-exp(-response*delta))
+	if absf(speed)<0.05:
+		yaw_velocity=0.0
+	heading+=yaw_velocity*delta
+
 func update_camera(delta: float) -> void:
 	camera.fov = lerpf(camera.fov,74.0+clampf(absf(speed)/chassis.max_forward_speed,0,1)*7.0+(3.0 if boost_active else 0.0),1-exp(-delta*3))
 	if cockpit:
@@ -857,6 +908,24 @@ func _process(_delta: float) -> void:
 			shutdown()
 
 func test_loop() -> void:
+	# Steering settles consistently at different simulation rates.
+	var headings: Array[float] = []
+	for hz in [30,60,120]:
+		heading=0.0
+		yaw_velocity=0.0
+		steer=1.0
+		speed=32.0
+		for tick in range(hz):
+			update_steering(1.0/hz)
+		assert(yaw_velocity < -0.9 and yaw_velocity > -1.2)
+		headings.append(heading)
+		steer=0.0
+		for tick in range(hz):
+			update_steering(1.0/hz)
+		assert(absf(yaw_velocity)<0.001, "Release must settle yaw")
+	assert(absf(headings[0]-headings[2])<0.03, "Yaw must remain stable across tick rates")
+	reset_car()
+	print("SCENEFORGE_STEERING_OK")
 	# Android must allow a steering finger and a thrust finger together.
 	var touch := InputEventScreenTouch.new()
 	touch.index=1
@@ -1042,4 +1111,5 @@ func shutdown(next_scene: String = "") -> void:
 		get_tree().quit()
 	else:
 		get_tree().change_scene_to_file(next_scene)
+
 
