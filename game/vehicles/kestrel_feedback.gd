@@ -129,12 +129,12 @@ func set_cockpit(enabled: bool) -> void:
 		mesh.set_surface_override_material(entry["surface"],entry["inside"] if enabled else entry["outside"])
 	display_clock = 1.0
 
-func update_feedback(delta: float, signed_speed: float, drive: float, steering: float, acceleration: float, slip: float, cockpit: bool, boosting: bool = false, charge: float = 100.0) -> void:
+func update_feedback(delta: float, signed_speed: float, drive: float, steering: float, acceleration: float, slip: float, cockpit: bool, boosting: bool = false, charge: float = 100.0, flight_pitch: float = 0.0) -> void:
 	last_drive = drive
 	motion_clock += delta
 	var amount := clampf(absf(signed_speed)/20,0,1)
 	visual_roll = lerpf(visual_roll,steering*0.13*amount,1-exp(-delta*8))
-	visual_pitch = lerpf(visual_pitch,clampf(acceleration*0.002,-0.035,0.025),1-exp(-delta*5))
+	visual_pitch = lerpf(visual_pitch,clampf(acceleration*0.002,-0.035,0.025)+flight_pitch,1-exp(-delta*5))
 	rotation = Vector3(visual_pitch,0,visual_roll)
 	position.y = sin(motion_clock*3.0)*0.018*amount
 	yoke.transform = yoke_rest*Transform3D(Basis(Vector3.BACK,steering*0.22),Vector3.ZERO)

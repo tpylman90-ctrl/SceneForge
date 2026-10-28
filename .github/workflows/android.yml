@@ -143,6 +143,9 @@ jobs:
           grep SCENEFORGE_CITY_LOOP_OK build/city-loop.log
           grep SCENEFORGE_KESTREL_FEEDBACK_OK build/city-loop.log
           grep SCENEFORGE_BOOST_OK build/city-loop.log
+          timeout 120 godot --headless --path game --script res://tests/figure8_test.gd 2>&1 | tee build/figure8.log
+          if grep -E 'SCRIPT ERROR:|ERROR:' build/figure8.log; then exit 1; fi
+          grep FIGURE8_RECOVERY_OK build/figure8.log
           timeout 120 xvfb-run -a godot --audio-driver Dummy --path game --rendering-method gl_compatibility --resolution 1280x720 res://city_loop.tscn -- --capture 2>&1 | tee build/loop-track-render.log
           test -s build/NeonLoop-track.png
           timeout 120 xvfb-run -a godot --audio-driver Dummy --path game --rendering-method gl_compatibility --resolution 1280x720 res://city_loop.tscn -- --capture --track-cockpit --track-action --sound-on 2>&1 | tee build/loop-cockpit-render.log
@@ -151,6 +154,10 @@ jobs:
           test -s build/NeonLoop-action.png
           timeout 120 xvfb-run -a godot --audio-driver Dummy --path game --rendering-method gl_compatibility --resolution 1280x720 res://city_loop.tscn -- --capture --track-overview 2>&1 | tee build/loop-overview-render.log
           test -s build/NeonLoop-overview.png
+          timeout 120 xvfb-run -a godot --audio-driver Dummy --path game --rendering-method gl_compatibility --resolution 1280x720 res://city_loop.tscn -- --capture --track-jump 2>&1 | tee build/loop-jump-render.log
+          test -s build/NeonCross-jump.png
+          timeout 120 xvfb-run -a godot --audio-driver Dummy --path game --rendering-method gl_compatibility --resolution 1280x720 res://city_loop.tscn -- --capture --track-jump --track-cockpit 2>&1 | tee build/loop-jump-cockpit-render.log
+          test -s build/NeonCross-jump-cockpit.png
           if grep -E 'SCRIPT ERROR:|ERROR:' build/loop-*-render.log; then exit 1; fi
       - name: Export and verify APK
         shell: bash
@@ -234,5 +241,5 @@ jobs:
           if ! gh release view pipeline-latest >/dev/null 2>&1; then
             gh release create pipeline-latest --target "$GITHUB_SHA" --prerelease --title "SceneForge — latest Android test" --notes "Permanently signed Android build. Download SceneForge.apk."
           fi
-          gh release upload pipeline-latest build/SceneForge.apk build/SceneForge-debug.apk build/SHA256SUMS.txt build/BUILD.txt build/NeonFoundry-preview.png build/NeonFoundry-ingame.png build/NeonFoundry-road.png build/Kestrel-hovercar.png build/Kestrel-tail.png build/Kestrel-cockpit.png build/Kestrel-door-open.png build/Kestrel-driver-seat.png build/NeonFoundry-rear.png build/asset-report.json build/NeonLoop-track.png build/NeonLoop-cockpit.png build/NeonLoop-action.png build/NeonLoop-overview.png --clobber
+          gh release upload pipeline-latest build/SceneForge.apk build/SceneForge-debug.apk build/SHA256SUMS.txt build/BUILD.txt build/NeonFoundry-preview.png build/NeonFoundry-ingame.png build/NeonFoundry-road.png build/Kestrel-hovercar.png build/Kestrel-tail.png build/Kestrel-cockpit.png build/Kestrel-door-open.png build/Kestrel-driver-seat.png build/NeonFoundry-rear.png build/asset-report.json build/NeonLoop-track.png build/NeonLoop-cockpit.png build/NeonLoop-action.png build/NeonLoop-overview.png build/NeonCross-jump.png build/NeonCross-jump-cockpit.png --clobber
           gh release edit pipeline-latest --notes "Successful pipeline build #$GITHUB_RUN_NUMBER from commit $GITHUB_SHA. Permanent release signing verified. Download SceneForge.apk; the debug variant remains available separately."
