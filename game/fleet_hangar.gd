@@ -13,6 +13,8 @@ var elevation := 0.30
 var drag := false
 var frames := 0
 var cockpit := false
+var fleet_panel: Control
+var fleet_list: Control
 
 func _ready() -> void:
 	selected=clampi(int(get_tree().get_meta("sceneforge_craft",0)),0,4)
@@ -60,11 +62,13 @@ func _ready() -> void:
 	var ui := CanvasLayer.new()
 	add_child(ui)
 	var panel := ColorRect.new()
+	fleet_panel=panel
 	panel.color=Color(.025,.05,.075,.94)
 	panel.position=Vector2(20,20)
 	panel.size=Vector2(325,570)
 	ui.add_child(panel)
 	var list := VBoxContainer.new()
+	fleet_list=list
 	list.position=Vector2(36,38)
 	list.add_theme_constant_override("separation",12)
 	ui.add_child(list)
@@ -106,7 +110,8 @@ func _ready() -> void:
 		elevation=.04
 		update_camera()
 	if "--fleet-top" in OS.get_cmdline_user_args():
-		camera.position=craft.position+Vector3(0,10,.01)
+		camera.h_offset=0
+		camera.position=craft.position+Vector3(0,11.5,.01)
 		camera.look_at(craft.position,Vector3(0,0,-1))
 
 func spawn_craft() -> void:
@@ -144,17 +149,21 @@ func action(label: String) -> void:
 		get_tree().change_scene_to_file("res://city_loop.tscn" if label=="DRIVE" else "res://main.tscn")
 		return
 	cockpit=label=="COCKPIT"
+	fleet_panel.visible=not cockpit
+	fleet_list.visible=not cockpit
 	visual.set_cockpit(cockpit)
 	orbit=2.5 if label=="TAIL" else -.62
 	update_camera()
 
 func update_camera() -> void:
 	if cockpit:
+		camera.h_offset=0
 		var definition: Resource=Fleet.definition(selected)
 		camera.global_transform=visual.global_transform*Transform3D(Basis.from_euler(Vector3(definition.cockpit_pitch,PI,0)),definition.cockpit_eye)
 	else:
-		camera.position=craft.position+Vector3(sin(orbit)*8.2,2.0+elevation*5,cos(orbit)*8.2)
-		camera.look_at(craft.position+Vector3(-.8,1.1,.4))
+		camera.h_offset=-1.65
+		camera.position=craft.position+Vector3(sin(orbit)*9.0,2.0+elevation*5,cos(orbit)*9.0)
+		camera.look_at(craft.position+Vector3(0,1.1,.4))
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton:drag=event.pressed

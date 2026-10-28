@@ -86,7 +86,7 @@ def build_piledriver(body,accent,carbon,steel,rubber,glow,glass):
    pipe('Pod linkage',(x*.75,y+.12,z),(x,y,z),.055,steel)
    for zz in [-.15,0,.15]:box('Pod cooling slot',(x,y+.20,z+zz),(.16,.018,.035),carbon,.004)
   # Deep hollow turbine: bell mouth, internal stator, collar and heat shielding.
-  cx=side*.78;cy=.95
+  cx=side*1.0;cy=.95
   verts=[]
   for z,r in [(-1.75,.24),(-2.35,.34),(-2.64,.30),(-2.68,.24),(-2.30,.23)]:
    for i in range(32):
@@ -94,15 +94,16 @@ def build_piledriver(body,accent,carbon,steel,rubber,glow,glass):
   faces=[]
   for row in range(4):
    for i in range(32):faces.append((row*32+i,row*32+(i+1)%32,(row+1)*32+(i+1)%32,(row+1)*32+i))
+  verts=[(x,y,z-.35) for x,y,z in verts]
   engine=mesh('Hollow rear turbine bell',verts,faces,steel)
   for face in engine.data.polygons:face.use_smooth=True
-  pipe('Turbine dark throat',(cx,cy,-2.23),(cx,cy,-2.28),.225,carbon,32)
-  pipe('Recessed plasma core',(cx,cy,-2.26),(cx,cy,-2.29),.085,glow,20)
+  pipe('Turbine dark throat',(cx,cy,-2.58),(cx,cy,-2.63),.225,carbon,32)
+  pipe('Recessed plasma core',(cx,cy,-2.61),(cx,cy,-2.64),.085,glow,20)
   for i in range(8):
    a=math.tau*i/8
-   pipe('Internal turbine stator',(cx+.11*math.cos(a),cy+.11*math.sin(a),-2.38),(cx+.235*math.cos(a+.18),cy+.235*math.sin(a+.18),-2.40),.014,accent,8)
+   pipe('Internal turbine stator',(cx+.11*math.cos(a),cy+.11*math.sin(a),-2.73),(cx+.235*math.cos(a+.18),cy+.235*math.sin(a+.18),-2.75),.014,accent,8)
   for z,r in [(-2.36,.34),(-2.60,.305)]:
-   collar=ring('Machined turbine collar',(cx,cy,z),r,.022,accent);collar.rotation_euler.x=math.pi/2
+   collar=ring('Machined turbine collar',(cx,cy,z-.35),r,.022,accent);collar.rotation_euler.x=math.pi/2
   pipe('Upper engine plumbing',(side*.60,1.13,-1.55),(side*.62,1.25,-2.1),.045,accent)
   # Swept tail feathers, layered across the rising shoulder.
   for i in range(3):
