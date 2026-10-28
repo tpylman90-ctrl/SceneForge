@@ -346,8 +346,9 @@ def car_loft(name,sections,mat):
  verts=[]
  # Cross section wraps lower pan, chamfered shoulders and upper deck.
  for y,w,bottom,top in sections:
+  chamfer=min(.04,(top-bottom)*.25)
   verts.extend([(cx-w*.72,cy+y,bottom),(cx+w*.72,cy+y,bottom),
-   (cx+w,cy+y,bottom+.08),(cx+w,cy+y,top-.07),
+   (cx+w,cy+y,bottom+chamfer),(cx+w,cy+y,top-chamfer),
    (cx+w*.72,cy+y,top),(cx-w*.72,cy+y,top),
    (cx-w,cy+y,top-.07),(cx-w,cy+y,bottom+.08)])
  faces=[tuple(reversed(range(8)))]
@@ -356,7 +357,8 @@ def car_loft(name,sections,mat):
  faces.append(tuple((len(sections)-1)*8+i for i in range(8)))
  mesh=bpy.data.meshes.new(name);mesh.from_pydata(verts,[],faces);mesh.update()
  obj=bpy.data.objects.new(name,mesh);bpy.context.collection.objects.link(obj);obj.data.materials.append(M[mat])
- bpy.context.view_layer.objects.active=obj;obj.select_set(True)
+ bpy.ops.object.select_all(action='DESELECT');bpy.context.view_layer.objects.active=obj;obj.select_set(True)
+ bpy.ops.object.mode_set(mode='EDIT');bpy.ops.mesh.select_all(action='SELECT');bpy.ops.mesh.normals_make_consistent(inside=False);bpy.ops.object.mode_set(mode='OBJECT')
  mod=obj.modifiers.new('Body edge radii','BEVEL');mod.width=.035;mod.segments=3
  bpy.ops.object.modifier_apply(modifier=mod.name)
  return obj
