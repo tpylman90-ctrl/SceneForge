@@ -34,7 +34,7 @@ func _ready() -> void:
 			var material: Material = node.get_active_material(surface)
 			if material is StandardMaterial3D:
 				material.vertex_color_use_as_albedo = true
-		if "asphalt" in node.name or "grime" in node.name:
+		if "asphalt" in node.name or "grime" in node.name or "skyline" in node.name:
 			node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	var environment := WorldEnvironment.new()
 	var settings := Environment.new()

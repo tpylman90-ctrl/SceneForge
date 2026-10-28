@@ -320,10 +320,12 @@ for yy,z in [(-2,6.7),(-1.7,6.95)]:
 for x in [-7.7,7.7]:
  box('utility support',(x,-1.85,6.62),(.3,.65,.15),'orange')
 hose('overhead cable',[(-7.8+15.6*t,-2.35,6.7-.55*math.sin(math.pi*t)) for t in np.linspace(0,1,33)],.025)
+# Background uses one separately batched copy so distant silhouettes do not cast near-field shadows.
+M['skyline']=M['wall'].copy();M['skyline'].name='skyline'
 # Background masses stay outside the walkable scene and use existing materials.
 for x,y,width,height in [(-10,15,4.2,12),(-4,17,4,10),(2,16,4.5,13.5),(9,15,4,11.5)]:
- box('distant district',(x,y,height/2),(width,4,height),'wall',.05)
- box('distant roof',(x,y,height+.08),(width+.15,4.15,.16),'trim')
+ box('distant district',(x,y,height/2),(width,4,height),'skyline',.05)
+ box('distant roof',(x,y,height+.08),(width+.15,4.15,.16),'skyline')
  for z in [7,9,11]:
   if z>height-.5:continue
   for dx in [-.9,0,.9]:
@@ -333,8 +335,8 @@ for x in range(-7,8):
  pipe('fence post',(x,-11.35,0),(x,-11.35,2.2),.035,'trim',8)
 for z in [.4,1.1,1.8]:pipe('fence rail',(-7,-11.35,z),(7,-11.35,z),.025,'steel',8)
 for x in [-10,-4,3,10]:
- box('rear district mass',(x,-18,4.5),(5,5,9),'wall')
- box('rear roof',(x,-18,9.1),(5.2,5.2,.2),'trim')
+ box('rear district mass',(x,-18,4.5),(5,5,9),'skyline')
+ box('rear roof',(x,-18,9.1),(5.2,5.2,.2),'skyline')
 
 # Batch geometry by material to keep draw calls bounded.
 for mat in M.values():
