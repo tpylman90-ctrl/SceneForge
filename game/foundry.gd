@@ -30,7 +30,7 @@ func _ready() -> void:
 	var scenery: Node3D = load("res://assets/neon_foundry.glb").instantiate()
 	add_child(scenery)
 	for node in scenery.find_children("*", "MeshInstance3D", true, false):
-		if "asphalt" in node.name:
+		if "asphalt" in node.name or "grime" in node.name:
 			node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	var environment := WorldEnvironment.new()
 	var settings := Environment.new()
@@ -78,6 +78,8 @@ func _ready() -> void:
 	collider(Vector3(0, 2, -8.5), Vector3(6, 4, 0.3))
 	for x in [-2.7, 2.7]:
 		collider(Vector3(x, 2, -6), Vector3(0.3, 4, 5))
+	collider(Vector3(-4.05, 0.3, -1.75), Vector3(1.05, 0.6, 0.65))
+	collider(Vector3(1.85, 0.36, -6.35), Vector3(0.52, 0.72, 0.52))
 	collider(Vector3(0, 0.9, -5.5), Vector3(2.0, 1.8, 1.1))
 	collider(Vector3(0, 0.6, -7.5), Vector3(3.4, 1.2, 0.9))
 	for p in [Vector3(-3, 0.42, -1.5), Vector3(3.8, 0.42, -0.7), Vector3(5.2, 0.42, -1.2)]:
@@ -129,7 +131,7 @@ func ui() -> void:
 	var layer := CanvasLayer.new()
 	add_child(layer)
 	var title := Label.new()
-	title.text = "SCENEFORGE  /  NEON FOUNDRY\nRepair bay · road surface study 04"
+	title.text = "SCENEFORGE  /  NEON FOUNDRY\nRepair bay · workshop detail study 05"
 	title.position = Vector2(28, 20)
 	title.add_theme_font_size_override("font_size", 23)
 	layer.add_child(title)

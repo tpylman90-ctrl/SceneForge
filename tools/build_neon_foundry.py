@@ -23,6 +23,9 @@ material('cyan',(.08,.8,1),.1,.3,3)
 material('white',(.7,.8,.82),.2,.55)
 material('rubber',(.017,.025,.03),0,.85)
 material('puddle',(.055,.1,.13),.65,.09)
+material('window_warm',(.25,.17,.09),0,.65,.32)
+material('window_cool',(.07,.14,.18),0,.55,.2)
+material('grime',(.045,.055,.052),0,.98)
 
 # Original seamless PBR texture maps, built offline with Blender's bundled NumPy.
 # Each material gets albedo, roughness and tangent-space normals exported in GLB.
@@ -210,11 +213,74 @@ for side in [-1,1]:
   for z in [2.5,5.5]:
    for yy in [y-1.5,y,y+1.5]:
     box('window recess',(side*7.96,yy,z),(.08,1.1,1.3),'trim')
-    box('lit window',(side*7.9,yy,z),(.02,.85,.8),'amber' if yy==y else 'steel')
+    lit=(int(y+7)+int(z*2)+int(yy*2)+side)%4
+    backing='window_warm' if lit==0 else ('window_cool' if lit==1 else 'trim')
+    box('dim interior',(side*7.91,yy,z),(.03,.88,.95),backing,.003)
+    box('window mullion',(side*7.83,yy,z),(.1,.035,1.05),'trim',.003)
+    box('window sill',(side*7.78,yy,z-.56),(.3,1.16,.1),'steel',.01)
+    box('window rail',(side*7.83,yy,z+.52),(.08,1.07,.06),'trim',.003)
+    if lit in [0,1]:
+     box('interior shelf',(side*7.85,yy+.17,z-.19),(.06,.46,.045),'trim',.003)
+     box('interior silhouette',(side*7.84,yy+.27,z-.06),(.07,.13,.23),'trim',.003)
+    if lit!=1:
+     for slat in range(5 if lit==0 else 9):
+      box('venetian blind',(side*7.81,yy,z+.43-slat*.09),(.06,.91,.028),'steel' if lit==0 else 'trim',.002)
 for y in [-6,0]:
  pipe('lamp post',(-6.4,y,0),(-6.4,y,4.3),.065,'steel')
  pipe('lamp arm',(-6.4,y,4.3),(-5.4,y,4.3),.06)
  box('lamp head',(-5.4,y,4.23),(.7,.3,.12),'trim');box('lamp lens',(-5.4,y,4.15),(.55,.2,.02),'cyan')
+
+# Original service props; opaque materials, no added lights.
+def hose(name,points,radius=.025):
+ curve=bpy.data.curves.new(name,'CURVE');curve.dimensions='3D';curve.resolution_u=1
+ spline=curve.splines.new('POLY');spline.points.add(len(points)-1)
+ for p,co in zip(spline.points,points):p.co=(*co,1)
+ curve.bevel_depth=radius;curve.bevel_resolution=2
+ obj=bpy.data.objects.new(name,curve);bpy.context.collection.objects.link(obj);obj.data.materials.append(M['rubber'])
+ bpy.ops.object.select_all(action='DESELECT');obj.select_set(True);bpy.context.view_layer.objects.active=obj;bpy.ops.object.convert(target='MESH')
+box('reel bracket',(-3.05,3.12,1.25),(.75,.12,.8),'trim')
+for i in range(4):
+ hose('coiled air line',[(-3.05+(.23+i*.018)*math.cos(t),2.99-i*.035,1.25+(.23+i*.018)*math.sin(t)) for t in np.linspace(0,math.tau,41)],.023)
+pipe('reel spindle',(-3.05,2.9,1.25),(-3.05,3.2,1.25),.06,'steel')
+hose('loose air hose',[(-3.05,2.85,.99),(-2.9,2.8,.6),(-2.8,2.7,.12),(-2.4,2.4,.045),(-2,2.5,.045)],.026)
+pipe('air coupler',(-2,2.5,.045),(-1.87,2.55,.045),.045,'steel')
+box('field case base',(-4.05,1.75,.16),(1.05,.65,.3),'trim')
+box('case liner',(-4.05,1.75,.325),(.94,.55,.045),'rubber')
+lid=box('open case lid',(-4.05,2.05,.59),(1.05,.08,.59),'orange');lid.rotation_euler.x=-.24
+for x in [-4.35,-4.05,-3.75]:
+ box('case divider',(x,1.75,.35),(.025,.5,.08),'steel',.003)
+ pipe('socket tool',(x+.08,1.59,.38),(x+.08,1.92,.38),.025,'steel',8)
+ box('tool grip',(x+.08,1.65,.38),(.055,.12,.055),'orange',.008)
+for x in [-4.43,-3.67]:box('case clasp',(x,1.39,.18),(.1,.06,.12),'steel')
+for x in [-.94,.94]:
+ pipe('end flange',(x-.03,5.5,1.15),(x+.03,5.5,1.15),.55,'steel',32)
+ for a in range(0,360,60):
+  t=math.radians(a);y=5.5+.47*math.cos(t);z=1.15+.47*math.sin(t)
+  pipe('flange fastener',(x-.065,y,z),(x+.065,y,z),.025,'trim',8)
+pipe('pressure feed',(-.45,5.5,1.61),(-.45,5.5,1.82),.07,'steel')
+pipe('feed elbow',(-.45,5.5,1.82),(-.45,6,1.82),.065,'steel')
+hose('supply cable',[(-.45,6,1.82),(-1.1,6.3,1.5),(-1.3,6.5,.15),(-1.4,7.3,.1),(-1.4,7.5,.8)],.033)
+box('service badge',(0,4.99,1.15),(.46,.025,.16),'orange',.006)
+text('NF-07',(-.19,4.97,1.11),.085,'trim')
+box('vise base',(-1.05,7.2,1.1),(.34,.28,.1),'trim')
+for x in [-1.14,-.96]:box('vise jaw',(x,7.2,1.24),(.065,.27,.2),'steel')
+pipe('vise screw',(-1.35,7.2,1.18),(-.8,7.2,1.18),.025,'steel')
+for i in range(4):pipe('spare coupling',(-.5+i*.18,7.5,1.09),(-.5+i*.18,7.5,1.22),.055,'steel',12)
+pipe('stool seat',(1.85,6.35,.65),(1.85,6.35,.73),.26,'trim',20)
+for dx,dy in [(-.17,-.17),(.17,-.17),(.17,.17),(-.17,.17)]:
+ pipe('stool leg',(1.85+dx,6.35+dy,.68),(1.85+dx*1.2,6.35+dy*1.2,.08),.025,'steel')
+for x in [-6.4,-4.5,4.5,6.4]:
+ box('pipe termination',(x,3.25,.43),(.23,.12,.23),'steel')
+ for j in range(3):
+  length=.23+j*.18
+  box('rain runoff',(x+(j-1)*.065,3.355,.8-length/2),(.035+j*.018,.005,length),'grime',0)
+for x,s,z in [(-6.1,'BAY 07',2.4),(4.25,'AUTHORIZED',2.4),(4.25,'SERVICE ACCESS',2.17)]:
+ box('label plate',(x+.47,3.3,z+.05),(1.1,.04,.27),'trim',.008)
+ text(s,(x,3.27,z-.02),.12,'white')
+for x in [-1.8,-1.25,-.6,.4,1.2,1.8]:
+ box('threshold scuff',(x,3.46,.085),(.23,.06,.012),'steel',.002)
+text('KEEP CLEAR',(-.78,3.18,.2),.16,'orange')
+
 # Batch geometry by material to keep draw calls bounded.
 for mat in M.values():
  obs=[o for o in bpy.context.scene.objects if o.type=='MESH' and len(o.data.materials) and o.data.materials[0]==mat]
