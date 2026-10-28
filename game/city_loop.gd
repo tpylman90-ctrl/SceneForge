@@ -363,7 +363,7 @@ func _physics_process(delta: float) -> void:
 			# A short stop separates braking from deliberate reversing.
 			reverse_hold += delta
 			if reverse_hold >= chassis.reverse_delay:
-				speed = move_toward(speed,-chassis.max_reverse_speed,5*delta)
+				speed = move_toward(speed,-chassis.max_reverse_speed,chassis.reverse_acceleration*delta)
 	elif gas:
 		reverse_hold = 0.0
 		# Thrust first stops backward travel, then accelerates forward.
@@ -397,7 +397,7 @@ func _physics_process(delta: float) -> void:
 func update_camera(delta: float) -> void:
 	camera.fov = lerpf(camera.fov,74.0+clampf(absf(speed)/chassis.max_forward_speed,0,1)*7.0,1-exp(-delta*3))
 	if cockpit:
-		camera.global_transform = feedback.global_transform*Transform3D(Basis.from_euler(Vector3(-0.10472,PI,0)),Vector3(0,1.829,0.418))
+		camera.global_transform = feedback.global_transform*Transform3D(Basis.from_euler(Vector3(chassis.cockpit_pitch,PI,0)),chassis.cockpit_eye)
 	else:
 		var desired := car.to_global(Vector3(0,3.6,-8.5))
 		camera.position = camera.position.lerp(desired,1-exp(-delta*8))
@@ -480,7 +480,7 @@ func test_loop() -> void:
 	assert(speed < 0 and car.position.distance_to(closest_segment(car.position)["point"]) <= 6.01)
 	toggle_camera()
 	update_camera(1)
-	assert(camera.position.distance_to(feedback.to_global(Vector3(0,1.829,0.418))) < 0.01)
+	assert(camera.position.distance_to(feedback.to_global(chassis.cockpit_eye)) < 0.01)
 	# Drive one complete lap through the same acceleration and steering code.
 	set_physics_process(false)
 	reset_car()

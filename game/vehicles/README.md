@@ -5,7 +5,7 @@ these values rather than embedding chassis-specific performance constants.
 
 Named `ComponentMounts` children identify four repulsor sockets, propulsion,
 power core and two aero sockets. Positions are metres in the craft's Godot-local
-frame: +Z forward, +Y up. They are attachment contracts for later components;
+frame: +Z forward, +Y up, +X to the seated pilot's left. They are attachment contracts for later components;
 this build has no upgrade economy or purchasable parts.
 
 `Kestrel_Yoke` and `Kestrel_Tail_0..4` are original Blender rig roots. Runtime
