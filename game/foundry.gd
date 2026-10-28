@@ -80,6 +80,8 @@ func _ready() -> void:
 	door_body.add_child(door_shape)
 	driver_door = door_body
 
+	build_cockpit_details()
+
 	var environment := WorldEnvironment.new()
 	var settings := Environment.new()
 	var sky := Sky.new()
@@ -195,6 +197,99 @@ func _ready() -> void:
 		call_deferred("test_door_motion")
 	if "--benchmark-smoke" in args:
 		start_comparison()
+
+
+# Original physical cockpit detailing; a single static instrument texture avoids
+# a per-frame SubViewport or extra lights on mobile.
+func cockpit_part(root: Node3D, pos: Vector3, size: Vector3, material: Material) -> MeshInstance3D:
+	var part := MeshInstance3D.new()
+	var mesh := BoxMesh.new()
+	mesh.size = size
+	part.mesh = mesh
+	part.material_override = material
+	part.position = pos
+	part.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	root.add_child(part)
+	return part
+
+func cockpit_material(color: Color, metallic: float = 0.0, glow: bool = false) -> StandardMaterial3D:
+	var material := StandardMaterial3D.new()
+	material.albedo_color = color
+	material.metallic = metallic
+	material.roughness = 0.48
+	if glow:
+		material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	return material
+
+func build_cockpit_details() -> void:
+	var root := Node3D.new()
+	root.name = "KestrelCockpitInstruments"
+	# Blender's Z-up frame, including the craft's six-degree stance.
+	root.rotation.x = deg_to_rad(-84)
+	add_child(root)
+	var graphite := cockpit_material(Color("15222a"), 0.5)
+	var silver := cockpit_material(Color("567078"), 0.7)
+	var rubber := cockpit_material(Color("10181c"))
+	var amber := cockpit_material(Color("ed934d"), 0.0, true)
+	var cyan := cockpit_material(Color("65ccd5"), 0.0, true)
+	# Raised, recessed binnacle masks the former placeholder display.
+	var bezel := cockpit_part(root, Vector3(0, -1.49, 1.31), Vector3(0.96, 0.38, 0.035), graphite)
+	bezel.rotation.x = -0.45
+	var display := MeshInstance3D.new()
+	var panel := QuadMesh.new()
+	panel.size = Vector2(0.89, 0.334)
+	display.mesh = panel
+	var screen := StandardMaterial3D.new()
+	screen.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	screen.albedo_texture = load("res://assets/cockpit-instruments.svg")
+	screen.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+	display.material_override = screen
+	display.position = Vector3(0, -1.481, 1.332)
+	display.rotation.x = -0.45
+	display.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	root.add_child(display)
+	for side in [-1.0, 1.0]:
+		# End caps and tiny instrument-retention screws.
+		cockpit_part(root, Vector3(side * 0.48, -1.49, 1.30), Vector3(0.035, 0.35, 0.065), silver).rotation.x = -0.45
+		# Padded side-console inserts, luminous channels and guarded switches.
+		cockpit_part(root, Vector3(side * 0.57, -0.78, 1.082), Vector3(0.155, 0.72, 0.025), rubber)
+		cockpit_part(root, Vector3(side * 0.475, -0.78, 1.083), Vector3(0.009, 0.64, 0.008), cyan)
+		for i in range(5):
+			var yy := -1.02 + i * 0.11
+			cockpit_part(root, Vector3(side * 0.57, yy, 1.097), Vector3(0.07, 0.065, 0.012), graphite)
+			cockpit_part(root, Vector3(side * 0.60, yy, 1.108), Vector3(0.018, 0.028, 0.008), amber if i == 0 else cyan)
+		# Sculpted yoke grip collars and illuminated thumb buttons.
+		cockpit_part(root, Vector3(side * 0.21, -1.135, 1.14), Vector3(0.075, 0.07, 0.045), graphite)
+		cockpit_part(root, Vector3(side * 0.21, -1.132, 1.224), Vector3(0.023, 0.025, 0.009), cyan)
+		for i in range(3):
+			cockpit_part(root, Vector3(side * 0.21, -1.133, 1.055 + i * 0.032), Vector3(0.072, 0.013, 0.009), rubber)
+	# Yoke hub, inset emblem and paired thumb selectors.
+	cockpit_part(root, Vector3(0, -1.16, 1.045), Vector3(0.19, 0.075, 0.085), graphite)
+	cockpit_part(root, Vector3(0, -1.16, 1.092), Vector3(0.08, 0.042, 0.008), silver)
+	cockpit_part(root, Vector3(0, -1.16, 1.098), Vector3(0.012, 0.03, 0.005), amber)
+	batch_cockpit_parts(root)
+
+
+func batch_cockpit_parts(root: Node3D) -> void:
+	var groups: Dictionary = {}
+	for child in root.get_children():
+		if child is MeshInstance3D and child.mesh is BoxMesh:
+			var material: Material = child.material_override
+			if not groups.has(material):
+				var surface := SurfaceTool.new()
+				surface.begin(Mesh.PRIMITIVE_TRIANGLES)
+				groups[material] = surface
+			var builder: SurfaceTool = groups[material]
+			builder.append_from(child.mesh, 0, child.transform)
+			root.remove_child(child)
+			child.queue_free()
+	for material in groups:
+		var batch := MeshInstance3D.new()
+		var builder: SurfaceTool = groups[material]
+		batch.mesh = builder.commit()
+		batch.material_override = material
+		batch.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		root.add_child(batch)
 
 func light(pos: Vector3, color: Color, energy: float, radius: float) -> void:
 	var lamp := OmniLight3D.new()
