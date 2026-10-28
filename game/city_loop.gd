@@ -222,13 +222,15 @@ func build_ui() -> void:
 	hud.add_theme_font_size_override("font_size",24)
 	layer.add_child(hud)
 	var top := HBoxContainer.new()
-	top.position = Vector2(820,20)
+	top.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
+	top.position = Vector2(-460,20)
 	layer.add_child(top)
 	ui_button(top,"VIEW",toggle_camera)
 	ui_button(top,"RESET",reset_car)
 	ui_button(top,"FOUNDRY",func(): get_tree().change_scene_to_file("res://main.tscn"))
 	var row := HBoxContainer.new()
-	row.position = Vector2(24,610)
+	row.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT)
+	row.position = Vector2(24,-110)
 	row.add_theme_constant_override("separation",16)
 	layer.add_child(row)
 	var l := ui_button(row,"◀ LEFT",func(): pass,160)
@@ -238,7 +240,8 @@ func build_ui() -> void:
 	r.button_down.connect(func(): right=true)
 	r.button_up.connect(func(): right=false)
 	var pedals := HBoxContainer.new()
-	pedals.position = Vector2(870,610)
+	pedals.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT)
+	pedals.position = Vector2(-410,-110)
 	pedals.add_theme_constant_override("separation",16)
 	layer.add_child(pedals)
 	var b := ui_button(pedals,"BRAKE",func(): pass,170)
@@ -305,8 +308,11 @@ func _notification(what: int) -> void:
 		driving_touches.clear()
 
 func _input(event: InputEvent) -> void:
+	var screen := get_viewport().get_visible_rect().size
+	var control_top := screen.y-120
+	var pedal_left := screen.x-410
 	if event is InputEventScreenTouch:
-		if event.pressed and event.position.y >= 600:
+		if event.pressed and event.position.y >= control_top:
 			driving_touches[event.index] = event.position
 		elif not event.pressed:
 			driving_touches.erase(event.index)
@@ -321,12 +327,12 @@ func _input(event: InputEvent) -> void:
 	throttle=false
 	brake=false
 	for point in driving_touches.values():
-		if point.y < 600:
+		if point.y < control_top:
 			continue
 		left = left or (point.x >= 24 and point.x < 192)
 		right = right or (point.x >= 192 and point.x < 370)
-		brake = brake or (point.x >= 870 and point.x < 1048)
-		throttle = throttle or (point.x >= 1048 and point.x < 1260)
+		brake = brake or (point.x >= pedal_left and point.x < pedal_left+178)
+		throttle = throttle or (point.x >= pedal_left+178 and point.x < screen.x-20)
 	get_viewport().set_input_as_handled()
 
 func _physics_process(delta: float) -> void:
@@ -376,10 +382,11 @@ func test_loop() -> void:
 	var touch := InputEventScreenTouch.new()
 	touch.index=1
 	touch.pressed=true
-	touch.position=Vector2(100,640)
+	var screen := get_viewport().get_visible_rect().size
+	touch.position=Vector2(100,screen.y-80)
 	_input(touch)
 	touch.index=2
-	touch.position=Vector2(1150,640)
+	touch.position=Vector2(screen.x-130,screen.y-80)
 	_input(touch)
 	assert(left and throttle)
 	touch.index=1
@@ -410,5 +417,20 @@ func test_loop() -> void:
 	toggle_camera()
 	update_camera(1)
 	assert(camera.position.distance_to(car.to_global(Vector3(0,1.829,0.418))) < 0.01)
+	# Drive one complete lap through the same acceleration and steering code.
+	set_physics_process(false)
+	reset_car()
+	throttle=true
+	for frame in range(2400):
+		var near := closest_segment(car.position)
+		var target: Vector3 = route[(int(near["index"])+4)%COUNT]
+		var offset := target-car.position
+		var error := wrapf(atan2(offset.x,offset.z)-heading,-PI,PI)
+		left=error>0.015
+		right=error< -0.015
+		_physics_process(1.0/60)
+		if lap>1:
+			break
+	assert(lap==2, "Driving model could not complete a city lap")
 	print("SCENEFORGE_CITY_LOOP_OK")
 	get_tree().quit()
