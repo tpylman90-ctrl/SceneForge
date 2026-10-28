@@ -33,3 +33,9 @@ Display spelling is PYLDRIVER (Pylman + driver). The stable internal ID and file
 tools/piledriver_detail.py authors the dedicated sculpted hull, lower swept frame and wind deflector, integrated hover fairings, suspended runners, hollow turbine bells with stators, plum lacquer/carbon/brass finish textures, body-following seams, shoulder vents, fasteners, livery and seat details. Existing handling and cockpit camera placement remain. The five tail rigs retain their names; exhaust attachment points match the revised nozzle layout.
 
 CI captures front, tail, side, top and cockpit views. All geometry remains subject to the 40,000-triangle budget and named-rig/vertex-color checks.
+
+## Pyldriver cockpit and underside mount correction
+
+Pyldriver now builds its instruments in native craft coordinates through pyldriver_cockpit.gd. The display sits on a supported binnacle inside the cockpit (center approximately y=1.45, z=0.98 m), and the driver's eye sits back at z=-0.22 m. It no longer inherits the Kestrel-specific instrument transform.
+
+All four hover units are recessed beneath the belly at x=±0.48 m, with front z=1.95 m and rear z=-1.25 m. Chassis markers and ground footprints use those same positions, including the existing hull rake. Tail exhaust origins also follow the raked nozzle geometry. CI includes an underside inspection capture and assertions for instrument and mount placement.

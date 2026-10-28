@@ -9,6 +9,7 @@ var tails: Array[Node3D] = []
 var tail_rest: Array[Transform3D] = []
 var glass: Array[Dictionary] = []
 var exhaust: MultiMeshInstance3D
+var footprint_positions: PackedVector3Array = []
 var sound: AudioStreamPlayer3D
 var muted := true
 var visual_roll := 0.0
@@ -34,11 +35,17 @@ func configure(definition: Resource) -> void:
 		assert(tail != null,"Missing vectoring tail vane")
 		tails.append(tail)
 		tail_rest.append(tail.transform)
-	var factory := preload("res://foundry.gd").new()
-	factory.build_cockpit_details()
-	var details: Node3D = factory.get_node("KestrelCockpitInstruments")
-	details.reparent(self,false)
-	factory.free()
+	var details: Node3D
+	if chassis.chassis_id=="piledriver":
+		details=preload("res://vehicles/pyldriver_cockpit.gd").new()
+		add_child(details)
+		details.build()
+	else:
+		var factory := preload("res://foundry.gd").new()
+		factory.build_cockpit_details()
+		details=factory.get_node("KestrelCockpitInstruments")
+		details.reparent(self,false)
+		factory.free()
 	var yoke_details: Node3D = details.get_node("YokeDetail")
 	yoke_details.reparent(yoke,true)
 	var display: MeshInstance3D = details.get_node("FlightDisplay")
@@ -119,7 +126,8 @@ func build_exhaust() -> void:
 	for i in range(4):
 		var slot: String = ["repulsor_fl","repulsor_fr","repulsor_rl","repulsor_rr"][i]
 		var point: Vector3 = chassis.mount_points[slot]
-		pods.set_instance_transform(i,Transform3D(Basis.IDENTITY,Vector3(point.x,0.025,point.z)))
+		footprint_positions.append(Vector3(point.x,0.025,point.z))
+		pods.set_instance_transform(i,Transform3D(Basis.IDENTITY,footprint_positions[i]))
 	rings.multimesh = pods
 	rings.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	get_parent().add_child(rings)
@@ -146,7 +154,7 @@ func update_feedback(delta: float, signed_speed: float, drive: float, steering: 
 		var yy := 3.24-absf(i-2)*0.06
 		var base := Vector3((i-2)*0.42,0.2+yy*sin(deg_to_rad(6))+1.125*cos(deg_to_rad(6)),0.8-yy*cos(deg_to_rad(6))+1.125*sin(deg_to_rad(6)))
 		if chassis.chassis_id=="piledriver":
-			base=Vector3((i-2)*.36,1.48,-2.34)
+			base=Vector3((i-2)*.36,1.6321,-2.34)
 		var length := 0.10+drive*0.58+absf(signed_speed)/32*0.20+(0.35 if boosting else 0.0)
 		var nozzle_motion := tails[i].transform*tail_rest[i].affine_inverse()
 		var axis := nozzle_motion.basis*Basis(Vector3.RIGHT,PI/2)*Basis.from_scale(Vector3(1,length,1))

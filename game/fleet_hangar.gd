@@ -45,6 +45,7 @@ func _ready() -> void:
 	mesh.bottom_radius=7.2
 	mesh.height=.25
 	mesh.radial_segments=64
+	floor.name="DisplayPlinth"
 	floor.mesh=mesh
 	floor.position.y=-.2
 	var m := StandardMaterial3D.new()
@@ -109,6 +110,11 @@ func _ready() -> void:
 		orbit=-PI/2
 		elevation=.04
 		update_camera()
+	if "--fleet-under" in OS.get_cmdline_user_args():
+		floor.hide()
+		camera.h_offset=-1.65
+		camera.position=craft.position+Vector3(-6,-2,5)
+		camera.look_at(craft.position+Vector3(0,.65,0))
 	if "--fleet-top" in OS.get_cmdline_user_args():
 		camera.h_offset=0
 		camera.position=craft.position+Vector3(0,11.5,.01)
@@ -181,7 +187,7 @@ func _process(_delta: float) -> void:
 		frames+=1
 		if frames==35:
 			var suffix := ""
-			for view in ["tail","cockpit","side","top"]:
+			for view in ["tail","cockpit","side","top","under"]:
 				if "--fleet-"+view in OS.get_cmdline_user_args():suffix="-"+view
 			get_viewport().get_texture().get_image().save_png(OS.get_environment("GITHUB_WORKSPACE")+"/build/Fleet-"+Fleet.IDS[selected]+suffix+".png")
 			visual.stop_audio()

@@ -85,7 +85,7 @@ def build_piledriver(body,accent,carbon,steel,rubber,glow,glass):
    pipe('Runner actuator',(side*.65,.35,z+.12),(side*.72,.60,z-.04),.024,accent)
    pipe('Runner joint',(side*.60,.39,z),(side*.70,.39,z),.065,carbon)
   # Smooth integrated hover fairings replace exposed cylindrical pots.
-  for x,y,z in [(side*1.0,.58,2.1),(side*1.12,.76,-.65)]:
+  for x,y,z in [(side*.48,.32,1.95),(side*.48,.25,-1.25)]:
    pipe('Repulsor core',(x,y-.12,z),(x,y+.05,z),.245,carbon,24)
    ring('Hidden magnetic halo',(x,y-.13,z),.225,.018,glow)
    bpy.ops.mesh.primitive_uv_sphere_add(segments=24,ring_count=12,location=v((x,y+.08,z)))
