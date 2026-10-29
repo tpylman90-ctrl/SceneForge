@@ -145,6 +145,49 @@ def build_shrike(body,accent,carbon,steel,rubber,glow,glass):
             (side*.61,1.62,-1.22),(side*.68,1.69,-1.70),
             (side*.89,1.61,-2.48),(side*1.07,1.37,-3.12),
             (side*.82,1.37,-1.70)],body)
+
+    # MK II reference-inspired hard surfaces, kept tight to the Shrike shell.
+    # Rather than floating fins, these build an engineered shoulder, waist
+    # undercut and integrated rear-wing root in the silver bodywork.
+    for side in (-1,1):
+        panel('Shrike front swept shoulder blade',[
+            (side*.61,1.05,2.54),(side*.98,1.02,2.05),
+            (side*1.22,1.08,1.01),(side*1.17,.89,.55),
+            (side*.91,.78,1.23)],body)
+        panel('Shrike sculpted waist relief',[
+            (side*1.15,.74,1.10),(side*1.22,.70,.29),
+            (side*1.10,.62,-.84),(side*1.20,.72,-1.75),
+            (side*1.06,.57,-1.40),(side*.99,.57,-.32)],carbon)
+        panel('Shrike curved midbody overpanel',[
+            (side*1.19,1.03,.45),(side*1.24,1.14,-.26),
+            (side*1.21,1.33,-1.12),(side*1.14,1.44,-2.12),
+            (side*1.06,1.09,-1.84),(side*1.13,.86,-.56)],body)
+        # Orange contour is recessed visually between upper shoulder and sill.
+        shoulder=[(side*1.19,1.04,.48),(side*1.25,1.13,-.20),
+                  (side*1.22,1.34,-1.12),(side*1.15,1.46,-2.10)]
+        for a,b in zip(shoulder,shoulder[1:]):
+            pipe('Shrike swept orange side channel',a,b,.023,accent,12)
+        # Low-profile aft flares integrated with the fastback, not bird-like blades.
+        panel('Shrike tail shoulder fairing',[
+            (side*.72,1.66,-2.21),(side*1.08,1.51,-2.54),
+            (side*1.12,1.39,-3.25),(side*.86,1.45,-3.45),
+            (side*.65,1.63,-2.93)],body)
+        panel('Shrike aft extractor pocket',[
+            (side*.92,1.30,-2.53),(side*1.13,1.33,-2.81),
+            (side*1.06,1.13,-3.31),(side*.86,1.15,-3.07)],carbon)
+        # Three small close-coupled aerodynamic vanes remain within vehicle width.
+        for index in range(3):
+            z=-2.92-index*.16
+            panel('Shrike close-coupled aft vane',[
+                (side*.85,1.56,z+.18),(side*(.98+index*.045),1.64,z-.12),
+                (side*.78,1.55,z-.04)],steel if index==0 else carbon)
+        pipe('Shrike tail light blade',(side*.28,1.36,-3.53),
+             (side*.79,1.41,-3.48),.028,glow,12)
+    # Integrated dark aerodynamic roof spine / shallow cooling duct.
+    panel('Shrike inset dorsal cooling spine',[
+        (-.23,1.70,-2.02),(-.20,1.60,-2.60),
+        (-.11,1.50,-3.13),(.11,1.50,-3.13),
+        (.20,1.60,-2.60),(.23,1.70,-2.02)],carbon)
     box('Shrike sealed cockpit seat',(0,1.04,-.40),(.55,.46,.76),rubber,.06)
     box('Shrike driver seat back',(0,1.42,-.78),(.56,.64,.17),carbon,.06)
     before=set(bpy.context.scene.objects)
