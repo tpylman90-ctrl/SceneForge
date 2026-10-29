@@ -119,14 +119,14 @@ def build_synapse_body(material, glass, accent, carbon):
         return catmull(profile,(lo+hi)*.5)
 
     flare_profile=[
-        (-.35,.52,.52,.01),
-        (.15,.43,.72,.07),
-        (.75,.35,.90,.12),
-        (1.45,.25,1.03,.18),
-        (2.15,.17,1.08,.20),
-        (2.75,.12,1.02,.16),
-        (3.25,.08,.82,.10),
-        (3.72,.04,.04,.01),
+        (-.35,.58,.58,.005),
+        (.15,.50,.75,.018),
+        (.75,.43,.88,.030),
+        (1.45,.34,.95,.040),
+        (2.15,.24,.98,.045),
+        (2.75,.17,.94,.035),
+        (3.25,.10,.78,.020),
+        (3.72,.04,.04,.005),
     ]
     flare_rows=55
     flare_across=17
@@ -151,15 +151,15 @@ def build_synapse_body(material, glass, accent, carbon):
         flare=mesh('Synapse_SculptedShoulder_L' if side<0 else 'Synapse_SculptedShoulder_R',
                    flare_verts,flare_faces,material)
         for polygon in flare.data.polygons:polygon.use_smooth=True
-        # Fine metallic outer crease traces the flare from shoulder to beak.
+        # A fine crease stays inset on the hull skin to define the shoulder.
         edge_points=[]
         for row in range(flare_rows):
             z,inner,outer,bulge=catmull(flare_profile,row/(flare_rows-1))
             _,half_width,_,_,_,_=hull_at(z)
-            x=side*half_width*outer
-            edge_points.append((x,roof_at(z,x)+.045,z))
+            x=side*half_width*inner
+            edge_points.append((x,roof_at(z,x)+.032,z))
         for a,b in zip(edge_points,edge_points[1:]):
-            pipe('Synapse shoulder crease',a,b,.018,accent,8)
+            pipe('Synapse shoulder crease',a,b,.010,accent,8)
 
     # Twin recessed-looking ram intakes sit inside the raised shoulder flares.
     intake_profile=[
