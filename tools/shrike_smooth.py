@@ -8,12 +8,14 @@ def build_shrike(body,accent,carbon,steel,rubber,glow,glass):
     bs.inputs['Roughness'].default_value=.22
     bs.inputs['Coat Weight'].default_value=.42
     # Continuous aerodynamic production-car shell.  Smooth oval loft, not an open deck.
-    stations=[(-2.85,.58,.63,1.12),(-2.55,.94,.47,1.31),
-              (-1.9,1.16,.38,1.53),(-1.15,1.27,.34,1.58),
-              (-.35,1.28,.31,1.54),(.50,1.21,.29,1.51),
-              (1.22,1.10,.29,1.38),(1.85,.94,.28,1.22),
-              (2.52,.69,.28,.94),(3.04,.42,.30,.70),
-              (3.37,.24,.33,.53),(3.56,.08,.37,.45)]
+    # Broad, blunt sports-car nose; rear (-Z), front (+Z).
+    # First-order proportions only: keep this pass free of exposed aero appendages.
+    stations=[(-2.85,.76,.48,1.03),(-2.60,.97,.43,1.20),
+              (-2.05,1.17,.36,1.39),(-1.30,1.24,.32,1.47),
+              (-.50,1.25,.30,1.50),(.40,1.25,.29,1.47),
+              (1.18,1.21,.28,1.36),(1.82,1.15,.28,1.16),
+              (2.40,1.06,.30,.98),(2.83,.97,.32,.81),
+              (3.15,.87,.36,.72),(3.40,.75,.40,.65)]
     segments=[]
     for a,b in zip(stations,stations[1:]):
         for i in range(5):
@@ -37,36 +39,15 @@ def build_shrike(body,accent,carbon,steel,rubber,glow,glass):
     faces.extend([tuple(reversed(range(n))),tuple((len(segments)-1)*n+j for j in range(n))])
     shell=mesh('Shrike seamless flowing body',points,faces,body,.009)
     for face in shell.data.polygons:face.use_smooth=True
-    # Broad recessed dark bonnet, flush headlights, and organic side crease.
-    panel('Shrike hood black sculpted insert',[
-       (-.38,1.28,1.75),(-.27,.98,2.65),(-.10,.55,3.40),
-       (.10,.55,3.40),(.27,.98,2.65),(.38,1.28,1.75)],carbon)
-    for s in [-1,1]:
-        panel('Shrike sculpted orange side sweep',[
-           (s*1.02,1.23,1.57),(s*1.20,1.06,.65),
-           (s*1.23,.82,-.40),(s*1.02,.72,-1.57),
-           (s*1.14,.82,-1.04),(s*1.30,1.01,.20)],accent)
-        panel('Shrike continuous lower dark rocker',[
-           (s*.96,.51,1.70),(s*1.19,.43,.51),
-           (s*1.19,.42,-1.32),(s*.93,.53,-2.20)],carbon)
-        panel('Shrike front slim optical blade',[
-           (s*.32,.71,3.07),(s*.57,.77,2.75),
-           (s*.72,.80,2.47),(s*.48,.79,2.64)],carbon)
-        pipe('Shrike optical LED',(s*.38,.77,3.01),(s*.67,.85,2.52),.016,glow,10)
-        # Flush hover propulsion hidden in underside rather than exposed barrels.
-        for x,z in [(s*.94,1.95),(s*1.08,-1.22)]:
-            ring('Shrike flush lower repulsor',(x,.265,z),.28,.035,carbon)
-            ring('Shrike cyan repulsor halo',(x,.24,z),.23,.018,glow)
-        # Rear brake light integrated with the haunch.
-        pipe('Shrike rear light',(s*.35,1.23,-2.71),(s*.78,1.11,-2.55),.025,accent,12)
-        # Side glazing as dark flush shapes; no exposed cage.
-        panel('vehicle_glass_shrike_side',[
-            (s*.64,1.50,1.02),(s*.84,1.54,.26),
-            (s*.86,1.49,-.91),(s*.65,1.48,-1.49),
-            (s*.60,1.66,-.75),(s*.58,1.69,.20)],glass)
-        for z in [-1.70,-2.08]:
-            pipe('Shrike recessed jet outlet',(s*.54,.99,z),
-                 (s*.54,.99,z-.19),.12,carbon,20)
+    # Body-only iteration: avoid floating skirts, spear blades and exposed pods.
+    # Two flush dark insets help judge bonnet curvature without hiding silhouette.
+    panel('Shrike wide bonnet recess',[
+       (-.40,1.19,1.86),(-.48,1.01,2.36),(-.42,.81,2.91),
+       (.42,.81,2.91),(.48,1.01,2.36),(.40,1.19,1.86)],carbon)
+    for side in (-1,1):
+        # Short, flush orange shoulder motif; no protruding fins.
+        pipe('Shrike shoulder visual datum',
+             (side*1.20,1.04,.82),(side*1.11,.86,2.10),.012,accent,10)
     # Integrated rounded canopy visible in top and cockpit views.
     canopy=[(1.35,.50,1.29),(.95,.68,1.59),(.30,.70,1.83),
             (-.45,.69,1.89),(-1.08,.61,1.76),(-1.54,.39,1.55)]
