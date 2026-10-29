@@ -9,7 +9,7 @@ concurrency:
   group: vehicle-viewer
   cancel-in-progress: true
 env:
-  PREVIEW_CRAFT: "${{ contains(github.event.head_commit.message, '[kestrel]') && '0' || '1' }}"
+  PREVIEW_CRAFT: "${{ contains(github.event.head_commit.message, '[shrike]') && '2' || (contains(github.event.head_commit.message, '[kestrel]') && '0' || '1') }}"
 jobs:
   preview:
     if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[viewer]')
@@ -62,10 +62,11 @@ jobs:
           if grep -E 'SCRIPT ERROR:|ERROR:' build/viewer-*.log; then exit 1; fi
           name=piledriver
           if [ "$PREVIEW_CRAFT" = 0 ]; then name=kestrel; fi
+          if [ "$PREVIEW_CRAFT" = 2 ]; then name=shrike; fi
           test -s build/Fleet-$name.png
           test -s build/Fleet-$name-cockpit.png
           test -s build/Fleet-$name-under.png
-          cp game/assets/fleet/piledriver.glb build/Pyldriver.glb
+          cp game/assets/fleet/$name.glb build/SelectedCraft.glb
           if [ "$PREVIEW_CRAFT" = 0 ]; then
             timeout 120 xvfb-run -a godot --audio-driver Dummy --path game --rendering-method gl_compatibility --resolution 1280x720 -- --door-motion-smoke 2>&1 | tee build/viewer-door-test.log
             grep SCENEFORGE_DOOR_MOTION_OK build/viewer-door-test.log
@@ -79,7 +80,7 @@ jobs:
           name: Vehicle-viewer
           path: |
             build/Fleet-*.png
-            build/Pyldriver.glb
+            build/SelectedCraft.glb
             build/fleet-report.json
             build/viewer-*.log
             build/VIEWER.txt
@@ -93,5 +94,5 @@ jobs:
           if ! gh release view viewer-latest >/dev/null 2>&1; then
             gh release create viewer-latest --prerelease --title "Vehicle viewer — latest preview" --notes "Vehicle previews and GLB only. Android app unchanged."
           fi
-          gh release upload viewer-latest build/Fleet-*.png build/Pyldriver.glb build/fleet-report.json build/VIEWER.txt --clobber
+          gh release upload viewer-latest build/Fleet-*.png build/SelectedCraft.glb build/fleet-report.json build/VIEWER.txt --clobber
           gh release edit viewer-latest --notes "Viewer-only preview from $GITHUB_SHA. No Android build. Open the PNG views for the latest vehicle design."
