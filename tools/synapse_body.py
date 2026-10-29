@@ -79,7 +79,9 @@ def build_synapse_body(material, glass, accent, carbon):
             u=-1.0+2.0*col/(across-1)
             edge=abs(u)
             cap=max(0.0,1.0-edge*edge)**.68
-            section.append((u*width,shoulder+(crown-shoulder)*cap,z0-split*(1.0-edge)**1.2))
+            flare_weight=math.exp(-((z0-2.35)/1.25)**2)
+            shoulder_ridge=.18*flare_weight*math.exp(-((edge-.82)/.14)**2)
+            section.append((u*width,shoulder+(crown-shoulder)*cap+shoulder_ridge,z0-split*(1.0-edge)**1.2))
         for side in [1.0,-1.0]:
             for step in range(1,side_steps+1):
                 f=step/(side_steps+1)
@@ -118,58 +120,16 @@ def build_synapse_body(material, glass, accent, carbon):
             else:hi=t
         return catmull(profile,(lo+hi)*.5)
 
-    flare_profile=[
-        (-.35,.58,.58,.005),
-        (.15,.50,.75,.018),
-        (.75,.43,.88,.030),
-        (1.45,.34,.95,.040),
-        (2.15,.24,.98,.045),
-        (2.75,.17,.94,.035),
-        (3.25,.10,.78,.020),
-        (3.72,.04,.04,.005),
-    ]
-    flare_rows=55
-    flare_across=17
-    for side in [-1.0,1.0]:
-        flare_verts=[]
-        for row in range(flare_rows):
-            z,inner,outer,bulge=catmull(flare_profile,row/(flare_rows-1))
-            _,half_width,_,_,_,_=hull_at(z)
-            for col in range(flare_across):
-                u=col/(flare_across-1)
-                ratio=inner+(outer-inner)*u
-                x=side*half_width*ratio
-                crown=math.sin(math.pi*u)**.85
-                y=roof_at(z,x)+.025+bulge*crown
-                flare_verts.append((x,y,z))
-        flare_faces=[]
-        for row in range(flare_rows-1):
-            for col in range(flare_across-1):
-                a=row*flare_across+col
-                b=(row+1)*flare_across+col
-                flare_faces.append((a,a+1,b+1,b))
-        flare=mesh('Synapse_SculptedShoulder_L' if side<0 else 'Synapse_SculptedShoulder_R',
-                   flare_verts,flare_faces,material)
-        for polygon in flare.data.polygons:polygon.use_smooth=True
-        # A fine crease stays inset on the hull skin to define the shoulder.
-        edge_points=[]
-        for row in range(flare_rows):
-            z,inner,outer,bulge=catmull(flare_profile,row/(flare_rows-1))
-            _,half_width,_,_,_,_=hull_at(z)
-            x=side*half_width*inner
-            edge_points.append((x,roof_at(z,x)+.032,z))
-        for a,b in zip(edge_points,edge_points[1:]):
-            pipe('Synapse shoulder crease',a,b,.010,accent,8)
-
+    # The widened forward hull section below carries these shoulders as one molded shell.
     # Twin recessed-looking ram intakes sit inside the raised shoulder flares.
     intake_profile=[
-        (.92,.47,.018,.018),
-        (1.25,.44,.060,.035),
-        (1.72,.40,.092,.050),
-        (2.20,.34,.100,.055),
-        (2.66,.28,.082,.045),
-        (3.05,.23,.056,.032),
-        (3.36,.19,.028,.018),
+        (.92,.47,.018,.008),
+        (1.25,.44,.060,.012),
+        (1.72,.40,.092,.018),
+        (2.20,.34,.100,.020),
+        (2.66,.28,.082,.018),
+        (3.05,.23,.056,.012),
+        (3.36,.19,.028,.008),
         (3.52,.16,.008,.006),
     ]
     intake_rows=49
@@ -183,7 +143,7 @@ def build_synapse_body(material, glass, accent, carbon):
                 u=-1.0+2.0*col/(intake_across-1)
                 x=side*half_width*(center+half*u)
                 crown=max(0.0,1.0-u*u)**.7
-                y=roof_at(z,x)+.065+lift*crown
+                y=roof_at(z,x)+.012+lift*crown
                 intake_verts.append((x,y,z))
         intake_faces=[]
         for row in range(intake_rows-1):
@@ -203,7 +163,7 @@ def build_synapse_body(material, glass, accent, carbon):
             right=side*half_width*(center+half*.72)
             y1=roof_at(z,left)+.082
             y2=roof_at(z,right)+.082
-            pipe('Intake guide vane',(left,y1,z),(right,y2,z),.016,accent,8)
+            pipe('Intake guide vane',(left,y1,z),(right,y2,z),.009,accent,8)
 
     # Wrap the dark polar glass over a raised, broad crown. The roof-following
     # sill and swept rear edge make the canopy read as part of the body.
