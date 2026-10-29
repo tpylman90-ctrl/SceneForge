@@ -3,7 +3,7 @@ const Fleet=preload("res://vehicles/fleet_catalog.gd")
 func _initialize() -> void:call_deferred("check")
 func check() -> void:
 	var ids: Array[String]=[]
-	for index in range(5):
+	for index in range(Fleet.IDS.size()):
 		var definition: Resource=Fleet.definition(index)
 		assert(not ids.has(definition.chassis_id))
 		ids.append(definition.chassis_id)
@@ -49,7 +49,7 @@ func check() -> void:
 	set_meta("sceneforge_craft",0)
 	var hangar: Node3D=load("res://fleet_hangar.tscn").instantiate()
 	root.add_child(hangar)
-	for index in range(5):
+	for index in range(Fleet.IDS.size()):
 		hangar.select_craft(index)
 		await create_timer(.2).timeout
 		assert(hangar.selected==index and not hangar.busy)

@@ -1,5 +1,7 @@
 extends Node3D
 
+const Fleet = preload("res://vehicles/fleet_catalog.gd")
+
 # A bounded first driving prototype: one closed city loop, no external assets.
 const COUNT := 192
 const JUMP_START := 44
@@ -137,8 +139,8 @@ func flush_batches() -> void:
 	batches.clear()
 
 func _ready() -> void:
-	var craft_index := clampi(int(get_tree().get_meta("sceneforge_craft",0)),0,4)
-	for index in range(5):
+	var craft_index := clampi(int(get_tree().get_meta("sceneforge_craft",0)),0,Fleet.IDS.size()-1)
+	for index in range(Fleet.IDS.size()):
 		if "--craft-%d"%index in OS.get_cmdline_user_args():craft_index=index
 	chassis=preload("res://vehicles/fleet_catalog.gd").definition(craft_index)
 	track_id=int(get_tree().get_meta("sceneforge_track",0))

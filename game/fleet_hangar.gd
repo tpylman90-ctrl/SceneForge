@@ -17,8 +17,8 @@ var fleet_panel: Control
 var fleet_list: Control
 
 func _ready() -> void:
-	selected=clampi(int(get_tree().get_meta("sceneforge_craft",0)),0,4)
-	for i in range(5):
+	selected=clampi(int(get_tree().get_meta("sceneforge_craft",0)),0,Fleet.IDS.size()-1)
+	for i in range(Fleet.IDS.size()):
 		if "--craft-%d"%i in OS.get_cmdline_user_args():selected=i
 	var env := WorldEnvironment.new()
 	var settings := Environment.new()
@@ -77,10 +77,10 @@ func _ready() -> void:
 	heading.text="SCENEFORGE / FLEET"
 	heading.add_theme_font_size_override("font_size",25)
 	list.add_child(heading)
-	for i in range(5):
+	for i in range(Fleet.IDS.size()):
 		var button := Button.new()
 		button.text=Fleet.NAMES[i]
-		button.custom_minimum_size=Vector2(285,72)
+		button.custom_minimum_size=Vector2(285,62)
 		button.add_theme_font_size_override("font_size",23)
 		button.pressed.connect(select_craft.bind(i))
 		list.add_child(button)

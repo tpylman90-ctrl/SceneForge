@@ -62,7 +62,10 @@ def hull(profile,m):
 
 exec((ROOT/'tools/piledriver_detail.py').read_text())
 
+exec((ROOT/'tools/forge_detail.py').read_text())
+
 SPECS=[
+ ('forge',(.045,.055,.065),(.65,.32,.07),(1.0,.28,.025),'Graphite precision racer / amber induction core'),
  ('piledriver',(0.20,.035,.40),(.72,.43,.08),(.65,.06,1.0),'Heavy framed racer / purple and brass'),
  ('shrike',(.40,.46,.49),(.83,.22,.055),(.15,.75,1.0),'Feather-fin interceptor / silver and orange'),
  ('mantis',(.18,.27,.12),(.38,.46,.25),(.44,1.0,.42),'Fork-nose utility racer / olive'),
@@ -73,7 +76,9 @@ for ident,color,accent_color,light_color,description in SPECS:
  carbon=mat(ident+'_carbon',(.025,.032,.04),.45,.5);steel=mat(ident+'_alloy',(.22,.28,.31),.8,.3)
  rubber=mat(ident+'_padding',(.02,.025,.03),0,.8);glow=mat(ident+'_glow',light_color,.1,.3,2)
  glass=mat('vehicle_glass_'+ident,(.025,.065,.095),.25,.15)
- if ident=='piledriver':
+ if ident=='forge':
+  build_forge(body,accent,carbon,steel,rubber,glow,glass)
+ elif ident=='piledriver':
   build_piledriver(body,accent,carbon,steel,rubber,glow,glass)
  else:
   if ident=='piledriver':
