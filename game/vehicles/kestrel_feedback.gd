@@ -52,11 +52,15 @@ func configure(definition: Resource) -> void:
 		factory.free()
 	var yoke_details: Node3D = details.get_node("YokeDetail")
 	yoke_details.reparent(yoke,true)
-	var display: MeshInstance3D = details.get_node("FlightDisplay")
-	var screen: StandardMaterial3D = display.material_override.duplicate()
+	var display: MeshInstance3D = details.get_node_or_null("FlightDisplay")
+	var screen := StandardMaterial3D.new()
+	screen.shading_mode=BaseMaterial3D.SHADING_MODE_UNSHADED
+	if display != null:
+		screen=display.material_override.duplicate()
 	screen.albedo_texture = telemetry.texture
 	screen.vertex_color_use_as_albedo = false
-	display.material_override = screen
+	if display != null:
+		display.material_override = screen
 	if chassis.chassis_id in ["piledriver","forge"]:
 		var hologram: MeshInstance3D=details.get_node("HolographicDisplay")
 		var holo: StandardMaterial3D=screen.duplicate()

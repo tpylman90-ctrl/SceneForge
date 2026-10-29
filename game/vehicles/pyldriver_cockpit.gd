@@ -48,26 +48,6 @@ func build() -> void:
 	var dark := finish("15222a",.4)
 	var brass := finish("a77a30",.65)
 	dashboard(dark)
-	var frame := Transform3D(Basis.from_euler(Vector3(-.60,PI,0)),Vector3(0,1.41,.94))
-	var bezel := part(self,Vector3.ZERO,Vector3(.54,.205,.04),dark)
-	bezel.name="InstrumentBinnacle"
-	bezel.transform=frame
-	var display := MeshInstance3D.new()
-	display.name="FlightDisplay"
-	var quad := QuadMesh.new()
-	quad.size=Vector2(.46,.15)
-	display.mesh=quad
-	display.transform=frame*Transform3D(Basis.IDENTITY,Vector3(0,0,.027))
-	var screen := StandardMaterial3D.new()
-	screen.shading_mode=BaseMaterial3D.SHADING_MODE_UNSHADED
-	display.material_override=screen
-	display.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	add_child(display)
-	for side in [-1.0,1.0]:
-		part(self,Vector3(side*.28,1.28,1.04),Vector3(.055,.10,.08),dark)
-		var edge := part(self,Vector3.ZERO,Vector3(.018,.19,.045),brass)
-		edge.transform=frame*Transform3D(Basis.IDENTITY,Vector3(side*.26,0,0))
-	part(self,Vector3(0,1.15,1.04),Vector3(1.0,.08,.15),dark)
 	var yoke_detail := Node3D.new()
 	yoke_detail.name="YokeDetail"
 	add_child(yoke_detail)

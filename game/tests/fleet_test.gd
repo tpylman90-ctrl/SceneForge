@@ -16,9 +16,11 @@ func check() -> void:
 			scene.set_physics_process(false)
 			assert(scene.chassis.chassis_id==definition.chassis_id)
 			if index==1:
-				var display: Node3D=scene.feedback.get_node("PyldriverCockpitInstruments/FlightDisplay")
-				assert(scene.feedback.has_node("PyldriverCockpitInstruments/HolographicDisplay"))
-				assert(display.position.z>.8 and display.position.z<1.15 and display.position.y<1.6,"Dashboard must remain inside cockpit")
+				var instruments: Node3D=scene.feedback.get_node("PyldriverCockpitInstruments")
+				assert(not instruments.has_node("FlightDisplay") and not instruments.has_node("InstrumentBinnacle"),"Pyldriver uses holographic instruments only")
+				var hologram: MeshInstance3D=instruments.get_node("HolographicDisplay")
+				assert(hologram.material_override.albedo_texture==scene.feedback.telemetry.texture,"Hologram must show live flight telemetry")
+				assert(hologram.position.z>.0 and hologram.position.z<1.0 and hologram.position.y<1.8,"Hologram must remain inside cockpit")
 				assert(scene.chassis.footprint_stretch>2.0,"Pyldriver fields must match elongated pods")
 				assert(scene.chassis.cockpit_eye.z<0,"Driver eye must sit behind the dashboard")
 				for slot in ["repulsor_fl","repulsor_fr","repulsor_rl","repulsor_rr"]:
