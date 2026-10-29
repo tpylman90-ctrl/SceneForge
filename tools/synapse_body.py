@@ -121,27 +121,54 @@ def build_synapse_body(material, glass, accent, carbon):
         return catmull(profile,(lo+hi)*.5)
 
     # The widened forward hull section below carries these shoulders as one molded shell.
-    # Twin recessed-looking ram intakes sit inside the raised shoulder flares.
+    # Matched dark induction channels follow the actual deformed hood surface,
+    # including the split-nose retreat, so they sit on the shell beyond the canopy.
     intake_profile=[
-        (.35,.45,.014,.005),
-        (.58,.43,.045,.008),
-        (.91,.40,.070,.012),
-        (1.25,.36,.075,.014),
-        (1.55,.32,.050,.009),
-        (1.75,.28,.008,.004),
+        (1.98,.47,.025,.008),
+        (2.25,.45,.060,.014),
+        (2.66,.40,.092,.020),
+        (3.06,.34,.105,.022),
+        (3.42,.27,.070,.014),
+        (3.72,.20,.010,.004),
     ]
-    intake_rows=49
-    intake_across=11
+    intake_material=mat('Synapse_induction',(.055,.035,.20),.55,.25)
+    def intake_at_z(z):
+        lo,hi=0.0,1.0
+        for _ in range(28):
+            t=(lo+hi)*.5
+            p=catmull(intake_profile,t)
+            if p[0]<z:lo=t
+            else:hi=t
+        return catmull(intake_profile,(lo+hi)*.5)
+    def hood_point(z0,side,ratio,raise_y=.025):
+        lo,hi=0.0,1.0
+        for _ in range(28):
+            t=(lo+hi)*.5
+            p=catmull(profile,t)
+            if p[0]<z0:lo=t
+            else:hi=t
+        t=(lo+hi)*.5
+        _,width,_,_,shoulder,crown=catmull(profile,t)
+        split=1.18*max(0.0,min(1.0,(t-.72)/.28))**1.45
+        edge=abs(ratio)
+        cap=max(0.0,1.0-edge*edge)**.68
+        flare_weight=math.exp(-((z0-2.35)/1.25)**2)
+        ridge=.28*flare_weight*math.exp(-((edge-.82)/.14)**2)
+        z=z0-split*(1.0-edge)**1.2
+        x=side*width*ratio
+        y=shoulder+(crown-shoulder)*cap+ridge+raise_y
+        return (x,y,z)
+
+    intake_rows=57
+    intake_across=13
     for side in [-1.0,1.0]:
         intake_verts=[]
         for row in range(intake_rows):
-            z,center,half,lift=catmull(intake_profile,row/(intake_rows-1))
-            _,half_width,_,_,_,_=hull_at(z)
+            z0,center,half,lift=catmull(intake_profile,row/(intake_rows-1))
             for col in range(intake_across):
                 u=-1.0+2.0*col/(intake_across-1)
-                x=side*half_width*(center+half*u)
-                crown=max(0.0,1.0-u*u)**.7
-                y=roof_at(z,x)+.038+lift*crown
+                ratio=center+half*u
+                x,y,z=hood_point(z0,side,ratio,.030+lift*max(0.0,1.0-u*u)**.7)
                 intake_verts.append((x,y,z))
         intake_faces=[]
         for row in range(intake_rows-1):
@@ -150,18 +177,14 @@ def build_synapse_body(material, glass, accent, carbon):
                 b=(row+1)*intake_across+col
                 intake_faces.append((a,a+1,b+1,b))
         intake=mesh('Synapse_InductionIntake_L' if side<0 else 'Synapse_InductionIntake_R',
-                    intake_verts,intake_faces,carbon)
+                    intake_verts,intake_faces,intake_material)
         for polygon in intake.data.polygons:polygon.use_smooth=True
-        # Three narrow alloy vanes make each intake legible from the front.
-        for z in (.80,1.08,1.36):
-            _,center,half,lift=catmull(intake_profile,
-                min(1.0,max(0.0,(z-intake_profile[0][0])/(intake_profile[-1][0]-intake_profile[0][0]))))
-            _,half_width,_,_,_,_=hull_at(z)
-            left=side*half_width*(center-half*.72)
-            right=side*half_width*(center+half*.72)
-            y1=roof_at(z,left)+.060
-            y2=roof_at(z,right)+.060
-            pipe('Intake guide vane',(left,y1,z),(right,y2,z),.009,accent,8)
+        # Fine bright baffles reveal the intake direction without crowding the beak.
+        for z0 in (2.36,2.76,3.15):
+            _,center,half,_=intake_at_z(z0)
+            left=hood_point(z0,side,center-half*.78,.060)
+            right=hood_point(z0,side,center+half*.78,.060)
+            pipe('Synapse intake baffle',left,right,.012,accent,8)
 
     # Wrap the dark polar glass over a raised, broad crown. The roof-following
     # sill and swept rear edge make the canopy read as part of the body.
