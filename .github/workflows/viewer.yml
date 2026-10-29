@@ -43,7 +43,12 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p build
-          if [ "$PREVIEW_CRAFT" = "0" ] || [ ! -s game/assets/neon_foundry.glb ]; then
+          if [ "$PREVIEW_CRAFT" = "0" ]; then
+  rm -f game/assets/neon_foundry.glb
+fi
+if [ "$PREVIEW_CRAFT" = "0" ] || [ ! -s game/assets/neon_foundry.glb ]; then
+  /tmp/blender-4.5.3-linux-x64/blender --background --threads 4 --python tools/build_neon_foundry.py 2>&1 | tee build/viewer-kestrel-blender.log
+  if grep -E 'Traceback \(most recent call last\):|NameError:|Error:' build/viewer-kestrel-blender.log; then exit 1; fi
             /tmp/blender-4.5.3-linux-x64/blender --background --threads 4 --python tools/build_neon_foundry.py
           fi
           case "$PREVIEW_CRAFT" in

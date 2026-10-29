@@ -54,58 +54,59 @@ def polish_kestrel():
     box('Repulsor cooling recess',(x,cy+yy+dy,.846),(.15,.08,.017),'trim',.005)
    pipe('Repulsor upper tie rod',(side*.75,cy+yy,.84),(x,cy+yy,.75),.035,'steel',12)
  # A low arched canopy is lofted flush to the body's upper shoulder. The roof
-# and the moving upper door glazing meet at their shared sill without a cage.
-canopy_stations=[(-1.44,1.19),(-1.22,1.30),(-.95,1.43),(-.62,1.53),(-.20,1.58),(.38,1.57),(.82,1.51),(1.14,1.43),(1.38,1.34),(1.65,1.20)]
-roof_y=np.linspace(-1.44,1.65,33)
-roof_across=np.linspace(-1,1,17)
-roof_vertices=[]
-for yy in roof_y:
- w,lo,hi=dims(float(yy))
- edge=hi+.006
- crown=max(edge+.01,float(np.interp(yy,[p[0] for p in canopy_stations],[p[1] for p in canopy_stations])))
- half=w*.70
- for u in roof_across:
-  roof_vertices.append((half*u,cy+yy,edge+(crown-edge)*math.cos(u*math.pi/2)))
-roof_faces=[]
-for row in range(len(roof_y)-1):
- for col in range(len(roof_across)-1):
-  a=row*len(roof_across)+col
-  roof_faces.append((a,a+1,a+1+len(roof_across),a+len(roof_across)))
-canopy_roof=hero_mesh('vehicle_glass_canopy_roof',roof_vertices,roof_faces,'vehicle_glass')
-for face in canopy_roof.data.polygons:face.use_smooth=True
-for side in [-1,1]:
- # Side glass sits exactly on the door's upper body facets. The driver's pane
- # follows the existing slide-back door animation as a single glazing piece.
- side_y=np.linspace(-.75,1.22,23)
- fractions=[.70,.84,.92,1.0]
- heights=[1.0,.89,.78,.46]
- window_vertices=[]
- for yy in side_y:
+ # and the moving upper door glazing meet at their shared sill without a cage.
+ canopy_stations=[(-1.44,1.19),(-1.22,1.30),(-.95,1.43),(-.62,1.53),(-.20,1.58),(.38,1.57),(.82,1.51),(1.14,1.43),(1.38,1.34),(1.65,1.20)]
+ roof_y=np.linspace(-1.44,1.65,33)
+ roof_across=np.linspace(-1,1,17)
+ roof_vertices=[]
+ for yy in roof_y:
   w,lo,hi=dims(float(yy))
-  for f,h in zip(fractions,heights):
-   window_vertices.append((side*(w*f+.004),cy+yy,lo+(hi-lo)*h+.004))
- window_faces=[]
- for row in range(len(side_y)-1):
-  for col in range(len(fractions)-1):
-   a=row*len(fractions)+col
-   window_faces.append((a,a+1,a+1+len(fractions),a+len(fractions)))
- pane=hero_mesh('vehicle_glass_canopy_side',window_vertices,window_faces,'vehicle_glass')
- for face in pane.data.polygons:face.use_smooth=True
- if side==1:pane['driver_door']=True
- # A narrow black reveal lets the glass merge into the painted shoulder.
- edge_points=[]
- lower_points=[]
- for yy in side_y:
-  w,lo,hi=dims(float(yy))
-  edge_points.append((side*w*.70,cy+yy,hi+.01))
-  lower_points.append((side*w,cy+yy,lo+(hi-lo)*.46+.01))
- line('Canopy shoulder gasket',edge_points,.012,'trim',side==1)
- line('Door glass lower gasket',lower_points,.010,'trim',side==1)
- for index in [0,len(side_y)-1]:
-  yy=side_y[index];w,lo,hi=dims(float(yy))
-  reveal=pipe('Canopy molded reveal',(side*w*.70,cy+yy,hi+.01),(side*w,cy+yy,lo+(hi-lo)*.46+.01),.012,'trim',10)
-  if side==1:reveal['driver_door']=True
-# Open turbine bell with an actual recessed throat, stators and a copper heat collar.
+  edge=hi+.006
+  crown=max(edge+.01,float(np.interp(yy,[p[0] for p in canopy_stations],[p[1] for p in canopy_stations])))
+  half=w*.70
+  for u in roof_across:
+   roof_vertices.append((half*u,cy+yy,edge+(crown-edge)*math.cos(u*math.pi/2)))
+ roof_faces=[]
+ for row in range(len(roof_y)-1):
+  for col in range(len(roof_across)-1):
+   a=row*len(roof_across)+col
+   roof_faces.append((a,a+1,a+1+len(roof_across),a+len(roof_across)))
+ canopy_roof=hero_mesh('vehicle_glass_canopy_roof',roof_vertices,roof_faces,'vehicle_glass')
+ for face in canopy_roof.data.polygons:face.use_smooth=True
+ for side in [-1,1]:
+  # Side glass sits exactly on the door's upper body facets. The driver's pane
+  # follows the existing slide-back door animation as a single glazing piece.
+  side_y=np.linspace(-.75,1.22,23)
+  fractions=[.70,.84,.92,1.0]
+  heights=[1.0,.89,.78,.46]
+  window_vertices=[]
+  for yy in side_y:
+   w,lo,hi=dims(float(yy))
+   for f,h in zip(fractions,heights):
+    window_vertices.append((side*(w*f+.004),cy+yy,lo+(hi-lo)*h+.004))
+  window_faces=[]
+  for row in range(len(side_y)-1):
+   for col in range(len(fractions)-1):
+    a=row*len(fractions)+col
+    window_faces.append((a,a+1,a+1+len(fractions),a+len(fractions)))
+  pane=hero_mesh('vehicle_glass_canopy_side',window_vertices,window_faces,'vehicle_glass')
+  for face in pane.data.polygons:face.use_smooth=True
+  if side==1:pane['driver_door']=True
+  # A narrow black reveal lets the glass merge into the painted shoulder.
+  edge_points=[]
+  lower_points=[]
+  for yy in side_y:
+   w,lo,hi=dims(float(yy))
+   edge_points.append((side*w*.70,cy+yy,hi+.01))
+   lower_points.append((side*w,cy+yy,lo+(hi-lo)*.46+.01))
+  line('Canopy shoulder gasket',edge_points,.012,'trim',side==1)
+  line('Door glass lower gasket',lower_points,.010,'trim',side==1)
+  for index in [0,len(side_y)-1]:
+   yy=side_y[index];w,lo,hi=dims(float(yy))
+   reveal=pipe('Canopy molded reveal',(side*w*.70,cy+yy,hi+.01),(side*w,cy+yy,lo+(hi-lo)*.46+.01),.012,'trim',10)
+   if side==1:reveal['driver_door']=True
+ 
+ # Open turbine bell with an actual recessed throat, stators and a copper heat collar.
  vertices=[]
  for y,r in [(2.25,.27),(2.58,.34),(2.73,.31),(2.74,.25),(2.44,.22)]:
   for i in range(32):
