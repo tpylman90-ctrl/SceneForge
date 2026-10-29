@@ -123,14 +123,12 @@ def build_synapse_body(material, glass, accent, carbon):
     # The widened forward hull section below carries these shoulders as one molded shell.
     # Twin recessed-looking ram intakes sit inside the raised shoulder flares.
     intake_profile=[
-        (.92,.47,.018,.008),
-        (1.25,.44,.060,.012),
-        (1.72,.40,.092,.018),
-        (2.20,.34,.100,.020),
-        (2.66,.28,.082,.018),
-        (3.05,.23,.056,.012),
-        (3.36,.19,.028,.008),
-        (3.52,.16,.008,.006),
+        (.35,.45,.014,.005),
+        (.58,.43,.045,.008),
+        (.91,.40,.070,.012),
+        (1.25,.36,.075,.014),
+        (1.55,.32,.050,.009),
+        (1.75,.28,.008,.004),
     ]
     intake_rows=49
     intake_across=11
@@ -155,7 +153,7 @@ def build_synapse_body(material, glass, accent, carbon):
                     intake_verts,intake_faces,carbon)
         for polygon in intake.data.polygons:polygon.use_smooth=True
         # Three narrow alloy vanes make each intake legible from the front.
-        for z in (1.65,2.08,2.50):
+        for z in (.80,1.08,1.36):
             _,center,half,lift=catmull(intake_profile,
                 min(1.0,max(0.0,(z-intake_profile[0][0])/(intake_profile[-1][0]-intake_profile[0][0]))))
             _,half_width,_,_,_,_=hull_at(z)
