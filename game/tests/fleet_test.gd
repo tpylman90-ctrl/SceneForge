@@ -18,6 +18,7 @@ func check() -> void:
 			if index==1:
 				var display: Node3D=scene.feedback.get_node("PyldriverCockpitInstruments/FlightDisplay")
 				assert(display.position.z>.8 and display.position.z<1.15 and display.position.y<1.6,"Dashboard must remain inside cockpit")
+				assert(scene.chassis.footprint_stretch>2.0,"Pyldriver fields must match elongated pods")
 				assert(scene.chassis.cockpit_eye.z<0,"Driver eye must sit behind the dashboard")
 				for slot in ["repulsor_fl","repulsor_fr","repulsor_rl","repulsor_rr"]:
 					var point: Vector3=scene.chassis.mount_points[slot]

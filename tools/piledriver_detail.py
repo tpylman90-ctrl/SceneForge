@@ -86,14 +86,16 @@ def build_piledriver(body,accent,carbon,steel,rubber,glow,glass):
    pipe('Runner joint',(side*.60,.39,z),(side*.70,.39,z),.065,carbon)
   # Smooth integrated hover fairings replace exposed cylindrical pots.
   for x,y,z in [(side*.48,.32,1.95),(side*.48,.25,-1.25)]:
-   pipe('Repulsor core',(x,y-.12,z),(x,y+.05,z),.245,carbon,24)
-   ring('Hidden magnetic halo',(x,y-.13,z),.225,.018,glow)
+   core=pipe('Elongated repulsor core',(x,y-.12,z),(x,y+.05,z),.245,carbon,24)
+   core.scale.y=2.5
+   halo=ring('Elongated magnetic halo',(x,y-.13,z),.225,.018,glow)
+   halo.scale.y=2.6
    bpy.ops.mesh.primitive_uv_sphere_add(segments=24,ring_count=12,location=v((x,y+.08,z)))
-   fair=bpy.context.object;fair.name='Integrated plum pod fairing';fair.scale=(.31,.46,.14);fair.data.materials.append(body)
+   fair=bpy.context.object;fair.name='Elongated underbody pod fairing';fair.scale=(.31,.80,.14);fair.data.materials.append(body)
    bpy.ops.object.transform_apply(location=False,rotation=False,scale=True)
    for face in fair.data.polygons:face.use_smooth=True
    pipe('Pod linkage',(x*.75,y+.12,z),(x,y,z),.055,steel)
-   for zz in [-.15,0,.15]:box('Pod cooling slot',(x,y+.20,z+zz),(.16,.018,.035),carbon,.004)
+   for zz in [-.45,-.15,.15,.45]:box('Pod cooling slot',(x,y+.20,z+zz),(.16,.018,.035),carbon,.004)
   # Deep hollow turbine: bell mouth, internal stator, collar and heat shielding.
   cx=side*1.0;cy=.95
   verts=[]
@@ -133,7 +135,18 @@ def build_piledriver(body,accent,carbon,steel,rubber,glow,glass):
   box('Gold shoulder harness',(side*.15,1.37,-.46),(.08,.56,.035),accent,.015)
   for z in [.1,.35,.6]:box('Console engraved switch',(side*.61,1.12,z),(.065,.04,.055),steel,.008)
  pipe('Swept top cross brace',(-.51,1.98,-.45),(.51,1.98,-.45),.028,accent)
- panel('Low polarized wind deflector',[(-.50,1.22,1.60),(.50,1.22,1.60),(.52,1.48,1.17),(-.52,1.48,1.17)],glass)
+ # Faceted glazing follows the complete roll frame, through the rear of the tub.
+ glazing=[(2.00,.53,1.21,.53,1.18),(1.45,.58,1.43,.50,1.24),(.32,.56,1.86,.70,1.49),(-.45,.51,1.98,.70,1.36),(-.95,.49,1.90,.48,1.24),(-1.62,.58,1.35,.58,1.32)]
+ points=[]
+ for z,w,roof,bw,sill in glazing:
+  points.extend([(-bw,sill,z),(-w,roof,z),(0,roof+.025,z),(w,roof,z),(bw,sill,z)])
+ faces=[]
+ for row in range(len(glazing)-1):
+  for col in range(4):faces.append((row*5+col,row*5+col+1,(row+1)*5+col+1,(row+1)*5+col))
+ faces.extend([(0,1,2,3,4),tuple(reversed(range((len(glazing)-1)*5,len(glazing)*5)))])
+ mesh('vehicle_glass_full_length_canopy',points,faces,glass)
+ for side in [-1,1]:
+  strip('Canopy lower rubber seal',[(side*bw,sill,z) for z,w,roof,bw,sill in glazing],.012,carbon)
  box('Recessed cabin floor',(0,.73,.05),(1.22,.09,2.4),carbon)
  box('Contoured seat base',(0,.91,-.20),(.57,.18,.75),rubber,.065)
  back=box('Seat shell',(0,1.32,-.65),(.63,.85,.17),carbon,.06)

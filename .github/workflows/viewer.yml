@@ -1,0 +1,87 @@
+name: Vehicle viewer preview
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: vehicle-viewer
+  cancel-in-progress: true
+jobs:
+  preview:
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[viewer]')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Restore existing environment assets
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            game/assets
+            build/NeonFoundry-preview.png
+            build/NeonFoundry.blend
+            build/asset-report.json
+            build/fleet-report.json
+          key: viewer-environment-${{ hashFiles('tools/build_neon_foundry.py') }}
+          restore-keys: |
+            foundry-blender-4.5.3-
+      - name: Install preview tools only
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq xvfb libgl1-mesa-dri
+          curl -fL --retry 3 https://github.com/godotengine/godot/releases/download/4.5.1-stable/Godot_v4.5.1-stable_linux.x86_64.zip -o /tmp/godot.zip
+          unzip -q /tmp/godot.zip -d /tmp/godot
+          sudo install /tmp/godot/Godot_v4.5.1-stable_linux.x86_64 /usr/local/bin/godot
+          curl -fL --retry 3 https://download.blender.org/release/Blender4.5/blender-4.5.3-linux-x64.tar.xz -o /tmp/blender.tar.xz
+          tar -xf /tmp/blender.tar.xz -C /tmp
+      - name: Build vehicle assets
+        run: |
+          set -euo pipefail
+          mkdir -p build
+          if [ ! -s game/assets/neon_foundry.glb ]; then
+            /tmp/blender-4.5.3-linux-x64/blender --background --threads 4 --python tools/build_neon_foundry.py
+          fi
+          /tmp/blender-4.5.3-linux-x64/blender --background --threads 4 --python tools/build_fleet.py
+          godot --headless --path game --editor --import --quit 2>&1 | tee build/viewer-import.log
+          if grep -E 'SCRIPT ERROR:|ERROR:' build/viewer-import.log; then exit 1; fi
+      - name: Render Pyldriver viewer
+        env:
+          LIBGL_ALWAYS_SOFTWARE: '1'
+        run: |
+          set -euo pipefail
+          for view in front side tail top cockpit under; do
+            args=""
+            if [ "$view" != front ]; then args="--fleet-$view"; fi
+            timeout 120 xvfb-run -a godot --audio-driver Dummy --path game --rendering-method gl_compatibility --resolution 1280x720 res://fleet_hangar.tscn -- --capture --craft-1 $args 2>&1 | tee build/viewer-$view.log
+          done
+          if grep -E 'SCRIPT ERROR:|ERROR:' build/viewer-*.log; then exit 1; fi
+          test -s build/Fleet-piledriver.png
+          test -s build/Fleet-piledriver-cockpit.png
+          test -s build/Fleet-piledriver-under.png
+          cp game/assets/fleet/piledriver.glb build/Pyldriver.glb
+          printf 'Viewer preview only\nCommit: %s\nNo Android package was built.\n' "$GITHUB_SHA" > build/VIEWER.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Pyldriver-viewer
+          path: |
+            build/Fleet-piledriver*.png
+            build/Pyldriver.glb
+            build/fleet-report.json
+            build/viewer-*.log
+            build/VIEWER.txt
+          retention-days: 7
+      - name: Publish viewer preview
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          if ! gh release view viewer-latest >/dev/null 2>&1; then
+            gh release create viewer-latest --prerelease --title "Vehicle viewer — latest preview" --notes "Vehicle previews and GLB only. Android app unchanged."
+          fi
+          gh release upload viewer-latest build/Fleet-piledriver*.png build/Pyldriver.glb build/fleet-report.json build/VIEWER.txt --clobber
+          gh release edit viewer-latest --notes "Viewer-only preview from $GITHUB_SHA. No Android build. Open the PNG views or download Pyldriver.glb."

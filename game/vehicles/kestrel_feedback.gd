@@ -59,9 +59,16 @@ func configure(definition: Resource) -> void:
 			if mat is StandardMaterial3D and node != display:
 				mat.vertex_color_use_as_albedo = true
 				if "vehicle_glass" in node.name:
+					if chassis.chassis_id=="piledriver":
+						mat=mat.duplicate()
+						mat.transparency=BaseMaterial3D.TRANSPARENCY_ALPHA
+						mat.albedo_color=Color(.08,.16,.22,.36)
+						mat.metallic=.15
+						mat.cull_mode=BaseMaterial3D.CULL_DISABLED
+						node.set_surface_override_material(surface,mat)
 					var inside: StandardMaterial3D = mat.duplicate()
 					inside.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-					inside.albedo_color = Color(0.1,0.18,0.22,0.12)
+					inside.albedo_color = Color(0.1,0.18,0.22,0.08 if chassis.chassis_id=="piledriver" else 0.12)
 					inside.metallic = 0.0
 					glass.append({"mesh":node,"surface":surface,"outside":mat,"inside":inside})
 	var mounts := Node3D.new()
@@ -127,7 +134,7 @@ func build_exhaust() -> void:
 		var slot: String = ["repulsor_fl","repulsor_fr","repulsor_rl","repulsor_rr"][i]
 		var point: Vector3 = chassis.mount_points[slot]
 		footprint_positions.append(Vector3(point.x,0.025,point.z))
-		pods.set_instance_transform(i,Transform3D(Basis.IDENTITY,footprint_positions[i]))
+		pods.set_instance_transform(i,Transform3D(Basis.from_scale(Vector3(1,1,chassis.footprint_stretch)),footprint_positions[i]))
 	rings.multimesh = pods
 	rings.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	get_parent().add_child(rings)

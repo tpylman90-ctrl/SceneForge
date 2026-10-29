@@ -39,3 +39,9 @@ CI captures front, tail, side, top and cockpit views. All geometry remains subje
 Pyldriver now builds its instruments in native craft coordinates through pyldriver_cockpit.gd. The display sits on a supported binnacle inside the cockpit (center approximately y=1.45, z=0.98 m), and the driver's eye sits back at z=-0.22 m. It no longer inherits the Kestrel-specific instrument transform.
 
 All four hover units are recessed beneath the belly at x=±0.48 m, with front z=1.95 m and rear z=-1.25 m. Chassis markers and ground footprints use those same positions, including the existing hull rake. Tail exhaust origins also follow the raked nozzle geometry. CI includes an underside inspection capture and assertions for instrument and mount placement.
+
+## Elongated pods and complete glazing
+
+Pyldriver's four underbody fairings are 1.6 m long. Their magnetic cores and halos are stretched longitudinally, and the runtime footprints use the same 2.6 length factor. Mount locations remain beneath the hull.
+
+A faceted glass mesh now follows all six roll-frame sections from z=2.0 through z=-1.62 m, including the rear cockpit. Rubber seals join the glazing to the body. The outside glass is lightly transparent for interior inspection; cockpit mode reduces the tint further. The fitted interior dashboard remains separate and inside the tub.

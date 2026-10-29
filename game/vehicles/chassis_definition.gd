@@ -5,6 +5,7 @@ extends Resource
 @export var display_name := "KESTREL / MK I"
 @export var visual_scene := "res://assets/neon_foundry.glb"
 @export var accent_color := Color("66dcf0")
+@export var footprint_stretch := 1.0
 @export var max_forward_speed := 32.0
 @export var max_reverse_speed := 8.0
 @export var reverse_acceleration := 5.0

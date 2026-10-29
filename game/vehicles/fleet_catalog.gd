@@ -18,6 +18,7 @@ static func definition(index: int) -> Resource:
 		craft.mount_points["repulsor_rr"]=Vector3(-1.12,.76,-.65)
 		craft.accent_color=[Color("66dcf0"),Color("b44dff"),Color("63d8ff"),Color("91ed77"),Color("5d9fff")][index]
 	if index==1:
+		craft.footprint_stretch=2.6
 		craft.cockpit_eye=Vector3(0,1.76,-.22)
 		craft.mount_points["repulsor_fl"]=Vector3(.48,.19325,1.95)
 		craft.mount_points["repulsor_fr"]=Vector3(-.48,.19325,1.95)
