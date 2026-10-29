@@ -1,8 +1,6 @@
-"""Body-only Synapse silhouette study: swept teardrop shell, no cockpit or hardware."""
-def build_synapse_body(material):
+"""Synapse hull and enclosed canopy lofts. No cockpit interior or hover hardware."""
+def build_synapse_body(material, glass):
     # Godot axes: X spans the hull, Y is height, and +Z is forward.
-    # Broad rear shoulders, a narrowed center waist, and a long beak form
-    # the low teardrop planform; the rolled side section supplies volume.
     profile = [
         (-4.15,.62,-.30,-.16,.22,.48),
         (-3.78,.98,-.39,-.18,.34,.79),
@@ -17,19 +15,19 @@ def build_synapse_body(material):
         (3.86,.25,.03,.06,.11,.25),
         (4.30,.12,.08,.10,.08,.15),
     ]
-    def sample(t):
-        scaled=t*(len(profile)-1)
-        i=min(int(scaled),len(profile)-2)
+    def catmull(points,t):
+        scaled=t*(len(points)-1)
+        i=min(int(scaled),len(points)-2)
         f=scaled-i
         f2=f*f;f3=f2*f
-        result=[]
-        for k in range(6):
-            p0=profile[max(0,i-1)][k]
-            p1=profile[i][k]
-            p2=profile[i+1][k]
-            p3=profile[min(len(profile)-1,i+2)][k]
-            result.append(.5*((2*p1)+(-p0+p2)*f+(2*p0-5*p1+4*p2-p3)*f2+(-p0+3*p1-3*p2+p3)*f3))
-        return tuple(result)
+        out=[]
+        for k in range(len(points[0])):
+            p0=points[max(0,i-1)][k]
+            p1=points[i][k]
+            p2=points[i+1][k]
+            p3=points[min(len(points)-1,i+2)][k]
+            out.append(.5*((2*p1)+(-p0+p2)*f+(2*p0-5*p1+4*p2-p3)*f2+(-p0+3*p1-3*p2+p3)*f3))
+        return tuple(out)
     longitudinal=89
     across=33
     side_steps=4
@@ -37,7 +35,7 @@ def build_synapse_body(material):
     sections=[]
     for row in range(longitudinal):
         t=row/(longitudinal-1)
-        z0,width,low,belly,shoulder,crown=sample(t)
+        z0,width,low,belly,shoulder,crown=catmull(profile,t)
         split=.90*max(0.0,min(1.0,(t-.72)/.28))**1.45
         flank=.045+.065*max(0.0,1.0-abs(t-.34)/.32)
         section=[]
@@ -72,5 +70,40 @@ def build_synapse_body(material):
     faces.append(tuple(end+col for col in range(section_size)))
     hull_obj=mesh('SynapseHull',verts,faces,material)
     for polygon in hull_obj.data.polygons:
+        polygon.use_smooth=True
+
+    # A long, flush-seated polar canopy follows the dorsal shoulder and
+    # narrows at both ends so it reads as part of the hull, not a bubble.
+    canopy_profile=[
+        (-2.05,.06,1.08,1.12),
+        (-1.80,.32,1.14,1.30),
+        (-1.38,.58,1.20,1.54),
+        (-.78,.76,1.22,1.74),
+        (-.05,.82,1.18,1.78),
+        (.68,.72,1.11,1.67),
+        (1.25,.56,.99,1.48),
+        (1.72,.32,.87,1.22),
+        (1.98,.08,.82,.88),
+    ]
+    glass_rows=73
+    glass_across=25
+    canopy_verts=[]
+    for row in range(glass_rows):
+        z,width,base_y,top_y=catmull(canopy_profile,row/(glass_rows-1))
+        for col in range(glass_across):
+            u=-1.0+2.0*col/(glass_across-1)
+            cap=max(0.0,1.0-u*u)**.58
+            canopy_verts.append((u*width,base_y+(top_y-base_y)*cap,z))
+    canopy_faces=[]
+    for row in range(glass_rows-1):
+        for col in range(glass_across-1):
+            a=row*glass_across+col
+            b=(row+1)*glass_across+col
+            canopy_faces.append((a,a+1,b+1,b))
+    canopy_faces.append(tuple(range(glass_across)))
+    end=(glass_rows-1)*glass_across
+    canopy_faces.append(tuple(end+col for col in range(glass_across)))
+    canopy=mesh('SynapsePolarCanopy',canopy_verts,canopy_faces,glass)
+    for polygon in canopy.data.polygons:
         polygon.use_smooth=True
     return hull_obj

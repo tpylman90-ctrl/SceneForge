@@ -92,7 +92,12 @@ for ident,color,accent_color,light_color,description in SPECS:
  elif ident=='synapse':
   body.node_tree.nodes['Principled BSDF'].inputs['Coat Weight'].default_value=.68
   body.node_tree.nodes['Principled BSDF'].inputs['Coat Roughness'].default_value=.2
-  build_synapse_body(body)
+  glass.node_tree.nodes['Principled BSDF'].inputs['Base Color'].default_value=(.012,.025,.095,1)
+  glass.node_tree.nodes['Principled BSDF'].inputs['Metallic'].default_value=.34
+  glass.node_tree.nodes['Principled BSDF'].inputs['Roughness'].default_value=.13
+  glass.node_tree.nodes['Principled BSDF'].inputs['Coat Weight'].default_value=.72
+  glass.node_tree.nodes['Principled BSDF'].inputs['Coat Roughness'].default_value=.12
+  build_synapse_body(body,glass)
  else:
   if ident=='piledriver':
    profile=[(-2.45,.65,.55,1.05),(-1.6,1.18,.48,1.24),(-.5,1.12,.45,1.24),(1.25,.91,.40,1.15),(2.4,.66,.38,.95),(3.4,.18,.40,.66)]
