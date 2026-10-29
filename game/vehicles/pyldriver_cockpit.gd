@@ -50,9 +50,9 @@ func build() -> void:
 	var hologram := MeshInstance3D.new()
 	hologram.name="HolographicDisplay"
 	var holo_quad := QuadMesh.new()
-	holo_quad.size=Vector2(.48,.16)
+	holo_quad.size=Vector2(.38,.12)
 	hologram.mesh=holo_quad
-	hologram.position=Vector3(0,1.65,.48)
+	hologram.position=Vector3(0,1.76,.25)
 	hologram.rotation.y=PI
 	hologram.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(hologram)
