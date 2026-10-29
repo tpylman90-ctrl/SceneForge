@@ -9,11 +9,11 @@ def build_synapse_body(material, glass, accent, carbon):
         (-1.35,1.34,-.45,-.18,.58,1.24),
         (-.20,1.31,-.43,-.17,.55,1.20),
         (.85,1.23,-.36,-.14,.49,1.08),
-        (1.80,1.08,-.26,-.08,.36,.88),
-        (2.65,.88,-.15,-.02,.25,.62),
-        (3.30,.62,-.06,.02,.16,.40),
-        (3.86,.38,.03,.06,.11,.25),
-        (4.30,.10,.08,.10,.08,.15),
+        (1.80,1.12,-.26,-.08,.36,.88),
+        (2.65,1.14,-.15,-.02,.25,.62),
+        (3.30,.84,-.06,.02,.16,.40),
+        (3.86,.46,.03,.06,.11,.25),
+        (4.30,.08,.08,.10,.08,.15),
     ]
     def catmull(points,t):
         scaled=t*(len(points)-1)
@@ -72,7 +72,7 @@ def build_synapse_body(material, glass, accent, carbon):
     for row in range(longitudinal):
         t=row/(longitudinal-1)
         z0,width,low,belly,shoulder,crown=catmull(profile,t)
-        split=.90*max(0.0,min(1.0,(t-.72)/.28))**1.45
+        split=1.18*max(0.0,min(1.0,(t-.72)/.28))**1.45
         flank=.045+.065*max(0.0,1.0-abs(t-.34)/.32)
         section=[]
         for col in range(across):
@@ -80,7 +80,7 @@ def build_synapse_body(material, glass, accent, carbon):
             edge=abs(u)
             cap=max(0.0,1.0-edge*edge)**.68
             flare_weight=math.exp(-((z0-2.35)/1.25)**2)
-            shoulder_ridge=.18*flare_weight*math.exp(-((edge-.82)/.14)**2)
+            shoulder_ridge=.28*flare_weight*math.exp(-((edge-.82)/.14)**2)
             section.append((u*width,shoulder+(crown-shoulder)*cap+shoulder_ridge,z0-split*(1.0-edge)**1.2))
         for side in [1.0,-1.0]:
             for step in range(1,side_steps+1):
@@ -141,7 +141,7 @@ def build_synapse_body(material, glass, accent, carbon):
                 u=-1.0+2.0*col/(intake_across-1)
                 x=side*half_width*(center+half*u)
                 crown=max(0.0,1.0-u*u)**.7
-                y=roof_at(z,x)+.012+lift*crown
+                y=roof_at(z,x)+.038+lift*crown
                 intake_verts.append((x,y,z))
         intake_faces=[]
         for row in range(intake_rows-1):
@@ -159,8 +159,8 @@ def build_synapse_body(material, glass, accent, carbon):
             _,half_width,_,_,_,_=hull_at(z)
             left=side*half_width*(center-half*.72)
             right=side*half_width*(center+half*.72)
-            y1=roof_at(z,left)+.082
-            y2=roof_at(z,right)+.082
+            y1=roof_at(z,left)+.060
+            y2=roof_at(z,right)+.060
             pipe('Intake guide vane',(left,y1,z),(right,y2,z),.009,accent,8)
 
     # Wrap the dark polar glass over a raised, broad crown. The roof-following
