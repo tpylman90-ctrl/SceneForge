@@ -97,22 +97,46 @@ def build_shrike(body,accent,carbon,steel,rubber,glow,glass):
     panel('Shrike dorsal rear thermal extractor',[
         (-.36,1.64,-1.95),(-.31,1.51,-2.40),
         (.31,1.51,-2.40),(.36,1.64,-1.95)],carbon)
-    # Integrated rounded canopy visible in top and cockpit views.
-    canopy=[(1.35,.50,1.29),(.95,.68,1.59),(.30,.70,1.83),
-            (-.45,.69,1.89),(-1.08,.61,1.76),(-1.54,.39,1.55)]
-    cp=[]
-    for z,w,h in canopy:
-        cp.extend([(-w,1.39,z),(-w*.76,h,z),(0,h+.05,z),
-                   (w*.76,h,z),(w,1.39,z)])
-    cf=[]
-    for i in range(len(canopy)-1):
-        for j in range(4):
-            cf.append((i*5+j,i*5+j+1,(i+1)*5+j+1,(i+1)*5+j))
-    mesh('vehicle_glass_shrike_roof',cp,cf,glass)
-    for s in [-1,1]:
-        frame=[(s*w,1.41,z) for z,w,h in canopy]
-        for a,b in zip(frame,frame[1:]):
-            pipe('Shrike subtle canopy seal',a,b,.019,carbon,10)
+    # Unified greenhouse: long low windshield, swept side glass, and a molded
+    # painted roof flowing continuously down into the raised rear haunches.
+    # The old exposed, boxy blue cap is deliberately replaced.
+    roof_sections=[
+        (1.43,.48,1.31), (1.12,.61,1.46), (.65,.72,1.61),
+        (.08,.75,1.71), (-.48,.72,1.75), (-.88,.67,1.75),
+        (-1.30,.60,1.72), (-1.66,.64,1.69), (-2.08,.72,1.67),
+        (-2.52,.69,1.54), (-2.77,.48,1.44)]
+    def roof_band(name,sections,material):
+        vertices=[]
+        for z,w,h in sections:
+            vertices.extend([(-w,1.37,z),(-w*.81,h-.055,z),
+                             (0,h,z),(w*.81,h-.055,z),(w,1.37,z)])
+        faces=[]
+        for row in range(len(sections)-1):
+            for col in range(4):
+                a=row*5+col
+                faces.append((a,a+1,a+6,a+5))
+        obj=mesh(name,vertices,faces,material)
+        for face in obj.data.polygons: face.use_smooth=True
+        return obj
+    # Both bands share stations at z=-.88 and -1.30 so glass/paint meet.
+    roof_band('vehicle_glass_shrike_windscreen_and_roof',roof_sections[:7],glass)
+    roof_band('Shrike one-piece molded roof into rear deck',roof_sections[6:],body)
+    for side in (-1,1):
+        # Long curved side windows lie within the cockpit sculpt rather than
+        # forming a separate vertical windshield box.
+        panel('vehicle_glass_shrike_swept_side',[
+            (side*.55,1.42,1.13),(side*.69,1.56,.62),
+            (side*.73,1.64,-.02),(side*.69,1.67,-.73),
+            (side*.61,1.62,-1.24),(side*.65,1.43,-1.43),
+            (side*.77,1.36,-.77),(side*.74,1.34,.34)],glass)
+        frame=[(side*w,1.385,z) for z,w,h in roof_sections[:7]]
+        for x,y in zip(frame,frame[1:]):
+            pipe('Shrike flush greenhouse lower seal',x,y,.013,carbon,10)
+        # C-pillar becomes bodywork, gradually growing toward rear shoulders.
+        panel('Shrike integrated sail pillar',[
+            (side*.61,1.62,-1.22),(side*.68,1.69,-1.60),
+            (side*.85,1.59,-2.12),(side*1.04,1.35,-2.43),
+            (side*.82,1.37,-1.62)],body)
     box('Shrike sealed cockpit seat',(0,1.04,-.40),(.55,.46,.76),rubber,.06)
     box('Shrike driver seat back',(0,1.42,-.78),(.56,.64,.17),carbon,.06)
     before=set(bpy.context.scene.objects)
