@@ -10,8 +10,9 @@ def build_shrike(body,accent,carbon,steel,rubber,glow,glass):
     # Continuous aerodynamic production-car shell.  Smooth oval loft, not an open deck.
     # Broad, blunt sports-car nose; rear (-Z), front (+Z).
     # First-order proportions only: keep this pass free of exposed aero appendages.
-    stations=[(-2.85,.75,.50,1.43),(-2.60,.96,.43,1.59),
-              (-2.05,1.14,.36,1.70),(-1.30,1.24,.32,1.70),
+    stations=[(-3.55,.75,.51,1.39),(-3.35,.94,.44,1.53),
+              (-3.03,1.10,.39,1.65),(-2.55,1.20,.36,1.72),
+              (-2.05,1.23,.34,1.74),(-1.30,1.24,.32,1.70),
               (-.50,1.25,.30,1.54),(.40,1.25,.29,1.47),
               (1.18,1.21,.28,1.36),(1.82,1.15,.28,1.16),
               (2.40,1.06,.30,.98),(2.83,.97,.32,.81),
@@ -26,8 +27,15 @@ def build_shrike(body,accent,carbon,steel,rubber,glow,glass):
     for z,w,low,high in segments:
         for j in range(n):
             a=2*math.pi*j/n
-            x=w*math.cos(a)
+            # Pinched waist and confident rear haunch are part of the actual shell.
+            side=abs(math.cos(a))
+            waist=.075*math.exp(-((z-.05)/.85)**2)
+            haunch=.055*math.exp(-((z+2.25)/.75)**2)
+            x=(w-waist+haunch)*math.cos(a)
             y=(low+high)/2+(high-low)*.5*math.sin(a)
+            # Soften the crown into a broad nearly level fastback, not a round dome.
+            if z < -1.55 and math.sin(a)>.65:
+                y-=.075*(math.sin(a)-.65)/.35
             points.append((x,y,z))
     faces=[]
     for k in range(len(segments)-1):
@@ -72,39 +80,39 @@ def build_shrike(body,accent,carbon,steel,rubber,glow,glass):
         # The C-shaped side accent follows the lifted rear quarter in a shallow inset.
         curve=[(side*1.19,1.02,.42),(side*1.23,1.08,-.18),
                (side*1.18,1.28,-.87),(side*1.04,1.49,-1.40),
-               (side*.91,1.52,-1.95)]
+               (side*.91,1.54,-2.20)]
         for a,b in zip(curve,curve[1:]):
             pipe('Shrike orange rear-quarter shoulder',a,b,.027,accent,12)
         panel('Shrike rear-quarter side intake',[
-            (side*1.13,1.06,-1.58),(side*1.10,1.30,-2.08),
-            (side*.98,1.29,-2.40),(side*1.13,.92,-2.10)],carbon)
+            (side*1.13,1.06,-1.88),(side*1.10,1.30,-2.48),
+            (side*.98,1.29,-2.92),(side*1.13,.92,-2.50)],carbon)
         for j in range(4):
-            z=-1.78-j*.13
+            z=-2.18-j*.13
             pipe('Shrike flush intake stator',(side*1.16,1.01,z),
                  (side*1.10,1.21,z-.055),.013,steel,8)
         # Repulsor glow is under the full-width shell, not around external pots.
         for x,z in [(side*.86,1.95),(side*.92,-1.70)]:
             ring('Shrike inset hover field',(x,.25,z),.27,.021,glow)
         # Broad rear lamp wrapping around raised shoulders.
-        pipe('Shrike wraparound rear lamp',(side*.21,1.32,-2.85),
-             (side*.81,1.37,-2.79),.037,accent,12)
-        pipe('Shrike dark aft vent',(side*.69,.83,-2.77),
-             (side*.69,.83,-2.92),.19,carbon,20)
+        pipe('Shrike wraparound rear lamp',(side*.21,1.32,-3.52),
+             (side*.76,1.37,-3.46),.037,accent,12)
+        pipe('Shrike dark aft vent',(side*.69,.83,-3.28),
+             (side*.69,.83,-3.50),.19,carbon,20)
     panel('Shrike raised rear central deck',[
-        (-.76,1.46,-1.59),(-.69,1.62,-2.14),
-        (-.46,1.46,-2.77),(.46,1.46,-2.77),
+        (-.76,1.46,-1.59),(-.69,1.62,-2.40),
+        (-.56,1.46,-3.43),(.56,1.46,-3.43),
         (.69,1.62,-2.14),(.76,1.46,-1.59)],body)
     panel('Shrike dorsal rear thermal extractor',[
-        (-.36,1.64,-1.95),(-.31,1.51,-2.40),
-        (.31,1.51,-2.40),(.36,1.64,-1.95)],carbon)
+        (-.36,1.66,-2.12),(-.31,1.51,-2.89),
+        (.31,1.51,-2.89),(.36,1.66,-2.12)],carbon)
     # Unified greenhouse: long low windshield, swept side glass, and a molded
     # painted roof flowing continuously down into the raised rear haunches.
     # The old exposed, boxy blue cap is deliberately replaced.
     roof_sections=[
         (1.43,.48,1.31), (1.12,.61,1.46), (.65,.72,1.61),
         (.08,.75,1.71), (-.48,.72,1.75), (-.88,.67,1.75),
-        (-1.30,.60,1.72), (-1.66,.64,1.69), (-2.08,.72,1.67),
-        (-2.52,.69,1.54), (-2.77,.48,1.44)]
+        (-1.30,.60,1.72), (-1.75,.65,1.70), (-2.25,.72,1.69),
+        (-2.75,.76,1.67), (-3.18,.72,1.57), (-3.48,.49,1.42)]
     def roof_band(name,sections,material):
         vertices=[]
         for z,w,h in sections:
@@ -134,9 +142,9 @@ def build_shrike(body,accent,carbon,steel,rubber,glow,glass):
             pipe('Shrike flush greenhouse lower seal',x,y,.013,carbon,10)
         # C-pillar becomes bodywork, gradually growing toward rear shoulders.
         panel('Shrike integrated sail pillar',[
-            (side*.61,1.62,-1.22),(side*.68,1.69,-1.60),
-            (side*.85,1.59,-2.12),(side*1.04,1.35,-2.43),
-            (side*.82,1.37,-1.62)],body)
+            (side*.61,1.62,-1.22),(side*.68,1.69,-1.70),
+            (side*.89,1.61,-2.48),(side*1.07,1.37,-3.12),
+            (side*.82,1.37,-1.70)],body)
     box('Shrike sealed cockpit seat',(0,1.04,-.40),(.55,.46,.76),rubber,.06)
     box('Shrike driver seat back',(0,1.42,-.78),(.56,.64,.17),carbon,.06)
     before=set(bpy.context.scene.objects)
@@ -148,7 +156,7 @@ def build_shrike(body,accent,carbon,steel,rubber,glow,glass):
     for i in range(5):
         before=set(bpy.context.scene.objects)
         x=(i-2)*.25
-        pipe('Shrike embedded vector jet',(x,1.20,-2.65),
-             (x,1.20,-2.91),.09,carbon,12)
-        pipe('Shrike jet inner',(x,1.20,-2.88),(x,1.20,-2.94),.05,glow,12)
-        rig('Kestrel_Tail_%d'%i,since(before),(x,1.20,-2.65))
+        pipe('Shrike embedded vector jet',(x,1.20,-3.25),
+             (x,1.20,-3.51),.09,carbon,12)
+        pipe('Shrike jet inner',(x,1.20,-3.48),(x,1.20,-3.54),.05,glow,12)
+        rig('Kestrel_Tail_%d'%i,since(before),(x,1.20,-3.25))
