@@ -146,9 +146,8 @@ def build_shrike(body,accent,carbon,steel,rubber,glow,glass):
             (side*.89,1.61,-2.48),(side*1.07,1.37,-3.12),
             (side*.82,1.37,-1.70)],body)
 
-    # MK II reference-inspired hard surfaces, kept tight to the Shrike shell.
-    # Rather than floating fins, these build an engineered shoulder, waist
-    # undercut and integrated rear-wing root in the silver bodywork.
+    # Original Shrike reference: integrated silver shell and orange C-channel.
+    # Maintain a curvy, low wedge without externally mounted avian winglets.
     for side in (-1,1):
         panel('Shrike front swept shoulder blade',[
             (side*.61,1.05,2.54),(side*.98,1.02,2.05),
@@ -175,14 +174,21 @@ def build_shrike(body,accent,carbon,steel,rubber,glow,glass):
         panel('Shrike aft extractor pocket',[
             (side*.92,1.30,-2.53),(side*1.13,1.33,-2.81),
             (side*1.06,1.13,-3.31),(side*.86,1.15,-3.07)],carbon)
-        # Three small close-coupled aerodynamic vanes remain within vehicle width.
-        for index in range(3):
-            z=-2.92-index*.16
-            panel('Shrike close-coupled aft vane',[
-                (side*.85,1.56,z+.18),(side*(.98+index*.045),1.64,z-.12),
-                (side*.78,1.55,z-.04)],steel if index==0 else carbon)
         pipe('Shrike tail light blade',(side*.28,1.36,-3.53),
              (side*.79,1.41,-3.48),.028,glow,12)
+    # Full-width rear light and dark fascia match the source's elongated tail.
+    panel('Shrike recessed rear fascia',[
+        (-.72,1.09,-3.558),(.72,1.09,-3.558),
+        (.72,1.37,-3.558),(-.72,1.37,-3.558)],carbon)
+    pipe('Shrike uninterrupted rear light signature',
+         (-.79,1.41,-3.566),(.79,1.41,-3.566),.026,accent,16)
+    # Curved orange C-insert is a substantial, visible inset, not a thin pipe.
+    for side in (-1,1):
+        panel('Shrike distinctive orange C-side sculpture',[
+            (side*.95,1.31,.08),(side*1.18,1.30,-.40),
+            (side*1.20,1.50,-1.24),(side*1.04,1.65,-1.95),
+            (side*.96,1.56,-1.99),(side*1.08,1.37,-1.28),
+            (side*1.07,1.18,-.55),(side*.89,1.24,-.03)],accent)
     # Integrated dark aerodynamic roof spine / shallow cooling duct.
     panel('Shrike inset dorsal cooling spine',[
         (-.23,1.70,-2.02),(-.20,1.60,-2.60),
