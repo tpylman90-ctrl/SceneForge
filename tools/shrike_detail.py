@@ -90,3 +90,51 @@ def detail_shrike(body,accent,carbon,steel,rubber,glow,glass):
     box('Shrike rear heat shield',(0,1.25,-2.28),(1.20,.12,.52),carbon,.04)
     for x in [-.46,-.23,0,.23,.46]:
         box('Shrike diffuser vent',(x,1.33,-2.37),(.14,.03,.33),steel,.008)
+
+    # Second-pass body integration: continuous side skirts and layered thrust nacelles.
+    # All additions are static so the original steering/yoke and vector nodes survive.
+    for side in (-1,1):
+        panel('Shrike lower titanium rocker',[
+            (side*.77,.68,1.67),(side*.98,.55,.63),
+            (side*1.07,.52,-.89),(side*.93,.66,-1.77),
+            (side*.78,.48,-1.36),(side*.70,.44,.54)],body)
+        panel('Shrike dark belly negative space',[
+            (side*.78,.46,1.55),(side*.92,.42,.52),
+            (side*.96,.41,-.87),(side*.79,.45,-1.46)],carbon)
+        # A curved multiple-section turbine shell rather than a single rear tube.
+        for z,r in [(-1.71,.29),(-2.12,.34),(-2.43,.31)]:
+            core=pipe('Shrike engine nacelle',
+                      (side*.86,1.02,z+.14),(side*.86,1.02,z-.14),
+                      r,carbon,24)
+            core.scale.x=1.0
+        for z,r in [(-1.84,.30),(-2.40,.30)]:
+            collar=ring('Shrike turbine machined collar',
+                        (side*.86,1.02,z),r,.025,steel)
+            collar.rotation_euler.x=math.pi/2
+        pipe('Shrike rear glow core',(side*.86,1.02,-2.41),
+             (side*.86,1.02,-2.48),.18,glow,24)
+        for n in range(8):
+            a=math.tau*n/8
+            pipe('Shrike turbine radial stator',
+                 (side*.86+.10*math.cos(a),1.02+.10*math.sin(a),-2.49),
+                 (side*.86+.26*math.cos(a+.10),1.02+.26*math.sin(a+.10),-2.49),
+                 .012,accent,8)
+        # Serviceable three-plate fender treatment and flush racing tabs.
+        for n,(za,zb) in enumerate([(1.62,.88),(.77,-.15),(-.25,-1.18)]):
+            panel('Shrike removable flank cartridge',[
+                (side*.94,1.10,za),(side*1.035,1.07,za-.17),
+                (side*1.07,.80,zb),(side*.99,.74,zb+.17)],body)
+            box('Shrike latch pin',
+                (side*1.09,.95,(za+zb)/2),(.025,.08,.09),steel,.006)
+        for z in [1.70,1.43,1.16]:
+            box('Shrike forward cooling louvre',
+                (side*.68,.92,z),(.13,.025,.065),carbon,.005)
+    # Dark center spine emphasizes the long agile prow and introduces
+    # a deeper upper surface, instead of leaving a flat gray wedge.
+    panel('Shrike dorsal carbon channel',[
+        (-.23,1.205,1.37),(-.16,1.055,2.20),(0,.555,3.66),
+        (.16,1.055,2.20),(.23,1.205,1.37)],carbon)
+    for side in (-1,1):
+        pipe('Shrike illuminated nose trim',
+             (side*.17,1.08,2.15),(side*.045,.58,3.64),
+             .009,accent,8)
