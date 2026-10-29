@@ -63,6 +63,7 @@ def hull(profile,m):
 exec((ROOT/'tools/piledriver_detail.py').read_text())
 
 exec((ROOT/'tools/forge_detail.py').read_text())
+exec((ROOT/'tools/shrike_detail.py').read_text())
 
 SPECS=[
  ('forge',(.045,.055,.065),(.65,.32,.07),(1.0,.28,.025),'Graphite precision racer / amber induction core'),
@@ -157,6 +158,8 @@ for ident,color,accent_color,light_color,description in SPECS:
    pipe('Nozzle liner',(x,1.65,-2.28),(x,1.65,-2.35),.095,glow,16)
    panel('Tail feather',[(x-.14,1.68,-1.8),(x+.14,1.68,-1.8),(x+.18,1.75,-2.6),(x-.18,1.75,-2.6)],accent)
    rig('Kestrel_Tail_%d'%i,since(before),(x,1.65,-1.8))
+ if ident=='shrike':
+  detail_shrike(body,accent,carbon,steel,rubber,glow,glass)
  # Join static parts per material; preserve control/nozzle transforms.
  for material in [body,accent,carbon,steel,rubber,glow,glass]:
   objects=[o for o in bpy.context.scene.objects if o.type=='MESH' and o.parent is None and o.data.materials[0]==material]
