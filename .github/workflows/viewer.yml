@@ -54,18 +54,15 @@ jobs:
           LIBGL_ALWAYS_SOFTWARE: '1'
         run: |
           set -euo pipefail
-          for view in front nose side tail top cockpit under; do
-            args=""
-            if [ "$view" != front ]; then args="--fleet-$view"; fi
+          for view in front rear side top cockpit; do
+            args="--fleet-$view"
             timeout 120 xvfb-run -a godot --audio-driver Dummy --path game --rendering-method gl_compatibility --resolution 1280x720 res://fleet_hangar.tscn -- --capture --craft-$PREVIEW_CRAFT $args 2>&1 | tee build/viewer-$view.log
           done
           if grep -E 'SCRIPT ERROR:|ERROR:' build/viewer-*.log; then exit 1; fi
           name=piledriver
           if [ "$PREVIEW_CRAFT" = 0 ]; then name=kestrel; fi
           if [ "$PREVIEW_CRAFT" = 2 ]; then name=shrike; fi
-          test -s build/Fleet-$name.png
-          test -s build/Fleet-$name-cockpit.png
-          test -s build/Fleet-$name-under.png
+          for view in front rear side top cockpit; do test -s build/Fleet-$name-$view.png; done
           cp game/assets/fleet/$name.glb build/SelectedCraft.glb
           if [ "$PREVIEW_CRAFT" = 0 ]; then
             timeout 120 xvfb-run -a godot --audio-driver Dummy --path game --rendering-method gl_compatibility --resolution 1280x720 -- --door-motion-smoke 2>&1 | tee build/viewer-door-test.log
