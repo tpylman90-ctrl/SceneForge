@@ -14,9 +14,9 @@ def build_shrike(body,accent,carbon,steel,rubber,glow,glass):
               (-3.03,1.10,.39,1.65),(-2.55,1.20,.36,1.72),
               (-2.05,1.23,.34,1.74),(-1.30,1.24,.32,1.70),
               (-.50,1.25,.30,1.54),(.40,1.25,.29,1.47),
-              (1.18,1.21,.28,1.36),(1.82,1.15,.28,1.16),
-              (2.40,1.06,.30,.98),(2.83,.97,.32,.81),
-              (3.15,.87,.36,.72),(3.40,.75,.40,.65)]
+              (1.18,1.27,.28,1.36),(1.82,1.31,.28,1.16),
+              (2.40,1.32,.30,1.02),(2.83,1.27,.32,.90),
+              (3.15,1.16,.36,.78),(3.40,.92,.40,.69)]
     segments=[]
     for a,b in zip(stations,stations[1:]):
         for i in range(5):
@@ -98,6 +98,51 @@ def build_shrike(body,accent,carbon,steel,rubber,glow,glass):
              (side*.76,1.37,-3.46),.037,accent,12)
         pipe('Shrike dark aft vent',(side*.69,.83,-3.28),
              (side*.69,.83,-3.50),.19,carbon,20)
+    # Wide-body MK I front: raised wheel-arch-like hover hub shoulders with
+    # a lower bonnet channel. The modules remain inside the armored silhouette.
+    for side in (-1,1):
+        panel('Shrike raised front fender crown',[
+            (side*.65,1.04,3.27),(side*1.05,1.02,3.19),
+            (side*1.38,1.18,2.70),(side*1.42,1.24,2.18),
+            (side*1.28,1.20,1.66),(side*.91,1.05,1.92)],body)
+        panel('Shrike fender shoulder highlight',[
+            (side*.96,1.07,3.09),(side*1.32,1.23,2.69),
+            (side*1.37,1.28,2.19),(side*1.18,1.24,1.78)],steel)
+        panel('Shrike deep front corner intake',[
+            (side*.94,.66,3.29),(side*1.22,.74,3.02),
+            (side*1.35,.79,2.70),(side*1.10,.66,2.73)],carbon)
+        panel('Shrike orange intake cheek',[
+            (side*1.11,.73,3.21),(side*1.31,.83,2.96),
+            (side*1.39,1.03,2.61),(side*1.30,1.08,2.40),
+            (side*1.21,.83,2.79)],accent)
+        panel('Shrike inset optical blade',[
+            (side*.87,1.04,3.12),(side*1.16,1.15,2.92),
+            (side*1.25,1.22,2.63),(side*.99,1.11,2.82)],carbon)
+        pipe('Shrike narrow headlight', (side*.92,1.075,3.06),
+             (side*1.19,1.205,2.76),.020,glow,10)
+        # These dark side-facing housings evoke wheel arches; the actual magnetic
+        # emitters remain below them rather than hanging as exposed barrels.
+        for z,y,r in [(2.06,.68,.40),(-2.22,.72,.42)]:
+            x=side*1.17
+            pipe('Shrike armored hover-hub drum',
+                 (x-side*.06,y,z),(x+side*.07,y,z),r,carbon,24)
+            pipe('Shrike machined hub cap',
+                 (x+side*.065,y,z),(x+side*.082,y,z),r*.78,steel,24)
+            pipe('Shrike recessed hub center',
+                 (x+side*.086,y,z),(x+side*.097,y,z),r*.43,carbon,20)
+            for j in range(6):
+                theta=math.tau*j/6
+                yy=y+r*.68*math.sin(theta)
+                zz=z+r*.68*math.cos(theta)
+                pipe('Shrike induction hub spoke',
+                     (x+side*.10,yy,zz),(x+side*.105,
+                     y+r*.26*math.sin(theta),z+r*.26*math.cos(theta)),
+                     .013,accent,8)
+            ring('Shrike concealed hub underglow',(side*1.13,.31,z),
+                 r*.75,.014,glow)
+        panel('Shrike wheel-arch shoulder cover',[
+            (side*1.20,1.11,2.61),(side*1.44,1.07,2.32),
+            (side*1.47,.86,1.93),(side*1.29,.93,1.66)],body)
     panel('Shrike raised rear central deck',[
         (-.76,1.46,-1.59),(-.69,1.62,-2.40),
         (-.56,1.46,-3.43),(.56,1.46,-3.43),
