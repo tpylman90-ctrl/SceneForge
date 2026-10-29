@@ -30,6 +30,9 @@ def build_shrike(body,accent,carbon,steel,rubber,glow,glass):
     faces=[]
     for k in range(len(segments)-1):
         for j in range(n):
+            # Remove roof over cockpit so glazing isn't buried beneath opaque bodywork.
+            mid=(segments[k][0]+segments[k+1][0])*.5
+            if -1.56 < mid < 1.36 and 2 <= j <= 8: continue
             faces.append((k*n+j,k*n+(j+1)%n,(k+1)*n+(j+1)%n,(k+1)*n+j))
     faces.extend([tuple(reversed(range(n))),tuple((len(segments)-1)*n+j for j in range(n))])
     shell=mesh('Shrike seamless flowing body',points,faces,body,.009)
