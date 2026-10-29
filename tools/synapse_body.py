@@ -6,21 +6,28 @@ def build_synapse_body(material):
         (-3.55,1.02,-.24,-.13,.08,.25),
         (-3.00,1.27,-.31,-.17,.14,.39),
         (-2.35,1.36,-.35,-.19,.18,.50),
-        (-1.45,1.38,-.36,-.19,.20,.57),
-        (-.45,1.33,-.35,-.17,.20,.62),
-        (.45,1.29,-.33,-.15,.20,.72),
-        (1.35,1.12,-.27,-.11,.16,.57),
+        (-1.45,1.38,-.36,-.19,.20,.64),
+        (-.45,1.33,-.35,-.17,.20,.74),
+        (.45,1.29,-.33,-.15,.20,.86),
+        (1.35,1.12,-.27,-.11,.16,.67),
         (2.30,.83,-.17,-.05,.12,.36),
         (3.10,.56,-.06,.01,.12,.25),
         (3.75,.34,.02,.06,.12,.20),
-        (4.22,.22,.07,.09,.11,.15),
+        (4.22,.28,.07,.09,.11,.15),
     ]
     def sample(t):
         scaled=t*(len(profile)-1)
         i=min(int(scaled),len(profile)-2)
         f=scaled-i
-        f=f*f*(3.0-2.0*f)
-        return tuple(profile[i][k]+(profile[i+1][k]-profile[i][k])*f for k in range(6))
+        f2=f*f;f3=f2*f
+        result=[]
+        for k in range(6):
+            p0=profile[max(0,i-1)][k]
+            p1=profile[i][k]
+            p2=profile[i+1][k]
+            p3=profile[min(len(profile)-1,i+2)][k]
+            result.append(.5*((2*p1)+(-p0+p2)*f+(2*p0-5*p1+4*p2-p3)*f2+(-p0+3*p1-3*p2+p3)*f3))
+        return tuple(result)
     longitudinal=73
     across=25
     top=[]
@@ -28,7 +35,7 @@ def build_synapse_body(material):
     for row in range(longitudinal):
         t=row/(longitudinal-1)
         z0,width,low,belly,shoulder,crown=sample(t)
-        split=.58*max(0.0,min(1.0,(t-.72)/.28))**1.5
+        split=.82*max(0.0,min(1.0,(t-.72)/.28))**1.5
         for col in range(across):
             u=-1.0+2.0*col/(across-1)
             edge=abs(u)
