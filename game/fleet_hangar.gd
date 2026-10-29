@@ -104,6 +104,10 @@ func _ready() -> void:
 		row.add_child(button)
 	spawn_craft()
 	update_camera()
+	if "--fleet-nose" in OS.get_cmdline_user_args():
+		orbit=0.0
+		elevation=.15
+		update_camera()
 	if "--fleet-tail" in OS.get_cmdline_user_args():action("TAIL")
 	if "--fleet-cockpit" in OS.get_cmdline_user_args():action("COCKPIT")
 	if "--fleet-side" in OS.get_cmdline_user_args():
@@ -187,7 +191,7 @@ func _process(_delta: float) -> void:
 		frames+=1
 		if frames==35:
 			var suffix := ""
-			for view in ["tail","cockpit","side","top","under"]:
+			for view in ["tail","cockpit","side","top","under","nose"]:
 				if "--fleet-"+view in OS.get_cmdline_user_args():suffix="-"+view
 			get_viewport().get_texture().get_image().save_png(OS.get_environment("GITHUB_WORKSPACE")+"/build/Fleet-"+Fleet.IDS[selected]+suffix+".png")
 			visual.stop_audio()
