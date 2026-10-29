@@ -72,24 +72,38 @@ def build_synapse_body(material, glass):
     for polygon in hull_obj.data.polygons:
         polygon.use_smooth=True
 
-    # A long, flush-seated polar canopy follows the dorsal shoulder and
-    # narrows at both ends so it reads as part of the hull, not a bubble.
+    def roof_at(z,x):
+        lo,hi=0.0,1.0
+        for _ in range(28):
+            t=(lo+hi)*.5
+            rz,rw,_,_,rshoulder,rcrown=catmull(profile,t)
+            if rz<z:lo=t
+            else:hi=t
+        _,rw,_,_,rshoulder,rcrown=catmull(profile,(lo+hi)*.5)
+        edge=min(1.0,abs(x)/max(rw,1e-5))
+        cap=max(0.0,1.0-edge*edge)**.68
+        return rshoulder+(rcrown-rshoulder)*cap
+
+    # The glass edge is sampled from the actual hull roof, so the long canopy
+    # sits flush at the shoulder and rises only into a low polar-glass dome.
     canopy_profile=[
-        (-2.05,.06,1.08,1.12),
-        (-1.80,.32,1.14,1.30),
-        (-1.38,.58,1.20,1.54),
-        (-.78,.76,1.22,1.74),
-        (-.05,.82,1.18,1.78),
-        (.68,.72,1.11,1.67),
-        (1.25,.56,.99,1.48),
-        (1.72,.32,.87,1.22),
-        (1.98,.08,.82,.88),
+        (-2.05,.06,.02),
+        (-1.80,.32,.20),
+        (-1.38,.58,.31),
+        (-.78,.76,.43),
+        (-.05,.82,.46),
+        (.68,.72,.42),
+        (1.25,.56,.33),
+        (1.72,.32,.20),
+        (1.98,.08,.02),
     ]
     glass_rows=73
     glass_across=25
     canopy_verts=[]
     for row in range(glass_rows):
-        z,width,base_y,top_y=catmull(canopy_profile,row/(glass_rows-1))
+        z,width,lift=catmull(canopy_profile,row/(glass_rows-1))
+        base_y=roof_at(z,width)+.015
+        top_y=base_y+lift
         for col in range(glass_across):
             u=-1.0+2.0*col/(glass_across-1)
             cap=max(0.0,1.0-u*u)**.58
