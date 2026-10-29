@@ -1,16 +1,16 @@
-"""Body-only Synapse silhouette study: sculpted teardrop shell, no cockpit or hardware."""
+"""Body-only Synapse silhouette study: swept teardrop shell, no cockpit or hardware."""
 def build_synapse_body(material):
     # Godot axes: X spans the hull, Y is height, and +Z is forward.
-    # A broad, low deck and softly rolled shoulder sections give the hull
-    # dimension without breaking the continuous wedge silhouette.
+    # Broad rear shoulders, a narrowed center waist, and a long beak form
+    # the low teardrop planform; the rolled side section supplies volume.
     profile = [
         (-4.15,.62,-.30,-.16,.22,.48),
-        (-3.78,.94,-.39,-.18,.34,.79),
-        (-3.12,1.16,-.43,-.19,.46,1.02),
-        (-2.35,1.31,-.44,-.18,.55,1.18),
-        (-1.35,1.39,-.45,-.18,.58,1.24),
-        (-.20,1.38,-.43,-.17,.55,1.20),
-        (.85,1.28,-.36,-.14,.49,1.08),
+        (-3.78,.98,-.39,-.18,.34,.79),
+        (-3.12,1.44,-.43,-.19,.46,1.02),
+        (-2.35,1.48,-.44,-.18,.55,1.18),
+        (-1.35,1.34,-.45,-.18,.58,1.24),
+        (-.20,1.31,-.43,-.17,.55,1.20),
+        (.85,1.23,-.36,-.14,.49,1.08),
         (1.80,1.02,-.26,-.08,.36,.88),
         (2.65,.72,-.15,-.02,.25,.62),
         (3.30,.45,-.06,.02,.16,.40),
