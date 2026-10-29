@@ -6,7 +6,7 @@ on:
 permissions:
   contents: write
 concurrency:
-  group: vehicle-viewer
+  group: vehicle-viewer-${{ contains(github.event.head_commit.message, '[kestrel]') && 'kestrel' || (contains(github.event.head_commit.message, '[piledriver]') && 'piledriver' || 'shrike') }}
   cancel-in-progress: true
 env:
   PREVIEW_CRAFT: "${{ contains(github.event.head_commit.message, '[kestrel]') && '0' || (contains(github.event.head_commit.message, '[piledriver]') && '1' || '2') }}"

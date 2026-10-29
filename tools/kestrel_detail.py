@@ -55,8 +55,8 @@ def polish_kestrel():
    pipe('Repulsor upper tie rod',(side*.75,cy+yy,.84),(x,cy+yy,.75),.035,'steel',12)
  # A low arched canopy is lofted flush to the body's upper shoulder. The roof
  # and the moving upper door glazing meet at their shared sill without a cage.
- canopy_stations=[(-1.44,1.19),(-1.22,1.30),(-.95,1.43),(-.62,1.53),(-.20,1.58),(.38,1.57),(.82,1.51),(1.14,1.43),(1.38,1.34),(1.65,1.20)]
- roof_y=np.linspace(-1.44,1.65,33)
+ canopy_stations=[(-1.44,1.19),(-1.22,1.30),(-.95,1.43),(-.62,1.53),(-.20,1.58),(.38,1.60),(.82,1.55),(1.14,1.49),(1.38,1.42),(1.62,1.34),(1.82,1.22)]
+ roof_y=np.linspace(-1.44,1.82,37)
  roof_across=np.linspace(-1,1,17)
  roof_vertices=[]
  for yy in roof_y:
@@ -76,7 +76,7 @@ def polish_kestrel():
  for side in [-1,1]:
   # Side glass sits exactly on the door's upper body facets. The driver's pane
   # follows the existing slide-back door animation as a single glazing piece.
-  side_y=np.linspace(-.75,1.22,23)
+  side_y=np.linspace(-.75,1.42,27)
   fractions=[.70,.84,.92,1.0]
   heights=[1.0,.89,.78,.46]
   window_vertices=[]

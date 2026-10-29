@@ -368,7 +368,7 @@ def hero_mesh(name,verts,faces,mat,bevel=0):
  if bevel:
   mod=obj.modifiers.new('Manufactured edge radius','BEVEL');mod.width=bevel;mod.segments=3;bpy.ops.object.modifier_apply(modifier=mod.name)
  return obj
-profile=[(-3.15,.035,.54,.65),(-2.8,.34,.55,.81),(-2.0,.84,.58,1.03),(-1.0,1.12,.64,1.24),(.2,1.12,.50,1.34),(1.25,1.20,.62,1.32),(2.05,1.08,.72,1.20),(2.5,.72,.78,1.05)]
+profile=[(-3.15,.035,.54,.65),(-2.8,.34,.55,.81),(-2.0,.84,.58,1.03),(-1.0,1.12,.64,1.24),(.2,1.19,.50,1.36),(1.25,1.38,.62,1.40),(2.05,1.27,.72,1.29),(2.5,.84,.78,1.08)]
 def dims(y):
  return tuple(float(np.interp(y,[p[0] for p in profile],[p[k] for p in profile])) for k in [1,2,3])
 cross=[(-.7,0),(.7,0),(.96,.15),(1,.46),(.92,.78),(.7,1),(-.7,1),(-.92,.78),(-1,.46),(-.96,.15)]
