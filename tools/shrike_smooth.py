@@ -31,8 +31,15 @@ def build_shrike(body,accent,carbon,steel,rubber,glow,glass):
             side=abs(math.cos(a))
             waist=.075*math.exp(-((z-.05)/.85)**2)
             haunch=.055*math.exp(-((z+2.25)/.75)**2)
-            x=(w-waist+haunch)*math.cos(a)
+            front=math.exp(-((z-2.12)/.84)**2)
+            rear=math.exp(-((z+2.36)/.99)**2)
+            x=(w-waist+haunch+.15*front+.18*rear)*math.cos(a)
             y=(low+high)/2+(high-low)*.5*math.sin(a)
+            # Raised paired front shoulders and rear wheel-arch haunches.
+            # Recessed central hood and trunk result from the outer-only lift.
+            outer=math.exp(-((abs(math.cos(a))-.75)/.18)**2)
+            upper=max(0.0,math.sin(a))**1.2
+            y+=outer*upper*(.29*front+.21*rear)
             # Soften the crown into a broad nearly level fastback, not a round dome.
             if z < -1.55 and math.sin(a)>.65:
                 y-=.075*(math.sin(a)-.65)/.35
@@ -47,109 +54,7 @@ def build_shrike(body,accent,carbon,steel,rubber,glow,glass):
     faces.extend([tuple(reversed(range(n))),tuple((len(segments)-1)*n+j for j in range(n))])
     shell=mesh('Shrike seamless flowing body',points,faces,body,.009)
     for face in shell.data.polygons:face.use_smooth=True
-    # Integrated engineering details follow the flowing body, without exposed hover barrels.
-    # Two flush dark insets help judge bonnet curvature without hiding silhouette.
-    panel('Shrike wide bonnet recess',[
-       (-.40,1.19,1.86),(-.48,1.01,2.36),(-.42,.81,2.91),
-       (.42,.81,2.91),(.48,1.01,2.36),(.40,1.19,1.86)],carbon)
-    for side in (-1,1):
-        # Short, flush orange shoulder motif; no protruding fins.
-        pipe('Shrike shoulder visual datum',
-             (side*1.20,1.04,.82),(side*1.11,.86,2.10),.012,accent,10)
-    # Recessed full-width intake and broad blunt fascia.
-    panel('Shrike recessed front grille',[
-        (-.67,.49,3.405),(.67,.49,3.405),
-        (.64,.60,3.408),(-.64,.60,3.408)],carbon)
-    for k in range(7):
-        x=(k-3)*.18
-        pipe('Shrike front grille vertical vane',(x,.49,3.423),
-             (x,.60,3.425),.012,steel,8)
-    pipe('Shrike front luminous grille edge',(-.62,.62,3.412),
-         (.62,.62,3.412),.018,glow,12)
-    # Body-integrated nose cheeks, upper light recesses and raised fastback haunches.
-    for side in (-1,1):
-        panel('Shrike sculpted front cheek',[
-            (side*.69,.64,3.35),(side*.88,.72,3.07),
-            (side*.99,.84,2.70),(side*.83,.86,2.45),
-            (side*.65,.65,2.95)],body)
-        panel('Shrike front optical inset',[
-            (side*.71,.79,3.16),(side*.92,.86,2.79),
-            (side*.89,.89,2.62),(side*.66,.82,3.01)],carbon)
-        pipe('Shrike front optic', (side*.71,.816,3.12),
-             (side*.89,.90,2.76),.016,glow,10)
-        # The C-shaped side accent follows the lifted rear quarter in a shallow inset.
-        curve=[(side*1.19,1.02,.42),(side*1.23,1.08,-.18),
-               (side*1.18,1.28,-.87),(side*1.04,1.49,-1.40),
-               (side*.91,1.54,-2.20)]
-        for a,b in zip(curve,curve[1:]):
-            pipe('Shrike orange rear-quarter shoulder',a,b,.027,accent,12)
-        panel('Shrike rear-quarter side intake',[
-            (side*1.13,1.06,-1.88),(side*1.10,1.30,-2.48),
-            (side*.98,1.29,-2.92),(side*1.13,.92,-2.50)],carbon)
-        for j in range(4):
-            z=-2.18-j*.13
-            pipe('Shrike flush intake stator',(side*1.16,1.01,z),
-                 (side*1.10,1.21,z-.055),.013,steel,8)
-        # Repulsor glow is under the full-width shell, not around external pots.
-        for x,z in [(side*.86,1.95),(side*.92,-1.70)]:
-            ring('Shrike inset hover field',(x,.25,z),.27,.021,glow)
-        # Broad rear lamp wrapping around raised shoulders.
-        pipe('Shrike wraparound rear lamp',(side*.21,1.32,-3.52),
-             (side*.76,1.37,-3.46),.037,accent,12)
-        pipe('Shrike dark aft vent',(side*.69,.83,-3.28),
-             (side*.69,.83,-3.50),.19,carbon,20)
-    # Wide-body MK I front: raised wheel-arch-like hover hub shoulders with
-    # a lower bonnet channel. The modules remain inside the armored silhouette.
-    for side in (-1,1):
-        panel('Shrike raised front fender crown',[
-            (side*.65,1.04,3.27),(side*1.05,1.02,3.19),
-            (side*1.38,1.18,2.70),(side*1.42,1.24,2.18),
-            (side*1.28,1.20,1.66),(side*.91,1.05,1.92)],body)
-        panel('Shrike fender shoulder highlight',[
-            (side*.96,1.07,3.09),(side*1.32,1.23,2.69),
-            (side*1.37,1.28,2.19),(side*1.18,1.24,1.78)],steel)
-        panel('Shrike deep front corner intake',[
-            (side*.94,.66,3.29),(side*1.22,.74,3.02),
-            (side*1.35,.79,2.70),(side*1.10,.66,2.73)],carbon)
-        panel('Shrike orange intake cheek',[
-            (side*1.11,.73,3.21),(side*1.31,.83,2.96),
-            (side*1.39,1.03,2.61),(side*1.30,1.08,2.40),
-            (side*1.21,.83,2.79)],accent)
-        panel('Shrike inset optical blade',[
-            (side*.87,1.04,3.12),(side*1.16,1.15,2.92),
-            (side*1.25,1.22,2.63),(side*.99,1.11,2.82)],carbon)
-        pipe('Shrike narrow headlight', (side*.92,1.075,3.06),
-             (side*1.19,1.205,2.76),.020,glow,10)
-        # These dark side-facing housings evoke wheel arches; the actual magnetic
-        # emitters remain below them rather than hanging as exposed barrels.
-        for z,y,r in [(2.06,.68,.40),(-2.22,.72,.42)]:
-            x=side*1.17
-            pipe('Shrike armored hover-hub drum',
-                 (x-side*.06,y,z),(x+side*.07,y,z),r,carbon,24)
-            pipe('Shrike machined hub cap',
-                 (x+side*.065,y,z),(x+side*.082,y,z),r*.78,steel,24)
-            pipe('Shrike recessed hub center',
-                 (x+side*.086,y,z),(x+side*.097,y,z),r*.43,carbon,20)
-            for j in range(6):
-                theta=math.tau*j/6
-                yy=y+r*.68*math.sin(theta)
-                zz=z+r*.68*math.cos(theta)
-                pipe('Shrike induction hub spoke',
-                     (x+side*.10,yy,zz),(x+side*.105,
-                     y+r*.26*math.sin(theta),z+r*.26*math.cos(theta)),
-                     .013,accent,8)
-            ring('Shrike concealed hub underglow',(side*1.13,.31,z),
-                 r*.75,.014,glow)
-        panel('Shrike wheel-arch shoulder cover',[
-            (side*1.20,1.11,2.61),(side*1.44,1.07,2.32),
-            (side*1.47,.86,1.93),(side*1.29,.93,1.66)],body)
-    panel('Shrike raised rear central deck',[
-        (-.76,1.46,-1.59),(-.69,1.62,-2.40),
-        (-.56,1.46,-3.43),(.56,1.46,-3.43),
-        (.69,1.62,-2.14),(.76,1.46,-1.59)],body)
-    panel('Shrike dorsal rear thermal extractor',[
-        (-.36,1.66,-2.12),(-.31,1.51,-2.89),
-        (.31,1.51,-2.89),(.36,1.66,-2.12)],carbon)
+    # Form-only prototype: no trim, intakes, lights, hover rings or panel add-ons.
     # Unified greenhouse: long low windshield, swept side glass, and a molded
     # painted roof flowing continuously down into the raised rear haunches.
     # The old exposed, boxy blue cap is deliberately replaced.
@@ -175,70 +80,12 @@ def build_shrike(body,accent,carbon,steel,rubber,glow,glass):
     roof_band('vehicle_glass_shrike_windscreen_and_roof',roof_sections[:7],glass)
     roof_band('Shrike one-piece molded roof into rear deck',roof_sections[6:],body)
     for side in (-1,1):
-        # Long curved side windows lie within the cockpit sculpt rather than
-        # forming a separate vertical windshield box.
         panel('vehicle_glass_shrike_swept_side',[
             (side*.55,1.42,1.13),(side*.69,1.56,.62),
             (side*.73,1.64,-.02),(side*.69,1.67,-.73),
             (side*.61,1.62,-1.24),(side*.65,1.43,-1.43),
             (side*.77,1.36,-.77),(side*.74,1.34,.34)],glass)
-        frame=[(side*w,1.385,z) for z,w,h in roof_sections[:7]]
-        for x,y in zip(frame,frame[1:]):
-            pipe('Shrike flush greenhouse lower seal',x,y,.013,carbon,10)
-        # C-pillar becomes bodywork, gradually growing toward rear shoulders.
-        panel('Shrike integrated sail pillar',[
-            (side*.61,1.62,-1.22),(side*.68,1.69,-1.70),
-            (side*.89,1.61,-2.48),(side*1.07,1.37,-3.12),
-            (side*.82,1.37,-1.70)],body)
-
-    # Original Shrike reference: integrated silver shell and orange C-channel.
-    # Maintain a curvy, low wedge without externally mounted avian winglets.
-    for side in (-1,1):
-        panel('Shrike front swept shoulder blade',[
-            (side*.61,1.05,2.54),(side*.98,1.02,2.05),
-            (side*1.22,1.08,1.01),(side*1.17,.89,.55),
-            (side*.91,.78,1.23)],body)
-        panel('Shrike sculpted waist relief',[
-            (side*1.15,.74,1.10),(side*1.22,.70,.29),
-            (side*1.10,.62,-.84),(side*1.20,.72,-1.75),
-            (side*1.06,.57,-1.40),(side*.99,.57,-.32)],carbon)
-        panel('Shrike curved midbody overpanel',[
-            (side*1.19,1.03,.45),(side*1.24,1.14,-.26),
-            (side*1.21,1.33,-1.12),(side*1.14,1.44,-2.12),
-            (side*1.06,1.09,-1.84),(side*1.13,.86,-.56)],body)
-        # Orange contour is recessed visually between upper shoulder and sill.
-        shoulder=[(side*1.19,1.04,.48),(side*1.25,1.13,-.20),
-                  (side*1.22,1.34,-1.12),(side*1.15,1.46,-2.10)]
-        for a,b in zip(shoulder,shoulder[1:]):
-            pipe('Shrike swept orange side channel',a,b,.023,accent,12)
-        # Low-profile aft flares integrated with the fastback, not bird-like blades.
-        panel('Shrike tail shoulder fairing',[
-            (side*.72,1.66,-2.21),(side*1.08,1.51,-2.54),
-            (side*1.12,1.39,-3.25),(side*.86,1.45,-3.45),
-            (side*.65,1.63,-2.93)],body)
-        panel('Shrike aft extractor pocket',[
-            (side*.92,1.30,-2.53),(side*1.13,1.33,-2.81),
-            (side*1.06,1.13,-3.31),(side*.86,1.15,-3.07)],carbon)
-        pipe('Shrike tail light blade',(side*.28,1.36,-3.53),
-             (side*.79,1.41,-3.48),.028,glow,12)
-    # Full-width rear light and dark fascia match the source's elongated tail.
-    panel('Shrike recessed rear fascia',[
-        (-.72,1.09,-3.558),(.72,1.09,-3.558),
-        (.72,1.37,-3.558),(-.72,1.37,-3.558)],carbon)
-    pipe('Shrike uninterrupted rear light signature',
-         (-.79,1.41,-3.566),(.79,1.41,-3.566),.026,accent,16)
-    # Curved orange C-insert is a substantial, visible inset, not a thin pipe.
-    for side in (-1,1):
-        panel('Shrike distinctive orange C-side sculpture',[
-            (side*.95,1.31,.08),(side*1.18,1.30,-.40),
-            (side*1.20,1.50,-1.24),(side*1.04,1.65,-1.95),
-            (side*.96,1.56,-1.99),(side*1.08,1.37,-1.28),
-            (side*1.07,1.18,-.55),(side*.89,1.24,-.03)],accent)
-    # Integrated dark aerodynamic roof spine / shallow cooling duct.
-    panel('Shrike inset dorsal cooling spine',[
-        (-.23,1.70,-2.02),(-.20,1.60,-2.60),
-        (-.11,1.50,-3.13),(.11,1.50,-3.13),
-        (.20,1.60,-2.60),(.23,1.70,-2.02)],carbon)
+    # Fenders and rear flares are molded into the main shell, not separate meshes.
     box('Shrike sealed cockpit seat',(0,1.04,-.40),(.55,.46,.76),rubber,.06)
     box('Shrike driver seat back',(0,1.42,-.78),(.56,.64,.17),carbon,.06)
     before=set(bpy.context.scene.objects)
@@ -250,7 +97,6 @@ def build_shrike(body,accent,carbon,steel,rubber,glow,glass):
     for i in range(5):
         before=set(bpy.context.scene.objects)
         x=(i-2)*.25
-        pipe('Shrike embedded vector jet',(x,1.20,-3.25),
-             (x,1.20,-3.51),.09,carbon,12)
-        pipe('Shrike jet inner',(x,1.20,-3.48),(x,1.20,-3.54),.05,glow,12)
+        pipe('Shrike hidden animation anchor',(x,1.10,-3.15),
+             (x,1.10,-3.18),.012,carbon,8)
         rig('Kestrel_Tail_%d'%i,since(before),(x,1.20,-3.25))
