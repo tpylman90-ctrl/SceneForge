@@ -1,19 +1,21 @@
-"""First-pass Synapse body silhouette. No cockpit, hardware, lighting strips, or trim."""
+"""Body-only Synapse silhouette study: fuller swept shell, no cockpit or hardware."""
 def build_synapse_body(material):
     # Godot axes: X spans the hull, Y is height, and +Z is forward.
+    # The profile carries real shoulder and rear-haunch volume while keeping
+    # the split beak low and narrow.
     profile = [
-        (-3.95,.72,-.16,-.08,.02,.16),
-        (-3.55,1.02,-.24,-.13,.08,.25),
-        (-3.00,1.27,-.31,-.17,.14,.39),
-        (-2.35,1.36,-.35,-.19,.18,.50),
-        (-1.45,1.38,-.36,-.19,.20,.64),
-        (-.45,1.33,-.35,-.17,.20,.74),
-        (.45,1.29,-.33,-.15,.20,.86),
-        (1.35,1.12,-.27,-.11,.16,.67),
-        (2.30,.83,-.17,-.05,.12,.36),
-        (3.10,.56,-.06,.01,.12,.25),
-        (3.75,.34,.02,.06,.12,.20),
-        (4.22,.28,.07,.09,.11,.15),
+        (-4.15,.55,-.25,-.11,.10,.25),
+        (-3.78,.91,-.42,-.15,.37,.78),
+        (-3.12,1.24,-.52,-.19,.60,1.13),
+        (-2.28,1.48,-.58,-.22,.72,1.42),
+        (-1.25,1.60,-.59,-.23,.75,1.54),
+        (-.05,1.61,-.56,-.21,.72,1.50),
+        (.95,1.48,-.48,-.17,.65,1.36),
+        (1.82,1.19,-.35,-.11,.53,1.13),
+        (2.60,.83,-.20,-.04,.37,.82),
+        (3.28,.52,-.07,.01,.24,.54),
+        (3.86,.29,.03,.06,.15,.32),
+        (4.30,.14,.08,.10,.10,.17),
     ]
     def sample(t):
         scaled=t*(len(profile)-1)
@@ -28,20 +30,22 @@ def build_synapse_body(material):
             p3=profile[min(len(profile)-1,i+2)][k]
             result.append(.5*((2*p1)+(-p0+p2)*f+(2*p0-5*p1+4*p2-p3)*f2+(-p0+3*p1-3*p2+p3)*f3))
         return tuple(result)
-    longitudinal=73
-    across=25
+    longitudinal=89
+    across=33
     top=[]
     bottom=[]
     for row in range(longitudinal):
         t=row/(longitudinal-1)
         z0,width,low,belly,shoulder,crown=sample(t)
-        split=.82*max(0.0,min(1.0,(t-.72)/.28))**1.5
+        split=.90*max(0.0,min(1.0,(t-.72)/.28))**1.45
         for col in range(across):
             u=-1.0+2.0*col/(across-1)
             edge=abs(u)
-            z=z0-split*(1.0-edge)**1.25
+            z=z0-split*(1.0-edge)**1.2
             x=u*width
-            cap=(1.0-edge)**.7
+            # Rounded transverse sections create a broad, continuous shell
+            # instead of the pinched diamond profile of the first study.
+            cap=max(0.0,1.0-edge*edge)**.58
             top.append((x,shoulder+(crown-shoulder)*cap,z))
             bottom.append((x,belly+(low-belly)*cap,z))
     verts=top+bottom
