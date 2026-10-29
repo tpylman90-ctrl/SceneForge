@@ -180,6 +180,11 @@ for ident,color,accent_color,light_color,description in SPECS:
    normal=obj.matrix_world.to_3x3()@obj.data.vertices[loop.vertex_index].normal
    a=.82+.18*max(0,normal.z);colors.data[loop.index].color=(a,a,a,1)
   mod=obj.modifiers.new('Weighted manufactured normals','WEIGHTED_NORMAL');mod.keep_sharp=True;bpy.ops.object.modifier_apply(modifier=mod.name)
+ # Guard against publishing a stale pointed Shrike mesh in the Android package.
+ if ident=='shrike':
+  front=[o.matrix_world@vertex.co for o in bpy.context.scene.objects if o.type=='MESH' and o.name=='Kestrel_shrike_body' for vertex in o.data.vertices]
+  assert front and any(p.y < -3.35 and abs(p.x) > .60 for p in front), 'Shrike rounded wide-nose geometry missing'
+  print('SCENEFORGE_SHRIKE_ROUNDED_NOSE_OK')
  path=OUT/(ident+'.glb')
  bpy.ops.export_scene.gltf(filepath=str(path),export_format='GLB',export_yup=True,export_vertex_color='ACTIVE',export_all_vertex_colors=False)
  data=path.read_bytes();n=struct.unpack_from('<I',data,12)[0];g=json.loads(data[20:20+n])
