@@ -41,33 +41,24 @@ def build_synapse_body(material):
         split=.90*max(0.0,min(1.0,(t-.72)/.28))**1.45
         flank=.045+.065*max(0.0,1.0-abs(t-.34)/.32)
         section=[]
-        # Upper deck, rounded across the center and falling into the shoulders.
         for col in range(across):
             u=-1.0+2.0*col/(across-1)
             edge=abs(u)
             cap=max(0.0,1.0-edge*edge)**.68
             section.append((u*width,shoulder+(crown-shoulder)*cap,z0-split*(1.0-edge)**1.2))
-        # Rolled side walls: the shallow maximum at mid-height creates a real
-        # shoulder/haunch in silhouette instead of a flat slab-like flank.
         for side in [1.0,-1.0]:
             for step in range(1,side_steps+1):
                 f=step/(side_steps+1)
-                y=shoulder+(belly-shoulder)*f
+                y=(shoulder+(belly-shoulder)*f) if side>0 else (belly+(shoulder-belly)*f)
                 x=side*width*(1.0+flank*math.sin(math.pi*f))
-                section.append((x,y,z0-split))
-            if side==1.0:
+                edge=min(1.0,abs(x)/max(width,1e-5))
+                section.append((x,y,z0-split*(1.0-edge)**1.2))
+            if side>0:
                 for col in range(across-1,-1,-1):
                     u=-1.0+2.0*col/(across-1)
                     edge=abs(u)
                     cap=max(0.0,1.0-edge*edge)**.68
                     section.append((u*width,belly+(low-belly)*cap,z0-split*(1.0-edge)**1.2))
-            else:
-                # Left side is traversed from belly back up to the deck.
-                for step in range(side_steps,0,-1):
-                    f=step/(side_steps+1)
-                    y=belly+(shoulder-belly)*f
-                    x=side*width*(1.0+flank*math.sin(math.pi*f))
-                    section.append((x,y,z0-split))
         sections.append(section)
     verts=[point for section in sections for point in section]
     faces=[]
