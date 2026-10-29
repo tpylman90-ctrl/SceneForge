@@ -1,8 +1,8 @@
-"""Body-only Synapse silhouette study: sculpted low shell, no cockpit or hardware."""
+"""Body-only Synapse silhouette study: sculpted teardrop shell, no cockpit or hardware."""
 def build_synapse_body(material):
     # Godot axes: X spans the hull, Y is height, and +Z is forward.
-    # Fuller shoulder volume and a raised rear deck give the shell depth
-    # without turning the teardrop wedge into a rounded capsule.
+    # A broad, low deck and softly rolled shoulder sections give the hull
+    # dimension without breaking the continuous wedge silhouette.
     profile = [
         (-4.15,.45,-.18,-.08,.08,.20),
         (-3.78,.78,-.32,-.13,.25,.58),
@@ -32,40 +32,53 @@ def build_synapse_body(material):
         return tuple(result)
     longitudinal=89
     across=33
-    top=[]
-    bottom=[]
+    side_steps=4
+    section_size=2*across+2*side_steps
+    sections=[]
     for row in range(longitudinal):
         t=row/(longitudinal-1)
         z0,width,low,belly,shoulder,crown=sample(t)
         split=.90*max(0.0,min(1.0,(t-.72)/.28))**1.45
+        flank=.045+.065*max(0.0,1.0-abs(t-.34)/.32)
+        section=[]
+        # Upper deck, rounded across the center and falling into the shoulders.
         for col in range(across):
             u=-1.0+2.0*col/(across-1)
             edge=abs(u)
-            z=z0-split*(1.0-edge)**1.2
-            x=u*width
-            # Softly rounded transverse sections with a flatter upper deck.
             cap=max(0.0,1.0-edge*edge)**.68
-            top.append((x,shoulder+(crown-shoulder)*cap,z))
-            bottom.append((x,belly+(low-belly)*cap,z))
-    verts=top+bottom
-    offset=len(top)
+            section.append((u*width,shoulder+(crown-shoulder)*cap,z0-split*(1.0-edge)**1.2))
+        # Rolled side walls: the shallow maximum at mid-height creates a real
+        # shoulder/haunch in silhouette instead of a flat slab-like flank.
+        for side in [1.0,-1.0]:
+            for step in range(1,side_steps+1):
+                f=step/(side_steps+1)
+                y=shoulder+(belly-shoulder)*f
+                x=side*width*(1.0+flank*math.sin(math.pi*f))
+                section.append((x,y,z0-split))
+            if side==1.0:
+                for col in range(across-1,-1,-1):
+                    u=-1.0+2.0*col/(across-1)
+                    edge=abs(u)
+                    cap=max(0.0,1.0-edge*edge)**.68
+                    section.append((u*width,belly+(low-belly)*cap,z0-split*(1.0-edge)**1.2))
+            else:
+                # Left side is traversed from belly back up to the deck.
+                for step in range(side_steps,0,-1):
+                    f=step/(side_steps+1)
+                    y=belly+(shoulder-belly)*f
+                    x=side*width*(1.0+flank*math.sin(math.pi*f))
+                    section.append((x,y,z0-split))
+        sections.append(section)
+    verts=[point for section in sections for point in section]
     faces=[]
     for row in range(longitudinal-1):
-        for col in range(across-1):
-            a=row*across+col
-            b=(row+1)*across+col
-            faces.append((a,a+1,b+1,b))
-            faces.append((offset+a,offset+b,offset+b+1,offset+a+1))
-        left=row*across
-        left_next=(row+1)*across
-        right=left+across-1
-        right_next=left_next+across-1
-        faces.append((left,left_next,offset+left_next,offset+left))
-        faces.append((right,offset+right,offset+right_next,right_next))
-    for row in [0,longitudinal-1]:
-        upper=list(range(row*across,(row+1)*across))
-        lower=[offset+i for i in reversed(upper)]
-        faces.append(tuple(upper+lower))
+        for col in range(section_size):
+            a=row*section_size+col
+            b=row*section_size+(col+1)%section_size
+            faces.append((a,b,b+section_size,a+section_size))
+    faces.append(tuple(range(section_size-1,-1,-1)))
+    end=(longitudinal-1)*section_size
+    faces.append(tuple(end+col for col in range(section_size)))
     hull_obj=mesh('SynapseHull',verts,faces,material)
     for polygon in hull_obj.data.polygons:
         polygon.use_smooth=True
