@@ -102,14 +102,35 @@ jobs:
             build/viewer-*.log
             build/VIEWER.txt
           retention-days: 7
-      - name: Publish viewer preview
+      - name: Publish commit-specific verified viewer preview
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
+          short_sha="${GITHUB_SHA:0:10}"
+          tag="viewer-${short_sha}"
+          test -s build/VIEWER.txt
+          grep -Fq "Commit: $GITHUB_SHA" build/VIEWER.txt
+          name=shrike
+          case "$PREVIEW_CRAFT" in
+            0) name=kestrel ;;
+            1) name=piledriver ;;
+            2) name=shrike ;;
+            6) name=synapse ;;
+          esac
+          for view in front rear side top; do
+            test -s "build/Fleet-$name-$view.png"
+          done
+          if [ "$name" != synapse ]; then test -s "build/Fleet-$name-cockpit.png"; fi
+          gh release create "$tag" build/Fleet-*.png build/SelectedCraft.glb build/fleet-report.json build/VIEWER.txt \
+            --target "$GITHUB_SHA" --prerelease \
+            --title "Viewer $name — $short_sha" \
+            --notes "Verified preview from commit $GITHUB_SHA. No Android package."
+          # Preserve the familiar latest URLs as a convenience; the immutable
+          # commit-specific tag is the authoritative review destination.
           if ! gh release view viewer-latest >/dev/null 2>&1; then
-            gh release create viewer-latest --prerelease --title "Vehicle viewer — latest preview" --notes "Vehicle previews and GLB only. Android app unchanged."
+            gh release create viewer-latest --prerelease --title "Vehicle viewer — latest preview" --notes "Vehicle previews and GLB only."
           fi
           gh release upload viewer-latest build/Fleet-*.png build/SelectedCraft.glb build/fleet-report.json build/VIEWER.txt --clobber
-          gh release edit viewer-latest --notes "Viewer-only preview from $GITHUB_SHA. No Android build. Open the PNG views for the latest vehicle design."
+          gh release edit viewer-latest --notes "Viewer preview commit $GITHUB_SHA. Immutable preview: $tag"
