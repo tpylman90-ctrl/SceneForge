@@ -65,12 +65,15 @@ exec((ROOT/'tools/piledriver_detail.py').read_text())
 exec((ROOT/'tools/forge_detail.py').read_text())
 exec((ROOT/'tools/shrike_smooth.py').read_text())
 
+exec((ROOT/'tools/synapse_body.py').read_text(),globals())
+
 SPECS=[
  ('forge',(.045,.055,.065),(.65,.32,.07),(1.0,.28,.025),'Graphite precision racer / amber induction core'),
  ('piledriver',(0.20,.035,.40),(.72,.43,.08),(.65,.06,1.0),'Heavy framed racer / purple and brass'),
  ('shrike',(.40,.46,.49),(.83,.22,.055),(.15,.75,1.0),'Feather-fin interceptor / silver and orange'),
  ('mantis',(.18,.27,.12),(.38,.46,.25),(.44,1.0,.42),'Fork-nose utility racer / olive'),
- ('aurora',(.025,.09,.26),(.65,.28,.12),(.12,.48,1.0),'Low swept speedster / midnight blue and copper')]
+ ('aurora',(.025,.09,.26),(.65,.28,.12),(.12,.48,1.0),'Low swept speedster / midnight blue and copper'),
+ ('synapse',(.012,.016,.052),(.18,.12,.52),(.28,.16,1.0),'Precision AI racer / vantablack and indigo')]
 selected=os.environ.get('SCENEFORGE_ONLY_CRAFT','').strip().lower()
 assert not selected or selected in {spec[0] for spec in SPECS}, 'Unknown SCENEFORGE_ONLY_CRAFT'
 for ident,color,accent_color,light_color,description in SPECS:
@@ -86,6 +89,10 @@ for ident,color,accent_color,light_color,description in SPECS:
   build_piledriver(body,accent,carbon,steel,rubber,glow,glass)
  elif ident=='shrike':
   build_shrike(body,accent,carbon,steel,rubber,glow,glass)
+ elif ident=='synapse':
+  body.node_tree.nodes['Principled BSDF'].inputs['Coat Weight'].default_value=.68
+  body.node_tree.nodes['Principled BSDF'].inputs['Coat Roughness'].default_value=.2
+  build_synapse_body(body)
  else:
   if ident=='piledriver':
    profile=[(-2.45,.65,.55,1.05),(-1.6,1.18,.48,1.24),(-.5,1.12,.45,1.24),(1.25,.91,.40,1.15),(2.4,.66,.38,.95),(3.4,.18,.40,.66)]
@@ -169,7 +176,7 @@ for ident,color,accent_color,light_color,description in SPECS:
   if not objects:continue
   bpy.ops.object.select_all(action='DESELECT')
   for o in objects:o.select_set(True)
-  bpy.context.view_layer.objects.active=objects[0];bpy.ops.object.join();objects[0].name='Kestrel_'+material.name
+  bpy.context.view_layer.objects.active=objects[0];bpy.ops.object.join();objects[0].name=('Synapse_' if ident=='synapse' else 'Kestrel_')+material.name
  # UVs and explicit vertex-color contract, with subtle underside shading.
  for obj in bpy.context.scene.objects:
   if obj.type!='MESH':continue
@@ -190,7 +197,10 @@ for ident,color,accent_color,light_color,description in SPECS:
  bpy.ops.export_scene.gltf(filepath=str(path),export_format='GLB',export_yup=True,export_vertex_color='ACTIVE',export_all_vertex_colors=False)
  data=path.read_bytes();n=struct.unpack_from('<I',data,12)[0];g=json.loads(data[20:20+n])
  names={n.get('name') for n in g['nodes']}
- assert {'Kestrel_Yoke',*['Kestrel_Tail_%d'%i for i in range(5)]}.issubset(names)
+ if ident=='synapse':
+  assert 'Synapse_synapse_body' in names, 'Synapse body mesh missing'
+ else:
+  assert {'Kestrel_Yoke',*['Kestrel_Tail_%d'%i for i in range(5)]}.issubset(names)
  triangles=sum(sum(len(p.vertices)-2 for p in o.data.polygons) for o in bpy.context.scene.objects if o.type=='MESH')
  assert triangles<40000,triangles
  assert all('COLOR_0' in p['attributes'] for m in g['meshes'] for p in m['primitives'])

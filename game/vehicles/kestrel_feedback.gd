@@ -19,6 +19,11 @@ var last_drive := 0.0
 
 func configure(definition: Resource) -> void:
 	chassis = definition
+	if chassis.chassis_id=="synapse":
+		var body: Node3D=load(chassis.visual_scene).instantiate()
+		body.name="Synapse_Body_Only"
+		add_child(body)
+		return
 	var source: Node3D = load(chassis.visual_scene).instantiate()
 	telemetry.craft_name=chassis.display_name
 	add_child(source)
@@ -166,6 +171,7 @@ func set_cockpit(enabled: bool) -> void:
 	display_clock = 1.0
 
 func update_feedback(delta: float, signed_speed: float, drive: float, steering: float, acceleration: float, slip: float, cockpit: bool, boosting: bool = false, charge: float = 100.0, flight_pitch: float = 0.0) -> void:
+	if chassis.chassis_id=="synapse":return
 	last_drive = drive
 	motion_clock += delta
 	var amount := clampf(absf(signed_speed)/20,0,1)

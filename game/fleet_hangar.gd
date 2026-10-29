@@ -160,6 +160,7 @@ func select_craft(index: int) -> void:
 
 func action(label: String) -> void:
 	if busy:return
+	if Fleet.IDS[selected]=="synapse" and label in ["COCKPIT","DRIVE"]:return
 	if label=="DRIVE" or label=="FOUNDRY":
 		busy=true
 		visual.stop_audio()

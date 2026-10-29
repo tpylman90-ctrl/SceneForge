@@ -6,10 +6,10 @@ on:
 permissions:
   contents: write
 concurrency:
-  group: vehicle-viewer-${{ contains(github.event.head_commit.message, '[kestrel]') && 'kestrel' || (contains(github.event.head_commit.message, '[piledriver]') && 'piledriver' || 'shrike') }}
+  group: vehicle-viewer-${{ contains(github.event.head_commit.message, '[kestrel]') && 'kestrel' || (contains(github.event.head_commit.message, '[piledriver]') && 'piledriver' || (contains(github.event.head_commit.message, '[synapse]') && 'synapse' || 'shrike')) }}
   cancel-in-progress: true
 env:
-  PREVIEW_CRAFT: "${{ contains(github.event.head_commit.message, '[kestrel]') && '0' || (contains(github.event.head_commit.message, '[piledriver]') && '1' || '2') }}"
+  PREVIEW_CRAFT: "${{ contains(github.event.head_commit.message, '[kestrel]') && '0' || (contains(github.event.head_commit.message, '[piledriver]') && '1' || (contains(github.event.head_commit.message, '[synapse]') && '6' || '2')) }}"
 jobs:
   preview:
     if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[viewer]')
@@ -26,7 +26,7 @@ jobs:
             build/NeonFoundry.blend
             build/asset-report.json
             build/fleet-report.json
-          key: viewer-environment-${{ hashFiles('tools/build_neon_foundry.py', 'tools/kestrel_detail.py') }}
+          key: viewer-environment-${{ hashFiles('tools/build_neon_foundry.py', 'tools/kestrel_detail.py', 'tools/build_fleet.py', 'tools/synapse_body.py') }}
           restore-keys: |
             foundry-blender-4.5.3-
       - name: Install preview tools only
@@ -54,6 +54,7 @@ jobs:
             0) craft=kestrel ;;
             1) craft=piledriver ;;
             2) craft=shrike ;;
+            6) craft=synapse ;;
             *) echo "Unsupported preview craft: $PREVIEW_CRAFT"; exit 1 ;;
           esac
           if [ "$craft" = kestrel ]; then
@@ -70,7 +71,9 @@ jobs:
           LIBGL_ALWAYS_SOFTWARE: '1'
         run: |
           set -euo pipefail
-          for view in front rear side top cockpit; do
+          views=(front rear side top cockpit)
+          if [ "$PREVIEW_CRAFT" = 6 ]; then views=(front rear side top); fi
+          for view in "${views[@]}"; do
             args="--fleet-$view"
             timeout 120 xvfb-run -a godot --audio-driver Dummy --path game --rendering-method gl_compatibility --resolution 1280x720 res://fleet_hangar.tscn -- --capture --craft-$PREVIEW_CRAFT $args 2>&1 | tee build/viewer-$view.log
           done
@@ -78,7 +81,8 @@ jobs:
           name=piledriver
           if [ "$PREVIEW_CRAFT" = 0 ]; then name=kestrel; fi
           if [ "$PREVIEW_CRAFT" = 2 ]; then name=shrike; fi
-          for view in front rear side top cockpit; do test -s build/Fleet-$name-$view.png; done
+          if [ "$PREVIEW_CRAFT" = 6 ]; then name=synapse; fi
+          for view in "${views[@]}"; do test -s build/Fleet-$name-$view.png; done
           if [ "$name" = kestrel ]; then cp game/assets/neon_foundry.glb build/SelectedCraft.glb; else cp game/assets/fleet/$name.glb build/SelectedCraft.glb; fi
           if [ "$PREVIEW_CRAFT" = 0 ]; then
             timeout 120 xvfb-run -a godot --audio-driver Dummy --path game --rendering-method gl_compatibility --resolution 1280x720 -- --door-motion-smoke 2>&1 | tee build/viewer-door-test.log
