@@ -28,16 +28,19 @@ def build_synapse_body(material, glass):
             p3=points[min(len(points)-1,i+2)][k]
             out.append(.5*((2*p1)+(-p0+p2)*f+(2*p0-5*p1+4*p2-p3)*f2+(-p0+3*p1-3*p2+p3)*f3))
         return tuple(out)
+    # Broad canopy crown rises out of the nose-side shoulder, carries a
+    # purposeful cockpit volume, then flows down in a long rearward sweep.
     canopy_profile=[
-        (-2.05,.06,.02),
-        (-1.80,.32,.12),
-        (-1.38,.58,.20),
-        (-.78,.76,.26),
-        (-.05,.82,.28),
-        (.68,.72,.25),
-        (1.25,.56,.19),
-        (1.72,.32,.11),
-        (1.98,.08,.02),
+        (-2.52,.04,.015),
+        (-2.28,.28,.15),
+        (-1.92,.55,.38),
+        (-1.40,.78,.62),
+        (-.78,.90,.76),
+        (-.12,.91,.78),
+        (.52,.80,.67),
+        (1.12,.60,.47),
+        (1.58,.36,.25),
+        (1.92,.08,.02),
     ]
     def canopy_at_z(z):
         lo,hi=0.0,1.0
@@ -103,17 +106,18 @@ def build_synapse_body(material, glass):
     for polygon in hull_obj.data.polygons:
         polygon.use_smooth=True
 
-    # Build a low, elongated dome whose edges follow the hull roof exactly.
-    glass_rows=73
-    glass_across=25
+    # Wrap the dark polar glass over a raised, broad crown. The roof-following
+    # sill and swept rear edge make the canopy read as part of the body.
+    glass_rows=89
+    glass_across=33
     canopy_verts=[]
     for row in range(glass_rows):
         z,width,lift=catmull(canopy_profile,row/(glass_rows-1))
-        base_y=roof_at(z,width)+.015
+        base_y=roof_at(z,width)+.018
         top_y=base_y+lift
         for col in range(glass_across):
             u=-1.0+2.0*col/(glass_across-1)
-            cap=max(0.0,1.0-u*u)**.58
+            cap=max(0.0,1.0-u*u)**.46
             canopy_verts.append((u*width,base_y+(top_y-base_y)*cap,z))
     canopy_faces=[]
     for row in range(glass_rows-1):
