@@ -63,7 +63,7 @@ def hull(profile,m):
 exec((ROOT/'tools/piledriver_detail.py').read_text())
 
 exec((ROOT/'tools/forge_detail.py').read_text())
-exec((ROOT/'tools/shrike_detail.py').read_text())
+exec((ROOT/'tools/shrike_smooth.py').read_text())
 
 SPECS=[
  ('forge',(.045,.055,.065),(.65,.32,.07),(1.0,.28,.025),'Graphite precision racer / amber induction core'),
@@ -81,6 +81,8 @@ for ident,color,accent_color,light_color,description in SPECS:
   build_forge(body,accent,carbon,steel,rubber,glow,glass)
  elif ident=='piledriver':
   build_piledriver(body,accent,carbon,steel,rubber,glow,glass)
+ elif ident=='shrike':
+  build_shrike(body,accent,carbon,steel,rubber,glow,glass)
  else:
   if ident=='piledriver':
    profile=[(-2.45,.65,.55,1.05),(-1.6,1.18,.48,1.24),(-.5,1.12,.45,1.24),(1.25,.91,.40,1.15),(2.4,.66,.38,.95),(3.4,.18,.40,.66)]
