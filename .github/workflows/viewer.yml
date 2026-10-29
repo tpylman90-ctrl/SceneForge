@@ -9,7 +9,7 @@ concurrency:
   group: vehicle-viewer
   cancel-in-progress: true
 env:
-  PREVIEW_CRAFT: "${{ contains(github.event.head_commit.message, '[shrike]') && '2' || (contains(github.event.head_commit.message, '[kestrel]') && '0' || '1') }}"
+  PREVIEW_CRAFT: "${{ contains(github.event.head_commit.message, '[kestrel]') && '0' || (contains(github.event.head_commit.message, '[piledriver]') && '1' || '2') }}"
 jobs:
   preview:
     if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[viewer]')
@@ -55,8 +55,9 @@ jobs:
           if [ "$craft" = kestrel ]; then
             test -s game/assets/neon_foundry.glb
           else
-            SCENEFORGE_ONLY_CRAFT="$craft" /tmp/blender-4.5.3-linux-x64/blender --background --threads 4 --python tools/build_fleet.py
+            SCENEFORGE_ONLY_CRAFT="$craft" /tmp/blender-4.5.3-linux-x64/blender --background --threads 4 --python tools/build_fleet.py 2>&1 | tee build/viewer-blender.log
             test -s "game/assets/fleet/$craft.glb"
+            grep -q "SCENEFORGE_FLEET_ASSET_OK $craft" build/viewer-blender.log
           fi
           godot --headless --path game --editor --import --quit 2>&1 | tee build/viewer-import.log
           if grep -E 'SCRIPT ERROR:|ERROR:' build/viewer-import.log; then exit 1; fi
