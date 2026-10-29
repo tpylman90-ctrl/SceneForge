@@ -368,7 +368,7 @@ def hero_mesh(name,verts,faces,mat,bevel=0):
  if bevel:
   mod=obj.modifiers.new('Manufactured edge radius','BEVEL');mod.width=bevel;mod.segments=3;bpy.ops.object.modifier_apply(modifier=mod.name)
  return obj
-profile=[(-3.15,.035,.54,.65),(-2.8,.34,.55,.81),(-2.0,.84,.58,1.03),(-1.0,1.12,.64,1.24),(.2,1.08,.50,1.32),(1.25,1.03,.64,1.26),(2.05,.8,.74,1.1),(2.5,.55,.78,1.0)]
+profile=[(-3.15,.035,.54,.65),(-2.8,.34,.55,.81),(-2.0,.84,.58,1.03),(-1.0,1.12,.64,1.24),(.2,1.12,.50,1.34),(1.25,1.20,.62,1.32),(2.05,1.08,.72,1.20),(2.5,.72,.78,1.05)]
 def dims(y):
  return tuple(float(np.interp(y,[p[0] for p in profile],[p[k] for p in profile])) for k in [1,2,3])
 cross=[(-.7,0),(.7,0),(.96,.15),(1,.46),(.92,.78),(.7,1),(-.7,1),(-.92,.78),(-1,.46),(-.96,.15)]
@@ -462,28 +462,21 @@ for side in [-1,1]:
  wall=[(side*.7,cy-1.35,.73),(side*.7,cy+1.5,.73),(side*.73,cy+1.5,1.22),(side*.73,cy-.6,1.26),(side*.5,cy-1.35,1.16)]
  inner_wall=hero_mesh('Cockpit inner sidewall',wall,[(0,1,2,3,4)],'kestrel_carbon')
  if side==1:inner_wall['driver_door']=True
- rail=[(side*.52,cy-1.47,1.19),(side*.57,cy-.48,1.7),(side*.57,cy+.47,1.78),(side*.48,cy+1.29,1.61),(side*.48,cy+1.67,1.23)]
- for a,c in zip(rail,rail[1:]):pipe('Swept open canopy rail',a,c,.035,'kestrel_slate',12)
- pipe('Canopy accent',(side*.57,cy-.42,1.716),(side*.57,cy+.4,1.79),.009,'repulsor_glow',8)
- hose('Cockpit rim seal',[(side*.5,cy-1.4,1.17),(side*.73,cy-.6,1.25),(side*.73,cy+.7,1.28),(side*.57,cy+1.6,1.2)],.018)
- pipe('Rear structural brace',(side*.63,cy+1.42,.8),(side*.48,cy+1.29,1.61),.035,'steel',10)
+ # Exposed roll-cage rails are replaced by the flush curved canopy generated below.
  for yy in [-.6,-.15,.3,.75,1.2]:
   pipe('Cockpit sill fastener',(side*.737,cy+yy,1.24),(side*.754,cy+yy,1.24),.014,'steel',8)
  box('Flush door latch',(side*1.17,cy+.57,1.2),(.025,.2,.035),'steel',.008)
-wind=[(-.5,cy-1.44,1.19),(.5,cy-1.44,1.19),(.57,cy-.48,1.69),(-.57,cy-.48,1.69)]
-hero_mesh('Swept wind deflector',wind,[(0,1,2,3)],'vehicle_glass')
-pipe('Windshield top rail',wind[3],wind[2],.025,'trim',12)
-pipe('Rear rollover bridge',(-.48,cy+1.29,1.61),(.48,cy+1.29,1.61),.045,'kestrel_slate',12)
+# A continuous low-profile canopy loft replaces the exposed cockpit frame.
 # Reclined seat: shell, separate padding, bolsters, headrest and orange harness.
 box('Seat mounting tray',(0,cy+.38,.765),(.7,.88,.07),'steel',.02)
 box('Seat cushion',(0,cy+.23,.86),(.56,.62,.14),'rubber',.06)
-seat=box('Reclined seat shell',(0,cy+.8,1.22),(.69,.16,.8),'kestrel_carbon',.06);seat.rotation_euler.x=-.37
-pad=box('Back padding',(0,cy+.7,1.24),(.51,.1,.67),'rubber',.055);pad.rotation_euler.x=-.37
-head=box('Headrest',(0,cy+.93,1.64),(.39,.16,.24),'rubber',.05);head.rotation_euler.x=-.25
+seat=box('Reclined seat shell',(0,cy+.8,1.12),(.69,.16,.8),'kestrel_carbon',.06);seat.rotation_euler.x=-.37
+pad=box('Back padding',(0,cy+.7,1.14),(.51,.1,.67),'rubber',.055);pad.rotation_euler.x=-.37
+head=box('Headrest',(0,cy+.93,1.42),(.39,.16,.20),'rubber',.05);head.rotation_euler.x=-.25
 for side in [-1,1]:
  bolster=box('Seat bolster',(side*.3,cy+.3,.98),(.1,.63,.24),'rubber',.045);bolster.rotation_euler.y=side*.18
- belt=box('Shoulder harness',(side*.16,cy+.63,1.26),(.055,.018,.55),'kestrel_orange',.008);belt.rotation_euler.x=-.37
- pipe('Harness anchor',(side*.22,cy+.77,1.54),(side*.22,cy+.87,1.54),.022,'steel',8)
+ belt=box('Shoulder harness',(side*.16,cy+.63,1.17),(.055,.018,.48),'kestrel_orange',.008);belt.rotation_euler.x=-.37
+ pipe('Harness anchor',(side*.22,cy+.77,1.43),(side*.22,cy+.87,1.43),.022,'steel',8)
 box('Harness buckle',(0,cy+.06,.96),(.12,.055,.08),'steel',.012)
 # Visible dashboard, flight yoke, throttle and footwell.
 box('Dashboard shell',(0,cy-.83,1.1),(1.02,.38,.24),'kestrel_carbon',.055)
@@ -500,7 +493,7 @@ for side in [-1,1]:
 pipe('Throttle lever',(-.57,cy+.25,1.1),(-.57,cy+.16,1.24),.022,'steel',10)
 box('Throttle grip',(-.57,cy+.16,1.24),(.095,.11,.045),'rubber',.015)
 hose('Cockpit wiring',[(-.66,cy-1,.76),(-.66,cy-.3,.77),(-.66,cy+.8,.77),(-.57,cy+1.3,1.1)],.014)
-hero_mesh('Rear cockpit spine',[(-.47,cy+1.3,1.61),(.47,cy+1.3,1.61),(.26,cy+1.97,1.23),(-.26,cy+1.97,1.23)],[(0,1,2,3)],'kestrel_slate')
+# The aft deck now flows from the widened monocoque behind the flush canopy.
 
 # Four downward magnetic repulsors, fairings and visible suspension connections.
 for side in [-1,1]:
