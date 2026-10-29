@@ -30,13 +30,13 @@ def build_synapse_body(material, glass):
         return tuple(out)
     canopy_profile=[
         (-2.05,.06,.02),
-        (-1.80,.32,.20),
-        (-1.38,.58,.31),
-        (-.78,.76,.43),
-        (-.05,.82,.46),
-        (.68,.72,.42),
-        (1.25,.56,.33),
-        (1.72,.32,.20),
+        (-1.80,.32,.12),
+        (-1.38,.58,.20),
+        (-.78,.76,.26),
+        (-.05,.82,.28),
+        (.68,.72,.25),
+        (1.25,.56,.19),
+        (1.72,.32,.11),
         (1.98,.08,.02),
     ]
     def canopy_at_z(z):
@@ -95,14 +95,6 @@ def build_synapse_body(material, glass):
         for col in range(section_size):
             a=row*section_size+col
             b=row*section_size+(col+1)%section_size
-            # Omit the center roof faces under the canopy, leaving a clean
-            # cockpit aperture instead of glass laid over solid bodywork.
-            if col<across-1:
-                mx=(sections[row][col][0]+sections[row+1][col][0])*.5
-                mz=(sections[row][col][2]+sections[row+1][col][2])*.5
-                if canopy_profile[0][0] <= mz <= canopy_profile[-1][0]:
-                    if abs(mx)<canopy_at_z(mz)[1]:
-                        continue
             faces.append((a,b,b+section_size,a+section_size))
     faces.append(tuple(range(section_size-1,-1,-1)))
     end=(longitudinal-1)*section_size
