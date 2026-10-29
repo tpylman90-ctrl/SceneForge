@@ -36,7 +36,11 @@ func configure(definition: Resource) -> void:
 		tails.append(tail)
 		tail_rest.append(tail.transform)
 	var details: Node3D
-	if chassis.chassis_id=="piledriver":
+	if chassis.chassis_id=="kestrel":
+		details=preload("res://vehicles/kestrel_cockpit.gd").new()
+		add_child(details)
+		details.build()
+	elif chassis.chassis_id=="piledriver":
 		details=preload("res://vehicles/pyldriver_cockpit.gd").new()
 		add_child(details)
 		details.build()
@@ -61,7 +65,7 @@ func configure(definition: Resource) -> void:
 	screen.vertex_color_use_as_albedo = false
 	if display != null:
 		display.material_override = screen
-	if chassis.chassis_id in ["piledriver","forge"]:
+	if chassis.chassis_id in ["kestrel","piledriver","forge"]:
 		var hologram: MeshInstance3D=details.get_node("HolographicDisplay")
 		var holo: StandardMaterial3D=screen.duplicate()
 		holo.transparency=BaseMaterial3D.TRANSPARENCY_ALPHA
@@ -75,7 +79,7 @@ func configure(definition: Resource) -> void:
 			if mat is StandardMaterial3D and node != display:
 				mat.vertex_color_use_as_albedo = true
 				if "vehicle_glass" in node.name:
-					if chassis.chassis_id in ["piledriver","forge"]:
+					if chassis.chassis_id in ["kestrel","piledriver","forge"]:
 						mat=mat.duplicate()
 						mat.transparency=BaseMaterial3D.TRANSPARENCY_ALPHA
 						mat.albedo_color=Color(.08,.16,.22,.36)

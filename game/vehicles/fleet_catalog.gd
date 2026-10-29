@@ -9,6 +9,7 @@ static func definition(index: int) -> Resource:
 	var craft: Resource=preload("res://vehicles/kestrel.tres").duplicate(true)
 	craft.chassis_id=IDS[index]
 	craft.display_name=NAMES[index]+" / MK I"
+	if index==0:craft.footprint_stretch=1.7
 	if index>0:
 		craft.visual_scene="res://assets/fleet/"+IDS[index]+".glb"
 		craft.mount_points=craft.mount_points.duplicate(true)

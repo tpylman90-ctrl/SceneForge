@@ -15,6 +15,13 @@ func check() -> void:
 			root.add_child(scene)
 			scene.set_physics_process(false)
 			assert(scene.chassis.chassis_id==definition.chassis_id)
+			if index==0:
+				var instruments: Node3D=scene.feedback.get_node("KestrelCockpitInstruments")
+				assert(not instruments.has_node("FlightDisplay"),"Kestrel uses a clean holographic fascia")
+				var hologram: MeshInstance3D=instruments.get_node("HolographicDisplay")
+				assert(hologram.material_override.albedo_texture==scene.feedback.telemetry.texture,"Kestrel HUD must receive live telemetry")
+				var point: Vector3=scene.feedback.to_local(hologram.global_position)
+				assert(point.z>scene.chassis.cockpit_eye.z and point.z<1.6 and point.y<1.85,"Kestrel HUD must remain inside canopy")
 			if index==1:
 				var instruments: Node3D=scene.feedback.get_node("PyldriverCockpitInstruments")
 				assert(not instruments.has_node("FlightDisplay") and not instruments.has_node("InstrumentBinnacle"),"Pyldriver uses holographic instruments only")

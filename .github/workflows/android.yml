@@ -80,7 +80,7 @@ jobs:
             build/NeonFoundry.blend
             build/asset-report.json
             build/fleet-report.json
-          key: foundry-blender-4.5.3-${{ hashFiles('tools/build_neon_foundry.py', 'tools/build_fleet.py', 'tools/piledriver_detail.py', 'tools/forge_detail.py') }}
+          key: foundry-blender-4.5.3-${{ hashFiles('tools/build_neon_foundry.py', 'tools/kestrel_detail.py', 'tools/build_fleet.py', 'tools/piledriver_detail.py', 'tools/forge_detail.py') }}
       - name: Build original Blender scenery
         if: steps.scenery.outputs.cache-hit != 'true'
         shell: bash
@@ -104,7 +104,7 @@ jobs:
             build/NeonFoundry.blend
             build/asset-report.json
             build/fleet-report.json
-          key: foundry-blender-4.5.3-${{ hashFiles('tools/build_neon_foundry.py', 'tools/build_fleet.py', 'tools/piledriver_detail.py', 'tools/forge_detail.py') }}
+          key: foundry-blender-4.5.3-${{ hashFiles('tools/build_neon_foundry.py', 'tools/kestrel_detail.py', 'tools/build_fleet.py', 'tools/piledriver_detail.py', 'tools/forge_detail.py') }}
       - name: Import and smoke test
         shell: bash
         run: |

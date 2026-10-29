@@ -76,6 +76,12 @@ func _ready() -> void:
 		if "vehicle_glass" in node.name:
 			for surface in range(node.mesh.get_surface_count()):
 				var original: StandardMaterial3D = node.get_active_material(surface)
+				original=original.duplicate()
+				original.transparency=BaseMaterial3D.TRANSPARENCY_ALPHA
+				original.albedo_color=Color(.08,.16,.22,.30)
+				original.metallic=.15
+				original.cull_mode=BaseMaterial3D.CULL_DISABLED
+				node.set_surface_override_material(surface,original)
 				var inside: StandardMaterial3D = original.duplicate()
 				inside.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 				inside.albedo_color = Color(0.1, 0.18, 0.22, 0.18)
@@ -100,7 +106,7 @@ func _ready() -> void:
 		door_body.add_child(door_shape)
 		driver_door = door_body
 
-		build_cockpit_details()
+		build_kestrel_details()
 
 	else:
 		glass_surfaces.clear()
@@ -226,6 +232,11 @@ func _ready() -> void:
 	if "--benchmark-smoke" in args:
 		start_comparison()
 
+
+func build_kestrel_details() -> void:
+	var instruments := preload("res://vehicles/kestrel_cockpit.gd").new()
+	add_child(instruments)
+	instruments.build()
 
 # Original physical cockpit detailing; a single static instrument texture avoids
 # a per-frame SubViewport or extra lights on mobile.

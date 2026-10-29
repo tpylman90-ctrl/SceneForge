@@ -8,6 +8,8 @@ permissions:
 concurrency:
   group: vehicle-viewer
   cancel-in-progress: true
+env:
+  PREVIEW_CRAFT: "${{ contains(github.event.head_commit.message, '[kestrel]') && '0' || '1' }}"
 jobs:
   preview:
     if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[viewer]')
@@ -41,13 +43,13 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p build
-          if [ ! -s game/assets/neon_foundry.glb ]; then
+          if [ ! -s game/assets/neon_foundry.glb ] || [ "$PREVIEW_CRAFT" = 0 ]; then
             /tmp/blender-4.5.3-linux-x64/blender --background --threads 4 --python tools/build_neon_foundry.py
           fi
           /tmp/blender-4.5.3-linux-x64/blender --background --threads 4 --python tools/build_fleet.py
           godot --headless --path game --editor --import --quit 2>&1 | tee build/viewer-import.log
           if grep -E 'SCRIPT ERROR:|ERROR:' build/viewer-import.log; then exit 1; fi
-      - name: Render Pyldriver viewer
+      - name: Render selected vehicle viewer
         env:
           LIBGL_ALWAYS_SOFTWARE: '1'
         run: |
@@ -55,20 +57,28 @@ jobs:
           for view in front nose side tail top cockpit under; do
             args=""
             if [ "$view" != front ]; then args="--fleet-$view"; fi
-            timeout 120 xvfb-run -a godot --audio-driver Dummy --path game --rendering-method gl_compatibility --resolution 1280x720 res://fleet_hangar.tscn -- --capture --craft-1 $args 2>&1 | tee build/viewer-$view.log
+            timeout 120 xvfb-run -a godot --audio-driver Dummy --path game --rendering-method gl_compatibility --resolution 1280x720 res://fleet_hangar.tscn -- --capture --craft-$PREVIEW_CRAFT $args 2>&1 | tee build/viewer-$view.log
           done
           if grep -E 'SCRIPT ERROR:|ERROR:' build/viewer-*.log; then exit 1; fi
-          test -s build/Fleet-piledriver.png
-          test -s build/Fleet-piledriver-cockpit.png
-          test -s build/Fleet-piledriver-under.png
+          name=piledriver
+          if [ "$PREVIEW_CRAFT" = 0 ]; then name=kestrel; fi
+          test -s build/Fleet-$name.png
+          test -s build/Fleet-$name-cockpit.png
+          test -s build/Fleet-$name-under.png
           cp game/assets/fleet/piledriver.glb build/Pyldriver.glb
+          if [ "$PREVIEW_CRAFT" = 0 ]; then
+            timeout 120 xvfb-run -a godot --audio-driver Dummy --path game --rendering-method gl_compatibility --resolution 1280x720 -- --door-motion-smoke 2>&1 | tee build/viewer-door-test.log
+            grep SCENEFORGE_DOOR_MOTION_OK build/viewer-door-test.log
+            timeout 120 godot --headless --path game --script res://tests/fleet_test.gd 2>&1 | tee build/viewer-fleet-test.log
+            grep FLEET_OK build/viewer-fleet-test.log
+          fi
           printf 'Viewer preview only\nCommit: %s\nNo Android package was built.\n' "$GITHUB_SHA" > build/VIEWER.txt
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: Pyldriver-viewer
+          name: Vehicle-viewer
           path: |
-            build/Fleet-piledriver*.png
+            build/Fleet-*.png
             build/Pyldriver.glb
             build/fleet-report.json
             build/viewer-*.log
@@ -83,5 +93,5 @@ jobs:
           if ! gh release view viewer-latest >/dev/null 2>&1; then
             gh release create viewer-latest --prerelease --title "Vehicle viewer — latest preview" --notes "Vehicle previews and GLB only. Android app unchanged."
           fi
-          gh release upload viewer-latest build/Fleet-piledriver*.png build/Pyldriver.glb build/fleet-report.json build/VIEWER.txt --clobber
-          gh release edit viewer-latest --notes "Viewer-only preview from $GITHUB_SHA. No Android build. Open the PNG views or download Pyldriver.glb."
+          gh release upload viewer-latest build/Fleet-*.png build/Pyldriver.glb build/fleet-report.json build/VIEWER.txt --clobber
+          gh release edit viewer-latest --notes "Viewer-only preview from $GITHUB_SHA. No Android build. Open the PNG views for the latest vehicle design."

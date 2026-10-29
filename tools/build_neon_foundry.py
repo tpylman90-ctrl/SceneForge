@@ -343,7 +343,8 @@ for x in [-10,-4,3,10]:
 
 # Kestrel hero rebuild: original swept coupe, 6.2 m long. No paid assets.
 vehicle_before=set(bpy.context.scene.objects)
-material('kestrel_slate',(.18,.215,.24),.65,.42)
+material('kestrel_slate',(.18,.215,.24),.65,.30)
+M['kestrel_slate'].node_tree.nodes['Principled BSDF'].inputs['Coat Weight'].default_value=.35
 material('kestrel_orange',(.58,.145,.035),.5,.34)
 material('kestrel_carbon',(.025,.032,.038),.65,.3)
 material('repulsor_glow',(.04,.42,.62),.1,.22,1.7)
@@ -367,7 +368,7 @@ def hero_mesh(name,verts,faces,mat,bevel=0):
  if bevel:
   mod=obj.modifiers.new('Manufactured edge radius','BEVEL');mod.width=bevel;mod.segments=3;bpy.ops.object.modifier_apply(modifier=mod.name)
  return obj
-profile=[(-3.15,.035,.54,.65),(-2.8,.34,.55,.81),(-2.0,.84,.58,1.03),(-1.0,1.12,.64,1.24),(.2,1.28,.68,1.32),(1.25,1.14,.73,1.26),(2.05,.8,.74,1.1),(2.5,.55,.78,1.0)]
+profile=[(-3.15,.035,.54,.65),(-2.8,.34,.55,.81),(-2.0,.84,.58,1.03),(-1.0,1.12,.64,1.24),(.2,1.08,.50,1.32),(1.25,1.03,.64,1.26),(2.05,.8,.74,1.1),(2.5,.55,.78,1.0)]
 def dims(y):
  return tuple(float(np.interp(y,[p[0] for p in profile],[p[k] for p in profile])) for k in [1,2,3])
 cross=[(-.7,0),(.7,0),(.96,.15),(1,.46),(.92,.78),(.7,1),(-.7,1),(-.92,.78),(-1,.46),(-.96,.15)]
@@ -383,7 +384,8 @@ for j in range(len(ys)-1):
   if i in [2,3,4] and ys[j]<1.22 and ys[j+1]>-.75:continue
   faces.append((j*10+i,j*10+(i+1)%10,(j+1)*10+(i+1)%10,(j+1)*10+i))
 faces.append(tuple((len(ys)-1)*10+i for i in range(10)))
-hero_mesh('Swept slate monocoque',verts,faces,'kestrel_slate',.015)
+shell=hero_mesh('Swept slate monocoque',verts,faces,'kestrel_slate',.015)
+for face in shell.data.polygons:face.use_smooth=True
 # Carbon hood inset follows the descending beak, with a slender raised center ridge.
 verts=[];ys=np.linspace(-2.92,-1.42,28)
 for y in ys:
@@ -485,9 +487,6 @@ for side in [-1,1]:
 box('Harness buckle',(0,cy+.06,.96),(.12,.055,.08),'steel',.012)
 # Visible dashboard, flight yoke, throttle and footwell.
 box('Dashboard shell',(0,cy-.83,1.1),(1.02,.38,.24),'kestrel_carbon',.055)
-screen=box('Screen bezel',(0,cy-.7,1.25),(.5,.24,.025),'trim',.015);screen.rotation_euler.x=-.45
-screen=box('Instrument display',(0,cy-.69,1.27),(.43,.19,.01),'window_cool',.005);screen.rotation_euler.x=-.45
-for i in range(5):box('Display telemetry',(-.16+i*.07,cy-.695,1.284),(.028,.08,.005),'repulsor_glow',.001)
 for side in [-1,1]:
  pipe('Yoke grip',(side*.21,cy-.36,1.02),(side*.21,cy-.31,1.2),.035,'rubber',12)
  box('Yoke thumb control',(side*.21,cy-.34,1.22),(.045,.06,.025),'kestrel_orange',.006)
@@ -509,12 +508,12 @@ for side in [-1,1]:
   x=cx+side*(1.0 if yy<0 else 1.12)
   pipe('Repulsor arm',(cx+side*.65,cy+yy,.7),(x,cy+yy,.66),.09,'trim',16)
   bpy.ops.mesh.primitive_uv_sphere_add(segments=24,ring_count=12,location=(x,cy+yy,.64))
-  fair=bpy.context.object;fair.name='Swept repulsor fairing';fair.scale=(.38,.64,.24);fair.data.materials.append(M['kestrel_slate'])
+  fair=bpy.context.object;fair.name='Swept repulsor fairing';fair.scale=(.30,.78,.19);fair.data.materials.append(M['kestrel_slate'])
   bpy.ops.object.transform_apply(location=False,rotation=False,scale=True)
   for p in fair.data.polygons:p.use_smooth=True
   pipe('Recessed magnetic bell',(x,cy+yy,.31),(x,cy+yy,.59),.29,'trim',32)
   bpy.ops.mesh.primitive_torus_add(major_radius=.27,minor_radius=.028,major_segments=32,minor_segments=8,location=(x,cy+yy,.315))
-  ring=bpy.context.object;ring.name='Magnetic repulsor halo';ring.data.materials.append(M['repulsor_glow'])
+  ring=bpy.context.object;ring.name='Magnetic repulsor halo';ring.scale.y=1.7;ring.data.materials.append(M['repulsor_glow'])
   pipe('Bell inner core',(x,cy+yy,.325),(x,cy+yy,.36),.19,'steel',24)
   for angle in range(0,360,60):
    t=math.radians(angle)
@@ -578,6 +577,8 @@ for side in [-1,1]:
   pipe('Rear panel seam',(side*w*.6,cy+yy,hi+.013),(side*w*.92,cy+yy,hi-.07),.009,'trim',8)
 pipe('Rear chassis brace',(-.7,cy+1.7,.76),(-.4,cy+2.3,1.1),.035,'steel',10)
 pipe('Rear chassis brace',(.7,cy+1.7,.76),(.4,cy+2.3,1.1),.035,'steel',10)
+
+exec((Path.cwd()/'tools/kestrel_detail.py').read_text(),globals())
 
 # Aggressive idle stance: rigid, perfectly still, pitched nose-down by 6 degrees.
 vehicle_objects=[o for o in bpy.context.scene.objects if o not in vehicle_before and o.type=='MESH']
