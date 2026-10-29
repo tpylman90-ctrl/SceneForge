@@ -1,7 +1,7 @@
 """Original SceneForge fleet. Author in Godot metres (+Z forward); export via Blender.
 Reference images guide silhouette/color only; no third-party mesh or texture bytes.
 """
-import bpy, math, json, struct
+import bpy, math, json, struct, os
 from pathlib import Path
 from mathutils import Vector
 
@@ -71,7 +71,10 @@ SPECS=[
  ('shrike',(.40,.46,.49),(.83,.22,.055),(.15,.75,1.0),'Feather-fin interceptor / silver and orange'),
  ('mantis',(.18,.27,.12),(.38,.46,.25),(.44,1.0,.42),'Fork-nose utility racer / olive'),
  ('aurora',(.025,.09,.26),(.65,.28,.12),(.12,.48,1.0),'Low swept speedster / midnight blue and copper')]
+selected=os.environ.get('SCENEFORGE_ONLY_CRAFT','').strip().lower()
+assert not selected or selected in {spec[0] for spec in SPECS}, 'Unknown SCENEFORGE_ONLY_CRAFT'
 for ident,color,accent_color,light_color,description in SPECS:
+ if selected and ident!=selected:continue
  bpy.ops.object.select_all(action='SELECT');bpy.ops.object.delete(use_global=False)
  body=mat(ident+'_body',color,.65,.36);accent=mat(ident+'_accent',accent_color,.75,.3)
  carbon=mat(ident+'_carbon',(.025,.032,.04),.45,.5);steel=mat(ident+'_alloy',(.22,.28,.31),.8,.3)
