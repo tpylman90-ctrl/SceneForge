@@ -2,11 +2,13 @@
 def build_shrike(body,accent,carbon,steel,rubber,glow,glass):
     import math
     from mathutils import Vector
-    body.diffuse_color=(.71,.76,.80,1)
+    # Temporary shape-review clay: darker neutral graphite prevents sunlit clipping.
+    # Revert to original silver/orange livery only after geometry approval.
+    body.diffuse_color=(.23,.29,.35,1)
     bs=body.node_tree.nodes['Principled BSDF']
     bs.inputs['Base Color'].default_value=body.diffuse_color
-    bs.inputs['Roughness'].default_value=.22
-    bs.inputs['Coat Weight'].default_value=.42
+    bs.inputs['Roughness'].default_value=.52
+    bs.inputs['Coat Weight'].default_value=.08
     # Continuous aerodynamic production-car shell.  Smooth oval loft, not an open deck.
     # Broad, blunt sports-car nose; rear (-Z), front (+Z).
     # First-order proportions only: keep this pass free of exposed aero appendages.
