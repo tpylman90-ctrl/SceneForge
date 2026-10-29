@@ -1,21 +1,21 @@
-"""Body-only Synapse silhouette study: fuller swept shell, no cockpit or hardware."""
+"""Body-only Synapse silhouette study: sculpted low shell, no cockpit or hardware."""
 def build_synapse_body(material):
     # Godot axes: X spans the hull, Y is height, and +Z is forward.
-    # The profile carries real shoulder and rear-haunch volume while keeping
-    # the split beak low and narrow.
+    # Fuller shoulder volume and a raised rear deck give the shell depth
+    # without turning the teardrop wedge into a rounded capsule.
     profile = [
-        (-4.15,.55,-.25,-.11,.10,.25),
-        (-3.78,.91,-.42,-.15,.37,.78),
-        (-3.12,1.24,-.52,-.19,.60,1.13),
-        (-2.28,1.48,-.58,-.22,.72,1.42),
-        (-1.25,1.60,-.59,-.23,.75,1.54),
-        (-.05,1.61,-.56,-.21,.72,1.50),
-        (.95,1.48,-.48,-.17,.65,1.36),
-        (1.82,1.19,-.35,-.11,.53,1.13),
-        (2.60,.83,-.20,-.04,.37,.82),
-        (3.28,.52,-.07,.01,.24,.54),
-        (3.86,.29,.03,.06,.15,.32),
-        (4.30,.14,.08,.10,.10,.17),
+        (-4.15,.45,-.18,-.08,.08,.20),
+        (-3.78,.78,-.32,-.13,.25,.58),
+        (-3.12,1.10,-.40,-.16,.42,.95),
+        (-2.35,1.31,-.44,-.18,.55,1.18),
+        (-1.35,1.39,-.45,-.18,.58,1.24),
+        (-.20,1.38,-.43,-.17,.55,1.20),
+        (.85,1.28,-.36,-.14,.49,1.08),
+        (1.80,1.02,-.26,-.08,.36,.88),
+        (2.65,.72,-.15,-.02,.25,.62),
+        (3.30,.45,-.06,.02,.16,.40),
+        (3.86,.25,.03,.06,.11,.25),
+        (4.30,.12,.08,.10,.08,.15),
     ]
     def sample(t):
         scaled=t*(len(profile)-1)
@@ -43,9 +43,8 @@ def build_synapse_body(material):
             edge=abs(u)
             z=z0-split*(1.0-edge)**1.2
             x=u*width
-            # Rounded transverse sections create a broad, continuous shell
-            # instead of the pinched diamond profile of the first study.
-            cap=max(0.0,1.0-edge*edge)**.58
+            # Softly rounded transverse sections with a flatter upper deck.
+            cap=max(0.0,1.0-edge*edge)**.68
             top.append((x,shoulder+(crown-shoulder)*cap,z))
             bottom.append((x,belly+(low-belly)*cap,z))
     verts=top+bottom
