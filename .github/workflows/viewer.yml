@@ -43,10 +43,21 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p build
-          if [ ! -s game/assets/neon_foundry.glb ] || [ "$PREVIEW_CRAFT" = 0 ]; then
+          if [ ! -s game/assets/neon_foundry.glb ]; then
             /tmp/blender-4.5.3-linux-x64/blender --background --threads 4 --python tools/build_neon_foundry.py
           fi
-          /tmp/blender-4.5.3-linux-x64/blender --background --threads 4 --python tools/build_fleet.py
+          case "$PREVIEW_CRAFT" in
+            0) craft=kestrel ;;
+            1) craft=piledriver ;;
+            2) craft=shrike ;;
+            *) echo "Unsupported preview craft: $PREVIEW_CRAFT"; exit 1 ;;
+          esac
+          if [ "$craft" = kestrel ]; then
+            test -s game/assets/neon_foundry.glb
+          else
+            SCENEFORGE_ONLY_CRAFT="$craft" /tmp/blender-4.5.3-linux-x64/blender --background --threads 4 --python tools/build_fleet.py
+            test -s "game/assets/fleet/$craft.glb"
+          fi
           godot --headless --path game --editor --import --quit 2>&1 | tee build/viewer-import.log
           if grep -E 'SCRIPT ERROR:|ERROR:' build/viewer-import.log; then exit 1; fi
       - name: Render selected vehicle viewer
@@ -63,7 +74,7 @@ jobs:
           if [ "$PREVIEW_CRAFT" = 0 ]; then name=kestrel; fi
           if [ "$PREVIEW_CRAFT" = 2 ]; then name=shrike; fi
           for view in front rear side top cockpit; do test -s build/Fleet-$name-$view.png; done
-          cp game/assets/fleet/$name.glb build/SelectedCraft.glb
+          if [ "$name" = kestrel ]; then cp game/assets/neon_foundry.glb build/SelectedCraft.glb; else cp game/assets/fleet/$name.glb build/SelectedCraft.glb; fi
           if [ "$PREVIEW_CRAFT" = 0 ]; then
             timeout 120 xvfb-run -a godot --audio-driver Dummy --path game --rendering-method gl_compatibility --resolution 1280x720 -- --door-motion-smoke 2>&1 | tee build/viewer-door-test.log
             grep SCENEFORGE_DOOR_MOTION_OK build/viewer-door-test.log
