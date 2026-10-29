@@ -1,5 +1,12 @@
 extends Node3D
 
+const Fleet = preload("res://vehicles/fleet_catalog.gd")
+var selected_craft := 0
+var chassis: Resource
+var lot_craft: Node3D
+var lot_feedback: Node3D
+var craft_title: Label
+
 var body: CharacterBody3D
 var camera: Camera3D
 var yaw := 0.58
@@ -46,8 +53,20 @@ var saved_yaw := 0.0
 var saved_pitch := 0.0
 
 func _ready() -> void:
+	selected_craft=clampi(int(get_tree().get_meta("sceneforge_craft",0)),0,Fleet.IDS.size()-1)
+	for index in range(Fleet.IDS.size()):
+		if "--craft-%d"%index in OS.get_cmdline_user_args():selected_craft=index
+	get_tree().set_meta("sceneforge_craft",selected_craft)
+	chassis=Fleet.definition(selected_craft)
 	var scenery: Node3D = load("res://assets/neon_foundry.glb").instantiate()
 	add_child(scenery)
+	# The scenery GLB also contains the original Kestrel. Remove its complete
+	# rig before loading another craft, keeping the workshop/environment intact.
+	if selected_craft>0:
+		for child in scenery.get_children():
+			if str(child.name).begins_with("Kestrel_") or str(child.name).begins_with("TailVector") or child.name=="DriverDoor":
+				scenery.remove_child(child)
+				child.free()
 	for node in scenery.find_children("*", "MeshInstance3D", true, false):
 		for surface in range(node.mesh.get_surface_count()):
 			var material: Material = node.get_active_material(surface)
@@ -66,21 +85,34 @@ func _ready() -> void:
 		if "asphalt" in node.name or "grime" in node.name or "skyline" in node.name:
 			node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 
-	var door_visual: Node3D = scenery.find_child("DriverDoor", true, false)
-	assert(door_visual != null, "Missing rigged DriverDoor")
-	var door_body := AnimatableBody3D.new()
-	door_body.name = "DriverDoorMechanism"
-	add_child(door_body)
-	door_visual.reparent(door_body, true)
-	var door_shape := CollisionShape3D.new()
-	var door_box := BoxShape3D.new()
-	door_box.size = Vector3(0.16, 0.65, 2.2)
-	door_shape.shape = door_box
-	door_shape.position = Vector3(1.16, 1.3, 0.65)
-	door_body.add_child(door_shape)
-	driver_door = door_body
+	if selected_craft==0:
+		var door_visual: Node3D = scenery.find_child("DriverDoor", true, false)
+		assert(door_visual != null, "Missing rigged DriverDoor")
+		var door_body := AnimatableBody3D.new()
+		door_body.name = "DriverDoorMechanism"
+		add_child(door_body)
+		door_visual.reparent(door_body, true)
+		var door_shape := CollisionShape3D.new()
+		var door_box := BoxShape3D.new()
+		door_box.size = Vector3(0.16, 0.65, 2.2)
+		door_shape.shape = door_box
+		door_shape.position = Vector3(1.16, 1.3, 0.65)
+		door_body.add_child(door_shape)
+		driver_door = door_body
 
-	build_cockpit_details()
+		build_cockpit_details()
+
+	else:
+		glass_surfaces.clear()
+		lot_craft=Node3D.new()
+		lot_craft.name="FoundryCraft"
+		lot_craft.position=Vector3(0,0,.8)
+		add_child(lot_craft)
+		# Runtime load avoids a preload cycle with the legacy cockpit factory.
+		lot_feedback=load("res://vehicles/kestrel_feedback.gd").new()
+		lot_craft.add_child(lot_feedback)
+		lot_feedback.configure(chassis)
+		lot_feedback.update_feedback(1.0,0,0,0,0,0,false)
 
 	var environment := WorldEnvironment.new()
 	var settings := Environment.new()
@@ -327,7 +359,8 @@ func ui() -> void:
 	var layer := CanvasLayer.new()
 	add_child(layer)
 	var title := Label.new()
-	title.text = "K E S T R E L"
+	title.text = Fleet.NAMES[selected_craft]
+	craft_title=title
 	title.position = Vector2(26, 20)
 	title.add_theme_font_size_override("font_size", 32)
 	layer.add_child(title)
@@ -360,12 +393,13 @@ func ui() -> void:
 	row.add_child(make_button("TAIL", func(): inspection_preset("tail"), 100))
 	row.add_child(make_button("COCKPIT", func(): inspection_preset("cockpit")))
 	row.add_child(make_button("SEAT", func(): inspection_preset("seat"), 100))
-	door_button = make_button("OPEN DOOR", toggle_door, 140)
+	door_button = make_button("OPEN DOOR" if driver_door!=null else "NO DOOR", toggle_door, 140)
+	door_button.disabled=driver_door==null
 	row.add_child(door_button)
 	row.add_child(make_button("SOUND", func():
 		var sound: AudioStreamPlayer3D = get_node("KestrelHum")
 		sound.volume_db = -80 if sound.volume_db > -50 else -25, 100))
-	row.add_child(make_button("TRACK", func(): get_tree().change_scene_to_file("res://city_loop.tscn"), 100))
+	row.add_child(make_button("TRACK", open_track, 100))
 	var fleet_button := make_button("FLEET", open_fleet, 130)
 	fleet_button.position=Vector2(1100,100)
 	layer.add_child(fleet_button)
@@ -430,6 +464,7 @@ func inspection_preset(which: String) -> void:
 
 func set_seat_view(enabled: bool) -> void:
 	seat_mode = enabled
+	if lot_feedback!=null:lot_feedback.set_cockpit(enabled)
 	camera.fov = 78.0 if enabled else 70.0
 	camera.near = 0.03 if enabled else 0.05
 	for entry in glass_surfaces:
@@ -437,13 +472,13 @@ func set_seat_view(enabled: bool) -> void:
 		mesh.set_surface_override_material(entry["surface"], entry["inside"] if enabled else entry["outside"])
 	if enabled:
 		seat_look_yaw = 0.0
-		seat_look_pitch = -0.10472
+		seat_look_pitch = chassis.cockpit_pitch
 		help_label.text = "Driver's seat · Drag to look around · SEAT to re-center"
 
 func update_orbit() -> void:
 	if seat_mode:
 		# Pilot eye position follows the rigid 6-degree nose-down vehicle stance.
-		camera.global_position = Vector3(0, 1.829, 0.418)
+		camera.global_position = lot_feedback.to_global(chassis.cockpit_eye) if lot_feedback!=null else chassis.cockpit_eye
 		camera.global_rotation = Vector3(seat_look_pitch, PI + seat_look_yaw, 0)
 		return
 	if cockpit_locked:
@@ -459,7 +494,7 @@ func update_orbit() -> void:
 	camera.look_at(center)
 
 func toggle_door() -> void:
-	if door_busy:
+	if driver_door==null or door_busy:
 		return
 	door_busy = true
 	door_button.disabled = true
@@ -651,6 +686,8 @@ func _process(_delta: float) -> void:
 				filename = "NeonFoundry-rear.png"
 			elif "--road-closeup" in OS.get_cmdline_user_args():
 				filename = "NeonFoundry-road.png"
+			if selected_craft>0:
+				filename="Foundry-"+chassis.chassis_id+("-seat" if seat_mode else "")+".png"
 			get_viewport().get_texture().get_image().save_png(OS.get_environment("GITHUB_WORKSPACE") + "/build/" + filename)
 			shutdown_for_test()
 
@@ -765,12 +802,14 @@ var show_tail := false
 var inspection_mode := false
 
 func _exit_tree() -> void:
+	if lot_feedback!=null:lot_feedback.stop_audio()
 	if has_node("KestrelHum"):
 		var sound: AudioStreamPlayer3D = get_node("KestrelHum")
 		sound.stop()
 		sound.stream = null
 
 func shutdown_for_test() -> void:
+	if lot_feedback!=null:lot_feedback.stop_audio()
 	var sound: AudioStreamPlayer3D = get_node("KestrelHum")
 	sound.stop()
 	sound.stream = null
@@ -778,9 +817,16 @@ func shutdown_for_test() -> void:
 	await get_tree().create_timer(0.15).timeout
 	get_tree().quit()
 
+func open_track() -> void:
+	await leave_foundry("res://city_loop.tscn")
+
 func open_fleet() -> void:
+	await leave_foundry("res://fleet_hangar.tscn")
+
+func leave_foundry(destination: String) -> void:
+	if lot_feedback!=null:lot_feedback.stop_audio()
 	var sound: AudioStreamPlayer3D=get_node("KestrelHum")
 	sound.stop()
 	sound.stream=null
 	await get_tree().create_timer(.15).timeout
-	get_tree().change_scene_to_file("res://fleet_hangar.tscn")
+	get_tree().change_scene_to_file(destination)
