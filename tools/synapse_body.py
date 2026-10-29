@@ -4,9 +4,9 @@ def build_synapse_body(material):
     # A broad, low deck and softly rolled shoulder sections give the hull
     # dimension without breaking the continuous wedge silhouette.
     profile = [
-        (-4.15,.45,-.18,-.08,.08,.20),
-        (-3.78,.78,-.32,-.13,.25,.58),
-        (-3.12,1.10,-.40,-.16,.42,.95),
+        (-4.15,.62,-.30,-.16,.22,.48),
+        (-3.78,.94,-.39,-.18,.34,.79),
+        (-3.12,1.16,-.43,-.19,.46,1.02),
         (-2.35,1.31,-.44,-.18,.55,1.18),
         (-1.35,1.39,-.45,-.18,.58,1.24),
         (-.20,1.38,-.43,-.17,.55,1.20),
