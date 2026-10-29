@@ -24,6 +24,8 @@ static func definition(index: int) -> Resource:
 		craft.mount_points["repulsor_fr"]=Vector3(-.48,.26675,1.95)
 		craft.mount_points["repulsor_rl"]=Vector3(.48,.56475,-1.25)
 		craft.mount_points["repulsor_rr"]=Vector3(-.48,.56475,-1.25)
+	if index==5:
+		craft.cockpit_eye=Vector3(0,1.78,-.35)
 	craft.max_forward_speed=[32.0,30.0,34.0,31.0,35.0,32.0][index]
 	craft.acceleration=[11.5,10.0,12.5,11.0,12.0,11.5][index]
 	craft.yaw_rate=[1.28,1.23,1.40,1.32,1.26,1.28][index]

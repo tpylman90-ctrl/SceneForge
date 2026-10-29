@@ -69,3 +69,45 @@ def build_forge(body,accent,carbon,steel,rubber,glow,glass):
   panel('Active exhaust guide',[(x-.11,1.46,-2.05),(x+.11,1.46,-2.05),(x+.10,1.65,-2.91),(x-.10,1.65,-2.91)],body)
   pipe('Guide amber trailing edge',(x-.09,1.65,-2.91),(x+.09,1.65,-2.91),.012,glow,8)
   rig('Kestrel_Tail_%d'%i,since(before),(x,1.46,-2.05))
+ # Layered nose cheeks and a recessed central intake break up the broad foredeck.
+ for side in [-1,1]:
+  cheek=[(side*.07,.43,3.01),(side*.30,.70,2.30),(side*.52,.94,1.70),(side*.30,1.02,1.56),(side*.13,.80,2.12)]
+  panel('Floating nose armor cheek',cheek,steel)
+  line('Nose precision seam',cheek[:3],.012,accent)
+  panel('Nose intake recess',[(side*.06,1.025,1.57),(side*.22,1.025,1.57),(side*.15,.80,2.18),(side*.04,.80,2.18)],carbon)
+  for i in range(6):
+   z=1.63+i*.085;y=1.025-(z-1.57)*.225/.61
+   pipe('Intake slotted grille',(side*.065,y+.012,z),(side*(.21-(z-1.57)*.10),y+.012,z),.012,steel,8)
+  # Canopy seals, hinge barrels and armoured lower door panels.
+  line('Canopy rubber gasket',[(side*.49,1.09,1.48),(side*.43,1.97,.30),(side*.42,2.01,-.55),(side*.53,1.29,-1.19)],.047,carbon)
+  line('Canopy bright outer edge',[(side*.49,1.11,1.48),(side*.43,1.99,.30),(side*.42,2.03,-.55)],.018,steel)
+  for z in [-.55,-.35]:pipe('Canopy hinge',(side*.44,2.025,z),(side*.44,2.025,z+.11),.034,accent,12)
+  panel('Door lower armor',[(side*.53,1.10,.95),(side*.64,.74,.75),(side*.72,.73,-.5),(side*.60,1.18,-.85)],body)
+  line('Door recessed perimeter',[(side*.54,1.08,.92),(side*.63,.76,.73),(side*.70,.75,-.48),(side*.60,1.16,-.82)],.014,steel)
+  box('Flush canopy latch',(side*.63,1.05,-.55),(.04,.065,.19),accent,.015)
+  # Electrical bus cabling, ceramic isolators and shielded reactor feed.
+  line('Braided power feed',[(side*.40,1.25,-1.1),(side*.63,1.16,-1.45),(side*.71,1.08,-2.0)],.052,carbon)
+  for i in range(6):
+   z=-1.4-i*.10
+   pipe('Power feed collar',(side*.64,1.18,z),(side*.64,1.18,z-.035),.065,accent,12)
+  for i in range(9):
+   z=-1.9-i*.08
+   pipe('Turbine longitudinal rib',(side*.91+.31,1.03,z),(side*.91+.32,1.11,z-.06),.021,carbon,8)
+  for z in [-1.85,-2.23]:
+   for a in [0,math.pi/2,math.pi,3*math.pi/2]:
+    x=side*.91+.32*math.cos(a);y=.92+.32*math.sin(a)
+    pipe('Engine captive bolt',(x,y,z),(x,y,z-.045),.025,accent,10)
+  for x,y,z in [(side*1.0,.58,2.1),(side*1.12,.76,-.65)]:
+   line('Pod suspension wishbone',[(x*.72,y+.12,z-.20),(x,y+.02,z),(x*.72,y+.12,z+.20)],.035,steel)
+   for i in range(4):box('Pod heat vent',(x,y+.13,z-.20+i*.08),(.25,.018,.025),carbon,.004)
+  for z in [-1.6,-.8,.0,.8]:
+   pipe('Sill inset fastener',(side*.74,.55,z),(side*.77,.55,z),.022,accent,10)
+ # Rear bulkhead seals the cockpit behind the head restraint.
+ panel('Rear cockpit bulkhead',[(-.51,1.25,-1.18),(.51,1.25,-1.18),(.41,1.98,-.58),(-.41,1.98,-.58)],carbon)
+ for x in [-.24,0,.24]:
+  line('Rear bulkhead stiffener',[(x,1.29,-1.18),(x,1.93,-.64)],.022,steel)
+ for z in [-1.48,-1.88,-2.25]:
+  pipe('Reactor transverse brace',(-.43,1.56,z),(.43,1.56,z),.025,steel)
+ # Small raised identity plate, visible in top and nose inspection views.
+ box('Forge nose badge backing',(0,.83,2.05),(.13,.025,.22),carbon,.015)
+ for z in [2.00,2.06,2.12]:box('Forge three-bar insignia',(0,.85,z),(.08,.01,.018),accent,.003)

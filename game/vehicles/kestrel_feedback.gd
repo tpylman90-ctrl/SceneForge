@@ -40,6 +40,10 @@ func configure(definition: Resource) -> void:
 		details=preload("res://vehicles/pyldriver_cockpit.gd").new()
 		add_child(details)
 		details.build()
+	elif chassis.chassis_id=="forge":
+		details=preload("res://vehicles/forge_cockpit.gd").new()
+		add_child(details)
+		details.build()
 	else:
 		var factory := preload("res://foundry.gd").new()
 		factory.build_cockpit_details()
@@ -53,12 +57,12 @@ func configure(definition: Resource) -> void:
 	screen.albedo_texture = telemetry.texture
 	screen.vertex_color_use_as_albedo = false
 	display.material_override = screen
-	if chassis.chassis_id=="piledriver":
+	if chassis.chassis_id in ["piledriver","forge"]:
 		var hologram: MeshInstance3D=details.get_node("HolographicDisplay")
 		var holo: StandardMaterial3D=screen.duplicate()
 		holo.transparency=BaseMaterial3D.TRANSPARENCY_ALPHA
 		holo.blend_mode=BaseMaterial3D.BLEND_MODE_ADD
-		holo.albedo_color=Color(.35,.9,1,.55)
+		holo.albedo_color=Color(1,.55,.16,.55) if chassis.chassis_id=="forge" else Color(.35,.9,1,.55)
 		holo.cull_mode=BaseMaterial3D.CULL_DISABLED
 		hologram.material_override=holo
 	for node in find_children("*","MeshInstance3D",true,false):
@@ -67,7 +71,7 @@ func configure(definition: Resource) -> void:
 			if mat is StandardMaterial3D and node != display:
 				mat.vertex_color_use_as_albedo = true
 				if "vehicle_glass" in node.name:
-					if chassis.chassis_id=="piledriver":
+					if chassis.chassis_id in ["piledriver","forge"]:
 						mat=mat.duplicate()
 						mat.transparency=BaseMaterial3D.TRANSPARENCY_ALPHA
 						mat.albedo_color=Color(.08,.16,.22,.36)

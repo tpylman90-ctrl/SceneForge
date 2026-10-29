@@ -26,6 +26,16 @@ func check() -> void:
 					assert(absf(point.x)<.6 and point.y>0 and point.y<.65,"Pods must sit below the hull")
 				assert(is_equal_approx(scene.feedback.footprint_positions[0].x,.48))
 				assert(is_equal_approx(scene.feedback.footprint_positions[2].z,-1.25))
+			if definition.chassis_id=="forge":
+				var instruments: Node3D=scene.feedback.get_node("ForgeCockpitInstruments")
+				for display_name in ["FlightDisplay","HolographicDisplay"]:
+					var instrument: MeshInstance3D=instruments.get_node(display_name)
+					var rectangle := instrument.mesh as QuadMesh
+					for x in [-.5,.5]:
+						for y in [-.5,.5]:
+							var point: Vector3=scene.feedback.to_local(instrument.to_global(Vector3(x*rectangle.size.x,y*rectangle.size.y,0)))
+							var windshield_z := 1.5-(point.y-1.10)*1.2/.88
+							assert(point.z<windshield_z-.10 and absf(point.x)<.40,"FORGE display must sit entirely inside canopy")
 			assert(scene.feedback.tails.size()==5 and scene.feedback.yoke!=null)
 			assert(scene.feedback.get_node("ComponentMounts").get_child_count()==8)
 			scene.toggle_camera()
