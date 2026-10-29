@@ -26,7 +26,7 @@ jobs:
             build/NeonFoundry.blend
             build/asset-report.json
             build/fleet-report.json
-          key: viewer-environment-${{ hashFiles('tools/build_neon_foundry.py') }}
+          key: viewer-environment-${{ hashFiles('tools/build_neon_foundry.py', 'tools/kestrel_detail.py') }}
           restore-keys: |
             foundry-blender-4.5.3-
       - name: Install preview tools only
