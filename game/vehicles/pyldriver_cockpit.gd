@@ -18,18 +18,44 @@ func part(parent: Node3D, point: Vector3, size: Vector3, material: Material) -> 
 	parent.add_child(node)
 	return node
 
+# Continuous rounded fascia, sweeping into both cockpit side consoles.
+func dashboard(material: Material) -> void:
+	var surface := SurfaceTool.new()
+	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var points: Array[Vector3]=[]
+	for i in range(25):
+		var x := -.63+1.26*float(i)/24.0
+		var sweep := absf(x)/.63
+		for j in range(16):
+			var angle := TAU*float(j)/16.0
+			points.append(Vector3(x,1.35+.025*sweep+.095*sin(angle),1.08-.27*pow(sweep,2)+.14*cos(angle)))
+	for i in range(24):
+		for j in range(16):
+			var a := i*16+j
+			var b := i*16+(j+1)%16
+			var c := (i+1)*16+j
+			var d := (i+1)*16+(j+1)%16
+			for index in [a,b,c,b,d,c]:surface.add_vertex(points[index])
+	surface.generate_normals()
+	var fascia := MeshInstance3D.new()
+	fascia.name="SculptedDashboard"
+	fascia.mesh=surface.commit()
+	fascia.material_override=material
+	add_child(fascia)
+
 func build() -> void:
 	name="PyldriverCockpitInstruments"
 	var dark := finish("15222a",.4)
 	var brass := finish("a77a30",.65)
-	var frame := Transform3D(Basis.from_euler(Vector3(-.60,PI,0)),Vector3(0,1.43,1.00))
-	var bezel := part(self,Vector3.ZERO,Vector3(.79,.31,.05),dark)
+	dashboard(dark)
+	var frame := Transform3D(Basis.from_euler(Vector3(-.60,PI,0)),Vector3(0,1.41,.94))
+	var bezel := part(self,Vector3.ZERO,Vector3(.54,.205,.04),dark)
 	bezel.name="InstrumentBinnacle"
 	bezel.transform=frame
 	var display := MeshInstance3D.new()
 	display.name="FlightDisplay"
 	var quad := QuadMesh.new()
-	quad.size=Vector2(.70,.24)
+	quad.size=Vector2(.46,.15)
 	display.mesh=quad
 	display.transform=frame*Transform3D(Basis.IDENTITY,Vector3(0,0,.027))
 	var screen := StandardMaterial3D.new()
@@ -38,9 +64,9 @@ func build() -> void:
 	display.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(display)
 	for side in [-1.0,1.0]:
-		part(self,Vector3(side*.28,1.29,1.04),Vector3(.055,.27,.08),dark)
-		var edge := part(self,Vector3.ZERO,Vector3(.025,.29,.065),brass)
-		edge.transform=frame*Transform3D(Basis.IDENTITY,Vector3(side*.385,0,0))
+		part(self,Vector3(side*.28,1.28,1.04),Vector3(.055,.10,.08),dark)
+		var edge := part(self,Vector3.ZERO,Vector3(.018,.19,.045),brass)
+		edge.transform=frame*Transform3D(Basis.IDENTITY,Vector3(side*.26,0,0))
 	part(self,Vector3(0,1.15,1.04),Vector3(1.0,.08,.15),dark)
 	var yoke_detail := Node3D.new()
 	yoke_detail.name="YokeDetail"
@@ -50,16 +76,16 @@ func build() -> void:
 	var hologram := MeshInstance3D.new()
 	hologram.name="HolographicDisplay"
 	var holo_quad := QuadMesh.new()
-	holo_quad.size=Vector2(.38,.12)
+	holo_quad.size=Vector2(.28,.09)
 	hologram.mesh=holo_quad
-	hologram.position=Vector3(0,1.76,.25)
+	hologram.position=Vector3(.23,1.62,.44)
 	hologram.rotation.y=PI
 	hologram.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(hologram)
 	for side in [-1.0,1.0]:
-		part(self,Vector3(side*.20,1.37,.58),Vector3(.09,.05,.12),dark)
+		part(self,Vector3(.23+side*.10,1.37,.58),Vector3(.09,.05,.12),dark)
 		var lens := finish("50d9e8")
 		lens.shading_mode=BaseMaterial3D.SHADING_MODE_UNSHADED
-		part(self,Vector3(side*.20,1.40,.58),Vector3(.045,.008,.055),lens)
+		part(self,Vector3(.23+side*.10,1.40,.58),Vector3(.045,.008,.055),lens)
 	# Match the additional rear-up body rake without moving the display out of the tub.
 	transform=Transform3D(Basis(Vector3.RIGHT,Vector3.UP,Vector3(0,-.05,1)),Vector3(0,.171,0))

@@ -23,7 +23,7 @@ def build_piledriver(body,accent,carbon,steel,rubber,glow,glass):
   tex=material.node_tree.nodes.new('ShaderNodeTexImage');tex.image=image
   material.node_tree.links.new(tex.outputs['Color'],material.node_tree.nodes['Principled BSDF'].inputs['Base Color'])
  # Curved section loft: rounded chin, rising haunches and a genuine open cockpit.
- profile=[(-2.65,.60,.84,1.38),(-2.35,.96,.66,1.48),(-1.65,1.10,.35,1.43),(-.95,.80,.20,1.20),(.0,.73,.26,1.12),(1.20,.84,.40,1.24),(1.72,.94,.39,1.22),(2.25,.81,.30,1.01),(2.85,.58,.24,.73),(3.22,.35,.23,.49),(3.42,.22,.25,.40)]
+ profile=[(-2.65,.60,.84,1.38),(-2.35,.96,.66,1.48),(-1.65,1.10,.35,1.43),(-.95,.80,.20,1.20),(.0,.73,.26,1.12),(1.20,.84,.40,1.24),(1.72,.94,.39,1.22),(2.25,.81,.30,1.01),(2.85,.58,.24,.73),(3.22,.27,.23,.46),(3.42,.095,.25,.35),(3.58,.025,.27,.31)]
  sections=[]
  for i in range(len(profile)-1):
   for step in range(4):
@@ -78,13 +78,19 @@ def build_piledriver(body,accent,carbon,steel,rubber,glow,glass):
    pipe('Service cover',(side*1.05,.69,z),(side*1.12,.69,z),.105,steel,20)
    pipe('Service cover inset',(side*1.115,.69,z),(side*1.13,.69,z),.065,carbon,16)
   # Low forward skis: sculpted runners, two-axis joints and exposed actuators.
-  ski=[(side*.51,.28,3.72),(side*.72,.28,3.55),(side*.77,.29,2.08),(side*.53,.29,2.0)]
-  panel('Forward armored runner',ski,accent)
-  strip('Runner wear rail',[(side*.62,.32,3.68),(side*.68,.34,3.42),(side*.65,.34,2.12)],.035,steel)
+  # Swept composite skis with a raised blade tip and replaceable wear insert.
+  ski=[(side*.49,.36,3.88),(side*.65,.43,3.68),(side*.78,.30,3.12),(side*.77,.29,2.12),(side*.60,.29,1.98),(side*.57,.30,3.12)]
+  panel('Swept carbon skid blade',ski,carbon)
+  strip('Runner brass perimeter',ski+[ski[0]],.018,accent)
+  strip('Replaceable titanium wear rail',[(side*.57,.34,3.83),(side*.65,.36,3.55),(side*.69,.30,3.10),(side*.68,.29,2.12)],.025,steel)
+  panel('Skid raised aerodynamic spine',[(side*.64,.37,3.52),(side*.70,.45,2.98),(side*.71,.43,2.22),(side*.66,.32,2.15)],body)
   for z in [2.25,2.80]:
    pipe('Runner suspension link',(side*.65,.35,z),(side*.72,.67,z-.15),.045,steel)
    pipe('Runner actuator',(side*.65,.35,z+.12),(side*.72,.60,z-.04),.024,accent)
    pipe('Runner joint',(side*.60,.39,z),(side*.70,.39,z),.065,carbon)
+   pipe('Runner pivot pin',(side*.60,.39,z),(side*.59,.39,z),.028,accent,12)
+  for z in [2.35,2.52,2.69]:
+   box('Skid cooling inset',(side*.69,.35,z),(.09,.018,.05),rubber,.004)
   # Smooth integrated hover fairings replace exposed cylindrical pots.
   for x,y,z in [(side*.48,.32,1.95),(side*.48,.25,-1.25)]:
    core=pipe('Elongated repulsor core',(x,y-.12,z),(x,y+.05,z),.245,carbon,24)
@@ -254,9 +260,9 @@ def build_piledriver(body,accent,carbon,steel,rubber,glow,glass):
  # Raised dorsal nose armor and a faceted chin cap build the long racing beak.
  hood=[
   (-.30,dims(2.52)[2]+.035,2.52),
-  (-.25,dims(3.18)[2]+.035,3.18),
-  (0,dims(3.40)[2]+.040,3.40),
-  (.25,dims(3.18)[2]+.035,3.18),
+  (-.17,dims(3.18)[2]+.035,3.18),
+  (0,dims(3.56)[2]+.022,3.56),
+  (.17,dims(3.18)[2]+.035,3.18),
   (.30,dims(2.52)[2]+.035,2.52),
   (0,dims(2.37)[2]+.055,2.37)
  ]
@@ -271,6 +277,12 @@ def build_piledriver(body,accent,carbon,steel,rubber,glow,glass):
                            (side*.20,dims(2.90)[2]+.075,2.90),
                            (side*.10,dims(3.34)[2]+.075,3.34)],.014,steel)
 
+ # Split intake and recessed optical sensors flank the new knife-edge beak.
+ for side in [-1,1]:
+  panel('Beak ram intake',[(side*.18,.45,3.12),(side*.39,.56,2.92),(side*.47,.48,2.78),(side*.25,.36,3.10)],carbon)
+  strip('Intake machined lip',[(side*.18,.46,3.12),(side*.39,.57,2.92),(side*.47,.49,2.78)],.012,steel)
+  box('Recessed nose sensor',(side*.33,.54,2.98),(.075,.035,.10),rubber,.007)
+  box('Nose sensor lens',(side*.33,.563,2.98),(.048,.009,.06),glow,.003)
  # Garage inspection detail: service hardware, fluid circuits and thermal shields.
  for side in [-1,1]:
   for z in [-1.85,-1.45,-1.05]:
