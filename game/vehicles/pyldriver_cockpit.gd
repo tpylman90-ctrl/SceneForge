@@ -35,7 +35,7 @@ func dashboard(material: Material) -> void:
 			var b := i*16+(j+1)%16
 			var c := (i+1)*16+j
 			var d := (i+1)*16+(j+1)%16
-			for index in [a,b,c,b,d,c]:surface.add_vertex(points[index])
+			for index in [a,c,b,b,c,d]:surface.add_vertex(points[index])
 	surface.generate_normals()
 	var fascia := MeshInstance3D.new()
 	fascia.name="SculptedDashboard"
