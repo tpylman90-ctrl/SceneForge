@@ -45,3 +45,9 @@ All four hover units are recessed beneath the belly at x=±0.48 m, with front z=
 Pyldriver's four underbody fairings are 1.6 m long. Their magnetic cores and halos are stretched longitudinally, and the runtime footprints use the same 2.6 length factor. Mount locations remain beneath the hull.
 
 A faceted glass mesh now follows all six roll-frame sections from z=2.0 through z=-1.62 m, including the rear cockpit. Rubber seals join the glazing to the body. The outside glass is lightly transparent for interior inspection; cockpit mode reduces the tint further. The fitted interior dashboard remains separate and inside the tub.
+
+## Garage showcase pass
+
+Pyldriver's body rake is now y'=y+0.171-0.115z, raising the rear while preserving nose clearance. The cockpit assembly, eye, hover mounts and exhaust origins follow that stance. New geometry includes cooling hard lines and clamps, recessed service sockets, overlapping turbine heat shields, access latches and pressure reservoirs. The hull uses smooth manufactured shading while armor panels retain defined edges.
+
+An additive transparent holographic display sits inside the canopy above two projector lenses. It shares the live instrument texture without another viewport or light. Physical instruments remain available below it. Front, top, side, rear, cockpit and underside PNGs are the primary review deliverables; no GLB viewer is required. This remains viewer-only until an Android build is requested.

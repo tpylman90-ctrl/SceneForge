@@ -47,3 +47,19 @@ func build() -> void:
 	add_child(yoke_detail)
 	for side in [-1.0,1.0]:
 		part(yoke_detail,Vector3(side*.24,1.32,1.07),Vector3(.065,.025,.055),brass)
+	var hologram := MeshInstance3D.new()
+	hologram.name="HolographicDisplay"
+	var holo_quad := QuadMesh.new()
+	holo_quad.size=Vector2(.48,.16)
+	hologram.mesh=holo_quad
+	hologram.position=Vector3(0,1.65,.48)
+	hologram.rotation.y=PI
+	hologram.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(hologram)
+	for side in [-1.0,1.0]:
+		part(self,Vector3(side*.20,1.37,.58),Vector3(.09,.05,.12),dark)
+		var lens := finish("50d9e8")
+		lens.shading_mode=BaseMaterial3D.SHADING_MODE_UNSHADED
+		part(self,Vector3(side*.20,1.40,.58),Vector3(.045,.008,.055),lens)
+	# Match the additional rear-up body rake without moving the display out of the tub.
+	transform=Transform3D(Basis(Vector3.RIGHT,Vector3.UP,Vector3(0,-.05,1)),Vector3(0,.171,0))

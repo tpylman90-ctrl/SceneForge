@@ -41,6 +41,7 @@ def build_piledriver(body,accent,carbon,steel,rubber,glow,glass):
    faces.append((j*12+k,j*12+(k+1)%12,(j+1)*12+(k+1)%12,(j+1)*12+k))
  faces.append(tuple((len(sections)-1)*12+k for k in range(12)))
  shell=mesh('Sculpted plum monocoque',points,faces,body,.012)
+ for face in shell.data.polygons:face.use_smooth=True
  def dims(z):
   return tuple(float(np.interp(z,[s[0] for s in profile],[s[k] for s in profile])) for k in [1,2,3])
  def strip(name,path,r,material):
@@ -270,11 +271,33 @@ def build_piledriver(body,accent,carbon,steel,rubber,glow,glass):
                            (side*.20,dims(2.90)[2]+.075,2.90),
                            (side*.10,dims(3.34)[2]+.075,3.34)],.014,steel)
 
- # Rear rises while the nose drops; curved belly was authored independently above.
+ # Garage inspection detail: service hardware, fluid circuits and thermal shields.
+ for side in [-1,1]:
+  for z in [-1.85,-1.45,-1.05]:
+   w,lo,hi=dims(z)
+   pipe('Recessed service socket',(side*(w+.05),lo+.23,z),(side*(w+.075),lo+.23,z),.052,carbon,16)
+   pipe('Socket captive fastener',(side*(w+.075),lo+.23,z),(side*(w+.085),lo+.23,z),.022,accent,8)
+  # Twin hard lines route aft from the belly into the turbine plumbing.
+  for offset in [0,.10]:
+   path=[(side*.64,.51+offset,-.9),(side*.78,.56+offset,-1.3),(side*.90,.74+offset,-1.8),(side*.92,.90+offset,-2.18)]
+   strip('Braided cooling hard line',path,.021,steel)
+   for x,y,z in path[1:-1]:box('Brass pipe clamp',(x,y,z),(.085,.07,.055),accent,.008)
+  for i in range(6):
+   z=-2.15+i*.09
+   panel('Overlapping turbine heat shield',[(side*.83,1.30,z),(side*1.13,1.18,z),(side*1.15,1.15,z-.06),(side*.84,1.27,z-.06)],carbon)
+  for z in [.95,1.28]:
+   w,lo,hi=dims(z)
+   box('Flush access latch',(side*w*.83,hi+.015,z),(.12,.025,.07),steel,.008)
+   box('Latch recessed slot',(side*w*.83,hi+.030,z),(.07,.005,.015),carbon,.002)
+  pipe('Rear pressure reservoir',(side*.63,1.46,-1.83),(side*.63,1.46,-2.23),.085,carbon,20)
+  for z in [-1.87,-2.19]:
+   collar=ring('Reservoir retaining band',(side*.63,1.46,z),.087,.013,accent);collar.rotation_euler.x=math.pi/2
+  box('Service status indicator',(side*.95,1.16,-1.58),(.035,.05,.10),glow,.005)
+ # Rear rises while the nose stays at its existing clearance.
  bpy.context.view_layer.update()
  def rake(world):
   z=-world.y
-  return Vector((world.x,world.y,world.z-.065*z))
+  return Vector((world.x,world.y,world.z+.171-.115*z))
  for obj in list(bpy.context.scene.objects):
   if obj.type!='MESH':continue
   world=obj.matrix_world.copy();inverse=world.inverted()
