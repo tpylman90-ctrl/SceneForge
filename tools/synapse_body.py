@@ -1,4 +1,4 @@
-"""Synapse hull and enclosed canopy lofts. No cockpit interior or hover hardware."""
+"""Synapse hull with a fitted polar-glass canopy; interior and hardware remain pending."""
 def build_synapse_body(material, glass):
     # Godot axes: X spans the hull, Y is height, and +Z is forward.
     profile = [
@@ -28,6 +28,37 @@ def build_synapse_body(material, glass):
             p3=points[min(len(points)-1,i+2)][k]
             out.append(.5*((2*p1)+(-p0+p2)*f+(2*p0-5*p1+4*p2-p3)*f2+(-p0+3*p1-3*p2+p3)*f3))
         return tuple(out)
+    canopy_profile=[
+        (-2.05,.06,.02),
+        (-1.80,.32,.20),
+        (-1.38,.58,.31),
+        (-.78,.76,.43),
+        (-.05,.82,.46),
+        (.68,.72,.42),
+        (1.25,.56,.33),
+        (1.72,.32,.20),
+        (1.98,.08,.02),
+    ]
+    def canopy_at_z(z):
+        lo,hi=0.0,1.0
+        for _ in range(28):
+            t=(lo+hi)*.5
+            p=catmull(canopy_profile,t)
+            if p[0]<z:lo=t
+            else:hi=t
+        return catmull(canopy_profile,(lo+hi)*.5)
+    def roof_at(z,x):
+        lo,hi=0.0,1.0
+        for _ in range(28):
+            t=(lo+hi)*.5
+            p=catmull(profile,t)
+            if p[0]<z:lo=t
+            else:hi=t
+        _,rw,_,_,rshoulder,rcrown=catmull(profile,(lo+hi)*.5)
+        edge=min(1.0,abs(x)/max(rw,1e-5))
+        cap=max(0.0,1.0-edge*edge)**.68
+        return rshoulder+(rcrown-rshoulder)*cap
+
     longitudinal=89
     across=33
     side_steps=4
@@ -64,6 +95,14 @@ def build_synapse_body(material, glass):
         for col in range(section_size):
             a=row*section_size+col
             b=row*section_size+(col+1)%section_size
+            # Omit the center roof faces under the canopy, leaving a clean
+            # cockpit aperture instead of glass laid over solid bodywork.
+            if col<across-1:
+                mx=(sections[row][col][0]+sections[row+1][col][0])*.5
+                mz=(sections[row][col][2]+sections[row+1][col][2])*.5
+                if canopy_profile[0][0] <= mz <= canopy_profile[-1][0]:
+                    if abs(mx)<canopy_at_z(mz)[1]:
+                        continue
             faces.append((a,b,b+section_size,a+section_size))
     faces.append(tuple(range(section_size-1,-1,-1)))
     end=(longitudinal-1)*section_size
@@ -72,31 +111,7 @@ def build_synapse_body(material, glass):
     for polygon in hull_obj.data.polygons:
         polygon.use_smooth=True
 
-    def roof_at(z,x):
-        lo,hi=0.0,1.0
-        for _ in range(28):
-            t=(lo+hi)*.5
-            rz,rw,_,_,rshoulder,rcrown=catmull(profile,t)
-            if rz<z:lo=t
-            else:hi=t
-        _,rw,_,_,rshoulder,rcrown=catmull(profile,(lo+hi)*.5)
-        edge=min(1.0,abs(x)/max(rw,1e-5))
-        cap=max(0.0,1.0-edge*edge)**.68
-        return rshoulder+(rcrown-rshoulder)*cap
-
-    # The glass edge is sampled from the actual hull roof, so the long canopy
-    # sits flush at the shoulder and rises only into a low polar-glass dome.
-    canopy_profile=[
-        (-2.05,.06,.02),
-        (-1.80,.32,.20),
-        (-1.38,.58,.31),
-        (-.78,.76,.43),
-        (-.05,.82,.46),
-        (.68,.72,.42),
-        (1.25,.56,.33),
-        (1.72,.32,.20),
-        (1.98,.08,.02),
-    ]
+    # Build a low, elongated dome whose edges follow the hull roof exactly.
     glass_rows=73
     glass_across=25
     canopy_verts=[]
