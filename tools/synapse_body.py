@@ -1,5 +1,5 @@
 """Synapse hull with a fitted polar-glass canopy; interior and hardware remain pending."""
-def build_synapse_body(material, glass):
+def build_synapse_body(material, glass, accent, carbon):
     # Godot axes: X spans the hull, Y is height, and +Z is forward.
     profile = [
         (-4.15,.62,-.30,-.16,.22,.48),
@@ -9,11 +9,11 @@ def build_synapse_body(material, glass):
         (-1.35,1.34,-.45,-.18,.58,1.24),
         (-.20,1.31,-.43,-.17,.55,1.20),
         (.85,1.23,-.36,-.14,.49,1.08),
-        (1.80,1.02,-.26,-.08,.36,.88),
-        (2.65,.72,-.15,-.02,.25,.62),
-        (3.30,.45,-.06,.02,.16,.40),
-        (3.86,.25,.03,.06,.11,.25),
-        (4.30,.12,.08,.10,.08,.15),
+        (1.80,1.08,-.26,-.08,.36,.88),
+        (2.65,.88,-.15,-.02,.25,.62),
+        (3.30,.62,-.06,.02,.16,.40),
+        (3.86,.38,.03,.06,.11,.25),
+        (4.30,.10,.08,.10,.08,.15),
     ]
     def catmull(points,t):
         scaled=t*(len(points)-1)
@@ -107,6 +107,103 @@ def build_synapse_body(material, glass):
     hull_obj=mesh('SynapseHull',verts,faces,material)
     for polygon in hull_obj.data.polygons:
         polygon.use_smooth=True
+
+    # Sculpt a pair of upper-side shoulders that broaden into the split nose.
+    def hull_at(z):
+        lo,hi=0.0,1.0
+        for _ in range(28):
+            t=(lo+hi)*.5
+            p=catmull(profile,t)
+            if p[0]<z:lo=t
+            else:hi=t
+        return catmull(profile,(lo+hi)*.5)
+
+    flare_profile=[
+        (-.35,.52,.52,.01),
+        (.15,.43,.72,.07),
+        (.75,.35,.90,.12),
+        (1.45,.25,1.03,.18),
+        (2.15,.17,1.08,.20),
+        (2.75,.12,1.02,.16),
+        (3.25,.08,.82,.10),
+        (3.72,.04,.04,.01),
+    ]
+    flare_rows=55
+    flare_across=17
+    for side in [-1.0,1.0]:
+        flare_verts=[]
+        for row in range(flare_rows):
+            z,inner,outer,bulge=catmull(flare_profile,row/(flare_rows-1))
+            _,half_width,_,_,_,_=hull_at(z)
+            for col in range(flare_across):
+                u=col/(flare_across-1)
+                ratio=inner+(outer-inner)*u
+                x=side*half_width*ratio
+                crown=math.sin(math.pi*u)**.85
+                y=roof_at(z,x)+.025+bulge*crown
+                flare_verts.append((x,y,z))
+        flare_faces=[]
+        for row in range(flare_rows-1):
+            for col in range(flare_across-1):
+                a=row*flare_across+col
+                b=(row+1)*flare_across+col
+                flare_faces.append((a,a+1,b+1,b))
+        flare=mesh('Synapse_SculptedShoulder_L' if side<0 else 'Synapse_SculptedShoulder_R',
+                   flare_verts,flare_faces,material)
+        for polygon in flare.data.polygons:polygon.use_smooth=True
+        # Fine metallic outer crease traces the flare from shoulder to beak.
+        edge_points=[]
+        for row in range(flare_rows):
+            z,inner,outer,bulge=catmull(flare_profile,row/(flare_rows-1))
+            _,half_width,_,_,_,_=hull_at(z)
+            x=side*half_width*outer
+            edge_points.append((x,roof_at(z,x)+.045,z))
+        for a,b in zip(edge_points,edge_points[1:]):
+            pipe('Synapse shoulder crease',a,b,.018,accent,8)
+
+    # Twin recessed-looking ram intakes sit inside the raised shoulder flares.
+    intake_profile=[
+        (.92,.47,.018,.018),
+        (1.25,.44,.060,.035),
+        (1.72,.40,.092,.050),
+        (2.20,.34,.100,.055),
+        (2.66,.28,.082,.045),
+        (3.05,.23,.056,.032),
+        (3.36,.19,.028,.018),
+        (3.52,.16,.008,.006),
+    ]
+    intake_rows=49
+    intake_across=11
+    for side in [-1.0,1.0]:
+        intake_verts=[]
+        for row in range(intake_rows):
+            z,center,half,lift=catmull(intake_profile,row/(intake_rows-1))
+            _,half_width,_,_,_,_=hull_at(z)
+            for col in range(intake_across):
+                u=-1.0+2.0*col/(intake_across-1)
+                x=side*half_width*(center+half*u)
+                crown=max(0.0,1.0-u*u)**.7
+                y=roof_at(z,x)+.065+lift*crown
+                intake_verts.append((x,y,z))
+        intake_faces=[]
+        for row in range(intake_rows-1):
+            for col in range(intake_across-1):
+                a=row*intake_across+col
+                b=(row+1)*intake_across+col
+                intake_faces.append((a,a+1,b+1,b))
+        intake=mesh('Synapse_InductionIntake_L' if side<0 else 'Synapse_InductionIntake_R',
+                    intake_verts,intake_faces,carbon)
+        for polygon in intake.data.polygons:polygon.use_smooth=True
+        # Three narrow alloy vanes make each intake legible from the front.
+        for z in (1.65,2.08,2.50):
+            _,center,half,lift=catmull(intake_profile,
+                min(1.0,max(0.0,(z-intake_profile[0][0])/(intake_profile[-1][0]-intake_profile[0][0]))))
+            _,half_width,_,_,_,_=hull_at(z)
+            left=side*half_width*(center-half*.72)
+            right=side*half_width*(center+half*.72)
+            y1=roof_at(z,left)+.082
+            y2=roof_at(z,right)+.082
+            pipe('Intake guide vane',(left,y1,z),(right,y2,z),.016,accent,8)
 
     # Wrap the dark polar glass over a raised, broad crown. The roof-following
     # sill and swept rear edge make the canopy read as part of the body.
