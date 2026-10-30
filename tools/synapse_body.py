@@ -31,7 +31,7 @@ def build_synapse_body(material, glass, accent, carbon):
     side_kit_stations=[
         (3.98,.015),(3.58,.105),(3.10,.20),(2.45,.24),
         (1.70,.32),(.85,.38),(0.0,.48),(-.90,.64),
-        (-1.80,.86),(-2.65,1.08),(-3.35,1.12),(-3.82,.94),(-4.15,.015),
+        (-1.80,.86),(-2.65,1.08),(-3.35,1.12),(-3.82,1.08),(-4.15,1.02),
     ]
     def sidekit_bulge_at_z(z):
         for k in range(len(side_kit_stations)-1):
@@ -437,49 +437,9 @@ def build_synapse_body(material, glass, accent, carbon):
         rear_ring('Synapse '+label+' outer turbine lip',x,y,-4.48,radius*1.04,.045,accent)
         rear_ring('Synapse '+label+' inner ion ring',x,y,-4.60,radius*.78,.025,service_glow)
         rear_ring('Synapse '+label+' ceramic gasket',x,y,-4.36,radius*.91,.026,titanium)
-    # A deep molded aft valance wraps around the complete three-nozzle
-    # cluster. The apertures let the bells project through it, joining the
-    # broad shoulder flares to one continuous rear body.
-    aft_fairing=material
-    aft_center_y=.36
-    aft_segments=64
-    aft_loops=[]
-    for rx,ry,z in [
-        (1.47,.64,-3.98), (1.14,.47,-3.98),
-        (1.47,.64,-4.16), (1.14,.47,-4.16),
-    ]:
-        loop=[]
-        for index in range(aft_segments):
-            angle=2*math.pi*index/aft_segments
-            cx=math.cos(angle); sy=math.sin(angle)
-            # A softly squared oval gives the rear housing a broad, planted stance.
-            x=rx*(1 if cx>=0 else -1)*abs(cx)**.88
-            y=aft_center_y+ry*(1 if sy>=0 else -1)*abs(sy)**.88
-            loop.append((x,y,z))
-        aft_loops.append(loop)
-    aft_verts=[point for loop in aft_loops for point in loop]
-    aft_faces=[]
-    for index in range(aft_segments):
-        nxt=(index+1)%aft_segments
-        # Outer and inner depth walls, plus the forward and aft annular faces.
-        aft_faces.extend([
-            (index,nxt,2*aft_segments+nxt,2*aft_segments+index),
-            (aft_segments+index,3*aft_segments+index,
-             3*aft_segments+nxt,aft_segments+nxt),
-            (index,aft_segments+index,aft_segments+nxt,nxt),
-            (2*aft_segments+index,2*aft_segments+nxt,
-             3*aft_segments+nxt,3*aft_segments+index),
-        ])
-    aft_shell=mesh('Synapse_Integrated_AftThrustFairing',
-                   aft_verts,aft_faces,aft_fairing)
-    for polygon in aft_shell.data.polygons:
-        polygon.use_smooth=True
-    # Four corner fasteners anchor the broad molded rear surround.
-    for x,y in [(-1.24,.86),(1.24,.86),(-1.24,-.14),(1.24,-.14)]:
-        pipe('Synapse aft fairing fastener',
-             (x,y,-4.165),(x,y,-4.205),.034,titanium,10)
-
-    # A shallow rear manifold ties the three thrust modules into the wide shell.
+    # The side-flare profile now carries its full width to the rear face,
+    # so the exhaust cluster emerges from the wide molded hull itself.
+    # The rear manifold sits embedded inside the widened aft body.
     pipe('Synapse rear thrust manifold',(-.92,.40,-4.02),(.92,.40,-4.02),.055,carbon,12)
     for x in (-.92,-.46,0.0,.46,.92):
         pipe('Synapse manifold fastener',(x,.40,-4.02),(x,.40,-4.055),.028,titanium,10)
@@ -507,7 +467,7 @@ def build_synapse_body(material, glass, accent, carbon):
         armor_cols=5
         armor_verts=[]
         for row in range(armor_rows):
-            z=-1.55-2.05*row/(armor_rows-1)
+            z=-1.55-2.55*row/(armor_rows-1)
             for col in range(armor_cols):
                 v=.12+.22*col/(armor_cols-1)
                 armor_verts.append(sidekit_values(z,side,v,.024))
