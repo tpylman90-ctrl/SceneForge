@@ -8,6 +8,8 @@ func check() -> void:
 		assert(not ids.has(definition.chassis_id))
 		ids.append(definition.chassis_id)
 		assert(ResourceLoader.exists(definition.visual_scene))
+		# Synapse is a garage body study; its gameplay hardware is still pending.
+		if definition.chassis_id=="synapse":continue
 		set_meta("sceneforge_craft",index)
 		for circuit in range(3):
 			set_meta("sceneforge_track",circuit)
@@ -73,6 +75,10 @@ func check() -> void:
 		await create_timer(.2).timeout
 		assert(hangar.selected==index and not hangar.busy)
 		assert(hangar.visual.chassis.chassis_id==Fleet.IDS[index])
+		if Fleet.IDS[index]=="synapse":
+			hangar.action("COCKPIT")
+			assert(not hangar.cockpit,"Body-only Synapse preview has no gameplay cockpit yet")
+			continue
 		hangar.action("COCKPIT")
 		assert(hangar.cockpit)
 		hangar.action("FRONT")
