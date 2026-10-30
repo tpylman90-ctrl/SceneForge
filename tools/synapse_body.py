@@ -148,7 +148,8 @@ def build_synapse_body(material, glass, accent, carbon):
             section=[]
             for j in range(top_steps+1):
                 f=j/top_steps
-                x=inner+(outer-inner)*f
+                flare_splay=.16*math.exp(-((z-3.90)/.55)**2)
+                x=inner+(outer-inner)*f+flare_splay
                 base=roof_at(z,x)
                 smooth=f*f*(3.0-2.0*f)
                 # Replace the soft pillow cross-section with a crisp shoulder
@@ -194,7 +195,8 @@ def build_synapse_body(material, glass, accent, carbon):
             width=catmull(profile,(lo+hi)*.5)[1]
             f=.76
             ratio=inner_ratio+(outer_ratio-inner_ratio)*f
-            x=side*width*ratio
+            flare_splay=.16*math.exp(-((z-3.90)/.55)**2)
+            x=side*(width*ratio+flare_splay)
             smooth=f*f*(3.0-2.0*f)
             ridge=crest*math.exp(-((f-.76)/.19)**2)
             channel=.18*crest*math.exp(-((f-.37)/.16)**2)
