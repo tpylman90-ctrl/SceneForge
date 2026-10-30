@@ -474,13 +474,10 @@ def build_synapse_body(material, glass, accent, carbon):
                    aft_verts,aft_faces,aft_fairing)
     for polygon in aft_shell.data.polygons:
         polygon.use_smooth=True
-    # A bright, restrained reveal follows the outer edge of the connected housing.
-    aft_edge=aft_loops[2]
-    for a,b in zip(aft_edge,aft_edge[1:]+aft_edge[:1]):
-        pipe('Synapse aft fairing titanium reveal',a,b,.018,titanium,8)
-    for x in (-1.28,-.98,.98,1.28):
+    # Four corner fasteners anchor the broad molded rear surround.
+    for x,y in [(-1.24,.86),(1.24,.86),(-1.24,-.14),(1.24,-.14)]:
         pipe('Synapse aft fairing fastener',
-             (x,.36,-4.205),(x,.36,-4.245),.034,titanium,10)
+             (x,y,-4.205),(x,y,-4.245),.034,titanium,10)
 
     # A shallow rear manifold ties the three thrust modules into the wide shell.
     pipe('Synapse rear thrust manifold',(-.92,.40,-4.02),(.92,.40,-4.02),.055,carbon,12)
