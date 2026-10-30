@@ -237,7 +237,7 @@ def build_synapse_body(material, glass, accent, carbon):
         rear_lip=.16*math.exp(-((v-.17)/.16)**2)*rear_fade
         scoop=.15*math.exp(-((v-.40)/.20)**2)*scoop_fade
         x=side*(base+.018+bulge*math.sin(math.pi*v)+upper_rail+lower_rail+rear_lip-scoop+lift)
-        y=shoulder+(belly-shoulder)*v+.36*rear_fade*math.exp(-((v-.10)/.28)**2)
+        y=shoulder+(belly-shoulder)*v+.46*rear_fade*math.sin(math.pi*v)*math.exp(-((v-.18)/.32)**2)
         return (x,y,z)
 
     side_kit_steps=18
