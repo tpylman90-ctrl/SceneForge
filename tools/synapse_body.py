@@ -205,62 +205,82 @@ def build_synapse_body(material, glass, accent, carbon):
         for a,b in zip(trace_points,trace_points[1:]):
             pipe('Synapse shoulder light seam',a,b,.009,flare_trace,8)
 
-    # The raised front flares taper into broad molded side skirts that
-    # carry each shoulder line through the rear body as separate closed shells.
+    # The paired front wedges flow into faceted side shoulders. Their
+    # shallow C-channel scoops are shaped into the side skin and darkened below.
     side_kit_stations=[
-        (3.98,.025),(3.58,.09),(3.10,.19),(2.45,.24),
-        (1.70,.22),(.85,.20),(0.0,.20),(-.90,.22),
-        (-1.80,.23),(-2.65,.21),(-3.35,.14),(-3.82,.055),(-4.06,.008),
+        (3.98,.015),(3.58,.085),(3.10,.16),(2.45,.18),
+        (1.70,.155),(.85,.14),(0.0,.14),(-.90,.16),
+        (-1.80,.18),(-2.65,.19),(-3.35,.16),(-3.82,.075),(-4.06,.008),
     ]
-    side_kit_steps=8
+    def sidekit_values(z,side,v,lift=0.0):
+        for k in range(len(side_kit_stations)-1):
+            if side_kit_stations[k][0]>=z>=side_kit_stations[k+1][0]:
+                span=side_kit_stations[k][0]-side_kit_stations[k+1][0]
+                f=(side_kit_stations[k][0]-z)/span
+                bulge=side_kit_stations[k][1]*(1-f)+side_kit_stations[k+1][1]*f
+                break
+        lo,hi=0.0,1.0
+        for _ in range(28):
+            t=(lo+hi)*.5
+            p=catmull(profile,t)
+            if p[0]<z:lo=t
+            else:hi=t
+        t=(lo+hi)*.5
+        _,width,_,belly,shoulder,_=catmull(profile,t)
+        flank=.045+.065*max(0.0,1.0-abs(t-.34)/.32)
+        base=width*(1.0+flank*math.sin(math.pi*v))
+        long_fade=max(0.0,min(1.0,(z-3.98)/.25 if z>3.73 else (z+4.06)/.24 if z< -3.82 else 1.0))
+        scoop_fade=max(0.0,1.0-((z+.10)/1.72)**2)
+        upper_rail=.080*math.exp(-((v-.27)/.12)**2)*long_fade
+        lower_rail=.075*math.exp(-((v-.78)/.13)**2)*long_fade
+        scoop=.105*math.exp(-((v-.52)/.16)**2)*scoop_fade
+        x=side*(base+.018+bulge*math.sin(math.pi*v)+upper_rail+lower_rail-scoop+lift)
+        y=shoulder+(belly-shoulder)*v
+        return (x,y,z)
+
+    side_kit_steps=18
     for side in (-1.0,1.0):
-        side_kit_sections=[]
-        for row in range(83):
-            z=side_kit_stations[0][0]+(side_kit_stations[-1][0]-side_kit_stations[0][0])*row/82
-            for k in range(len(side_kit_stations)-1):
-                if side_kit_stations[k][0]>=z>=side_kit_stations[k+1][0]:
-                    span=side_kit_stations[k][0]-side_kit_stations[k+1][0]
-                    f=(side_kit_stations[k][0]-z)/span
-                    bulge=side_kit_stations[k][1]*(1-f)+side_kit_stations[k+1][1]*f
-                    break
-            lo,hi=0.0,1.0
-            for _ in range(28):
-                t=(lo+hi)*.5
-                p=catmull(profile,t)
-                if p[0]<z:lo=t
-                else:hi=t
-            _,width,_,belly,shoulder,_=catmull(profile,(lo+hi)*.5)
-            outer=[]
-            for j in range(side_kit_steps+1):
-                v=j/side_kit_steps
-                y=shoulder+(belly-shoulder)*v
-                t=(z+4.15)/8.45
-                flank=.045+.065*max(0.0,1.0-abs(t-.34)/.32)
-                base=width*(1.0+flank*math.sin(math.pi*v))
-                outer.append((side*(base+bulge*math.sin(math.pi*v)+.035),y,z))
-            inner=[]
-            for j in range(side_kit_steps,-1,-1):
-                v=j/side_kit_steps
-                y=shoulder+(belly-shoulder)*v
-                t=(z+4.15)/8.45
-                flank=.045+.065*max(0.0,1.0-abs(t-.34)/.32)
-                base=width*(1.0+flank*math.sin(math.pi*v))
-                inner.append((side*(base-.045),y,z))
-            side_kit_sections.append(outer+inner)
-        side_kit_ring_size=2*(side_kit_steps+1)
-        side_kit_verts=[p for ring in side_kit_sections for p in ring]
+        side_kit_rows=97
+        side_kit_verts=[]
+        for row in range(side_kit_rows):
+            z=side_kit_stations[0][0]+(side_kit_stations[-1][0]-side_kit_stations[0][0])*row/(side_kit_rows-1)
+            for col in range(side_kit_steps+1):
+                v=col/side_kit_steps
+                side_kit_verts.append(sidekit_values(z,side,v))
         side_kit_faces=[]
-        for row in range(len(side_kit_sections)-1):
-            for col in range(side_kit_ring_size):
-                a=row*side_kit_ring_size+col
-                b=row*side_kit_ring_size+(col+1)%side_kit_ring_size
-                side_kit_faces.append((a,b,b+side_kit_ring_size,a+side_kit_ring_size))
-        side_kit_faces.append(tuple(range(side_kit_ring_size-1,-1,-1)))
-        side_kit_end=(len(side_kit_sections)-1)*side_kit_ring_size
-        side_kit_faces.append(tuple(side_kit_end+i for i in range(side_kit_ring_size)))
+        for row in range(side_kit_rows-1):
+            for col in range(side_kit_steps):
+                a=row*(side_kit_steps+1)+col
+                b=a+side_kit_steps+1
+                side_kit_faces.append((a,b,b+1,a+1))
         side_kit=mesh('Synapse_SideKit_L' if side<0 else 'Synapse_SideKit_R',
                       side_kit_verts,side_kit_faces,material)
         for polygon in side_kit.data.polygons:
+            polygon.use_smooth=True
+
+        # Recessed dark insert follows the channel trough and pinches out at both ends.
+        scoop_material=mat('Synapse_CChannel_Inset',(.012,.025,.075),.48,.22)
+        scoop_rows=45
+        scoop_steps=10
+        scoop_verts=[]
+        for row in range(scoop_rows):
+            f=row/(scoop_rows-1)
+            z=1.48-3.05*f
+            fade=math.sin(math.pi*f)**.62
+            half=.135*fade
+            for col in range(scoop_steps+1):
+                g=col/scoop_steps
+                v=.52-half+2*half*g
+                scoop_verts.append(sidekit_values(z,side,v,.006))
+        scoop_faces=[]
+        for row in range(scoop_rows-1):
+            for col in range(scoop_steps):
+                a=row*(scoop_steps+1)+col
+                b=a+scoop_steps+1
+                scoop_faces.append((a,b,b+1,a+1))
+        scoop_obj=mesh('Synapse_SideScoop_L' if side<0 else 'Synapse_SideScoop_R',
+                       scoop_verts,scoop_faces,scoop_material)
+        for polygon in scoop_obj.data.polygons:
             polygon.use_smooth=True
 
     # Sculpt a pair of upper-side shoulders that broaden into the split nose.
