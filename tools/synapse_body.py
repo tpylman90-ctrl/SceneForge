@@ -229,7 +229,7 @@ def build_synapse_body(material, glass, accent, carbon):
         _,width,_,belly,shoulder,_=catmull(profile,t)
         flank=.045+.065*max(0.0,1.0-abs(t-.34)/.32)
         base=width*(1.0+flank*math.sin(math.pi*v))
-        long_fade=max(0.0,min(1.0,(z-3.98)/.25 if z>3.73 else (z+4.06)/.24 if z< -3.82 else 1.0))
+        long_fade=max(0.0,min(1.0,(3.98-z)/.25 if z>3.73 else (z+4.06)/.24 if z< -3.82 else 1.0))
         scoop_fade=max(0.0,1.0-((z+.10)/1.72)**2)
         upper_rail=.080*math.exp(-((v-.27)/.12)**2)*long_fade
         lower_rail=.075*math.exp(-((v-.78)/.13)**2)*long_fade
