@@ -8,8 +8,6 @@ func check() -> void:
 		assert(not ids.has(definition.chassis_id))
 		ids.append(definition.chassis_id)
 		assert(ResourceLoader.exists(definition.visual_scene))
-		# Synapse is a garage body study; its gameplay hardware is still pending.
-		if definition.chassis_id=="synapse":continue
 		set_meta("sceneforge_craft",index)
 		for circuit in range(3):
 			set_meta("sceneforge_track",circuit)
@@ -47,7 +45,14 @@ func check() -> void:
 							var point: Vector3=scene.feedback.to_local(instrument.to_global(Vector3(x*rectangle.size.x,y*rectangle.size.y,0)))
 							var windshield_z := 1.5-(point.y-1.10)*1.2/.88
 							assert(point.z<windshield_z-.10 and absf(point.x)<.40,"FORGE display must sit entirely inside canopy")
-			assert(scene.feedback.tails.size()==5 and scene.feedback.yoke!=null)
+			if definition.chassis_id=="synapse":
+				assert(scene.feedback.synapse_thrusters.size()==3 and scene.feedback.hover_glow_materials.size()==3)
+				assert(scene.feedback.footprint_positions.size()==4)
+				for slot in ["repulsor_fl","repulsor_fr","repulsor_rl","repulsor_rr"]:
+					assert(scene.chassis.mount_points[slot].y<0,"Synapse repulsors must sit beneath the low hull")
+				assert(scene.chassis.cockpit_eye.y<1.0 and scene.chassis.cockpit_eye.z<0.0,"Synapse cockpit camera must sit inside the fitted canopy")
+			else:
+				assert(scene.feedback.tails.size()==5 and scene.feedback.yoke!=null)
 			assert(scene.feedback.get_node("ComponentMounts").get_child_count()==8)
 			scene.toggle_camera()
 			scene.reset_car()
@@ -75,10 +80,6 @@ func check() -> void:
 		await create_timer(.2).timeout
 		assert(hangar.selected==index and not hangar.busy)
 		assert(hangar.visual.chassis.chassis_id==Fleet.IDS[index])
-		if Fleet.IDS[index]=="synapse":
-			hangar.action("COCKPIT")
-			assert(not hangar.cockpit,"Body-only Synapse preview has no gameplay cockpit yet")
-			continue
 		hangar.action("COCKPIT")
 		assert(hangar.cockpit)
 		hangar.action("FRONT")

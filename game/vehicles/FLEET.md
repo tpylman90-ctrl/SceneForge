@@ -1,6 +1,6 @@
 # SceneForge fleet
 
-Five selectable, driveable craft. Open FLEET from the Foundry or driving view. Choose a craft, orbit it by dragging, use FRONT / TAIL / COCKPIT, then DRIVE. Track choice is retained. Only the selected craft is instantiated during play.
+Seven selectable, driveable craft. Open FLEET from the Foundry or driving view. Choose a craft, orbit it by dragging or zoom with pinch/scroll, inspect FRONT / TAIL / COCKPIT, then DRIVE. Track choice is retained. Only the selected craft is instantiated during play.
 
 | Craft | Silhouette | Cruise | Handling |
 |---|---|---|---|
@@ -9,12 +9,13 @@ Five selectable, driveable craft. Open FLEET from the Foundry or driving view. C
 | Shrike | Silver/orange split beak and overlapping swept feather fins | 122 km/h | Quick turn-in |
 | Mantis | Olive utility shoulders, twin fork runners, upright stabilizers | 111 km/h | High grip |
 | Aurora | Midnight-blue low delta wings, copper seams and blue running lights | 126 km/h | Fast, more lateral slip |
+| Synapse | Indigo teardrop wedge, swept polar-glass canopy, four active underbody repulsors and three ion nozzles | 133 km/h | Precision |
 
 ## Production and provenance
 
-tools/build_fleet.py builds four original Blender GLBs in game/assets/fleet. User-supplied reference images guide silhouette and palette; no image or third-party mesh bytes are bundled. Original generated geometry/source is CC0-1.0. This uses the existing free Blender 4.5.3 / Godot 4.5.1 GitHub pipeline, no paid provider. Kestrel remains in the original Foundry GLB.
+tools/build_fleet.py builds six original Blender GLBs in game/assets/fleet. User-supplied reference images guide silhouette and palette; no image or third-party mesh bytes are bundled. Original generated geometry/source is CC0-1.0. This uses the existing free Blender 4.5.3 / Godot 4.5.1 GitHub pipeline, no paid provider. Kestrel remains in the original Foundry GLB.
 
-Each new craft has a recessed open cockpit, seat, frame, windshield, instrument/yoke compatibility, four pod housings and five animated tail assemblies. Geometry policy: below 40,000 triangles per new craft, COLOR_0 shading attributes, required named control/nozzle rig nodes. Material batches group static parts. No pilot character mesh is included.
+The five earlier fleet additions have a recessed open cockpit, seat, frame, windshield, instrument/yoke compatibility, four pod housings and five animated tail assemblies. Synapse has a fitted polar-glass cockpit, runtime-adjusted glazing, four repulsor housings and three animated ion plumes. Geometry policy: below 40,000 triangles per generated craft, COLOR_0 shading attributes, required named control/nozzle rig nodes. Material batches group static parts. No pilot character mesh is included.
 
 The production script authors +Z-forward, +Y-up Godot metres and converts into Blender coordinates for export. The four new hulls are separately authored profiles and silhouette parts, not transformed Kestrel meshes.
 

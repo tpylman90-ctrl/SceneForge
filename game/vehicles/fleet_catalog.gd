@@ -2,7 +2,7 @@ extends RefCounted
 
 const IDS := ["kestrel","piledriver","shrike","mantis","aurora","forge","synapse"]
 const NAMES := ["KESTREL","PYLDRIVER","SHRIKE","MANTIS","AURORA","FORGE","SYNAPSE"]
-const NOTES := ["Balanced raptor / slate and burnt orange", "Armored racer / purple and brass", "Agile interceptor / silver and orange", "Stable utility racer / olive green", "Fast swept speedster / blue and copper", "Precision racer / graphite and amber", "AI racer / integrated rear ion cluster and polar-glass cockpit"]
+const NOTES := ["Balanced raptor / slate and burnt orange", "Armored racer / purple and brass", "Agile interceptor / silver and orange", "Stable utility racer / olive green", "Fast swept speedster / blue and copper", "Precision racer / graphite and amber", "AI racer / active four-point hover array and ion propulsion"]
 
 static func definition(index: int) -> Resource:
 	index=clampi(index,0,IDS.size()-1)
@@ -27,6 +27,18 @@ static func definition(index: int) -> Resource:
 		craft.mount_points["repulsor_rr"]=Vector3(-.48,.56475,-1.25)
 	if index==5:
 		craft.cockpit_eye=Vector3(0,1.78,-.35)
+	if index==6:
+		craft.footprint_stretch=1.15
+		craft.cockpit_eye=Vector3(0,.91,-.62)
+		craft.cockpit_pitch=-.06
+		craft.mount_points["repulsor_fl"]=Vector3(1.02,-.17,1.55)
+		craft.mount_points["repulsor_fr"]=Vector3(-1.02,-.17,1.55)
+		craft.mount_points["repulsor_rl"]=Vector3(1.18,-.20,-2.60)
+		craft.mount_points["repulsor_rr"]=Vector3(-1.18,-.20,-2.60)
+		craft.mount_points["propulsion"]=Vector3(0,.38,-3.98)
+		craft.mount_points["power_core"]=Vector3(0,-.02,-.40)
+		craft.mount_points["aero_left"]=Vector3(-1.28,.28,-1.75)
+		craft.mount_points["aero_right"]=Vector3(1.28,.28,-1.75)
 	craft.max_forward_speed=[32.0,30.0,34.0,31.0,35.0,32.0,37.0][index]
 	craft.acceleration=[11.5,10.0,12.5,11.0,12.0,11.5,13.0][index]
 	craft.yaw_rate=[1.28,1.23,1.40,1.32,1.26,1.28,1.31][index]

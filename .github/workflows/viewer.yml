@@ -72,7 +72,7 @@ jobs:
         run: |
           set -euo pipefail
           views=(front rear side top cockpit)
-          if [ "$PREVIEW_CRAFT" = 6 ]; then views=(front rear side top zoomed-rear); fi
+          if [ "$PREVIEW_CRAFT" = 6 ]; then views=(front rear side top under zoomed-rear); fi
           for view in "${views[@]}"; do
             args="--fleet-$view"
             timeout 120 xvfb-run -a godot --audio-driver Dummy --path game --rendering-method gl_compatibility --resolution 1280x720 res://fleet_hangar.tscn -- --capture --craft-$PREVIEW_CRAFT $args 2>&1 | tee build/viewer-$view.log
