@@ -213,10 +213,6 @@ def build_synapse_body(material, glass, accent, carbon):
     # Matched dark induction channels follow the actual deformed hood surface,
     # including the split-nose retreat, so they sit on the shell beyond the canopy.
     intake_profile=[
-        (.55,.64,.085,.005),
-        (.95,.62,.10,.008),
-        (1.35,.58,.12,.012),
-        (1.72,.53,.14,.015),
         (1.98,.47,.025,.008),
         (2.25,.45,.060,.014),
         (2.66,.40,.092,.020),
