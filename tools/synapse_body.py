@@ -209,8 +209,8 @@ def build_synapse_body(material, glass, accent, carbon):
     # shallow C-channel scoops are shaped into the side skin and darkened below.
     side_kit_stations=[
         (3.98,.015),(3.58,.105),(3.10,.20),(2.45,.24),
-        (1.70,.25),(.85,.25),(0.0,.27),(-.90,.31),
-        (-1.80,.36),(-2.65,.40),(-3.35,.37),(-3.82,.24),(-4.06,.11),
+        (1.70,.28),(.85,.30),(0.0,.32),(-.90,.38),
+        (-1.80,.47),(-2.65,.56),(-3.35,.55),(-3.82,.42),(-4.06,.24),
     ]
     def sidekit_values(z,side,v,lift=0.0):
         for k in range(len(side_kit_stations)-1):
@@ -230,12 +230,14 @@ def build_synapse_body(material, glass, accent, carbon):
         flank=.045+.065*max(0.0,1.0-abs(t-.34)/.32)
         base=width*(1.0+flank*math.sin(math.pi*v))
         long_fade=max(0.0,min(1.0,(3.98-z)/.25 if z>3.73 else (z+4.06)/.24 if z< -3.82 else 1.0))
-        scoop_fade=max(0.0,1.0-((z+.10)/1.72)**2)
-        upper_rail=.080*math.exp(-((v-.27)/.12)**2)*long_fade
-        lower_rail=.075*math.exp(-((v-.78)/.13)**2)*long_fade
-        scoop=.105*math.exp(-((v-.52)/.16)**2)*scoop_fade
-        x=side*(base+.018+bulge*math.sin(math.pi*v)+upper_rail+lower_rail-scoop+lift)
-        y=shoulder+(belly-shoulder)*v
+        scoop_fade=max(0.0,1.0-((z+.35)/2.25)**2)
+        rear_fade=math.exp(-((z+3.05)/1.15)**2)
+        upper_rail=.105*math.exp(-((v-.26)/.14)**2)*long_fade
+        lower_rail=.09*math.exp(-((v-.78)/.15)**2)*long_fade
+        rear_lip=.16*math.exp(-((v-.17)/.16)**2)*rear_fade
+        scoop=.15*math.exp(-((v-.40)/.20)**2)*scoop_fade
+        x=side*(base+.018+bulge*math.sin(math.pi*v)+upper_rail+lower_rail+rear_lip-scoop+lift)
+        y=shoulder+(belly-shoulder)*v+.36*rear_fade*math.exp(-((v-.10)/.28)**2)
         return (x,y,z)
 
     side_kit_steps=18
@@ -265,12 +267,12 @@ def build_synapse_body(material, glass, accent, carbon):
         scoop_verts=[]
         for row in range(scoop_rows):
             f=row/(scoop_rows-1)
-            z=1.48-3.05*f
+            z=1.70-4.35*f
             fade=math.sin(math.pi*f)**.62
-            half=.135*fade
+            half=.19*fade
             for col in range(scoop_steps+1):
                 g=col/scoop_steps
-                v=.52-half+2*half*g
+                v=.40-half+2*half*g
                 scoop_verts.append(sidekit_values(z,side,v,.006))
         scoop_faces=[]
         for row in range(scoop_rows-1):
