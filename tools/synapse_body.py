@@ -127,7 +127,13 @@ def build_synapse_body(material, glass, accent, carbon):
         rings=[]
         top_steps=10
         for z,inner_ratio,outer_ratio,crest,lip in flare_sections:
-            _,width,_,_,_,_=hull_at(z)
+            lo,hi=0.0,1.0
+            for _ in range(28):
+                t=(lo+hi)*.5
+                p=catmull(profile,t)
+                if p[0]<z:lo=t
+                else:hi=t
+            width=catmull(profile,(lo+hi)*.5)[1]
             inner=width*inner_ratio
             outer=width*outer_ratio
             section=[]
