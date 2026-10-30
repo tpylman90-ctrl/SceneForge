@@ -440,13 +440,13 @@ def build_synapse_body(material, glass, accent, carbon):
     # A deep molded aft valance wraps around the complete three-nozzle
     # cluster. The apertures let the bells project through it, joining the
     # broad shoulder flares to one continuous rear body.
-    aft_fairing=mat('Synapse_AftFairing',(.055,.075,.19),.72,.24)
+    aft_fairing=material
     aft_center_y=.36
     aft_segments=64
     aft_loops=[]
     for rx,ry,z in [
-        (1.47,.78,-3.98), (1.14,.55,-3.98),
-        (1.47,.78,-4.20), (1.14,.55,-4.20),
+        (1.47,.64,-3.98), (1.14,.47,-3.98),
+        (1.47,.64,-4.16), (1.14,.47,-4.16),
     ]:
         loop=[]
         for index in range(aft_segments):
@@ -477,7 +477,7 @@ def build_synapse_body(material, glass, accent, carbon):
     # Four corner fasteners anchor the broad molded rear surround.
     for x,y in [(-1.24,.86),(1.24,.86),(-1.24,-.14),(1.24,-.14)]:
         pipe('Synapse aft fairing fastener',
-             (x,y,-4.205),(x,y,-4.245),.034,titanium,10)
+             (x,y,-4.165),(x,y,-4.205),.034,titanium,10)
 
     # A shallow rear manifold ties the three thrust modules into the wide shell.
     pipe('Synapse rear thrust manifold',(-.92,.40,-4.02),(.92,.40,-4.02),.055,carbon,12)
