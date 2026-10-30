@@ -127,6 +127,7 @@ def build_synapse_body(material, glass, accent, carbon):
         (.55,.82,.95,.035,.018),
     ]
     flare_material=material
+    flare_trace=mat('Synapse_FlareTrace',(.20,.11,.78),.48,.28,.65)
     for side in (-1.0,1.0):
         rings=[]
         top_steps=10
@@ -146,8 +147,11 @@ def build_synapse_body(material, glass, accent, carbon):
                 x=inner+(outer-inner)*f
                 base=roof_at(z,x)
                 smooth=f*f*(3.0-2.0*f)
-                dome=crest*math.sin(math.pi*f)**1.15
-                lift=dome+lip*smooth+.012
+                # Replace the soft pillow cross-section with a crisp shoulder
+                # crease, a shallow aero channel, and a raised outer blade lip.
+                ridge=crest*math.exp(-((f-.76)/.19)**2)
+                channel=.18*crest*math.exp(-((f-.37)/.16)**2)
+                lift=.018+ridge+lip*smooth-channel
                 section.append((side*x,base+lift,z))
             outer_base=roof_at(z,outer)
             inner_base=roof_at(z,inner)
@@ -172,6 +176,28 @@ def build_synapse_body(material, glass, accent, carbon):
         flare=mesh('Synapse_NoseFlare_L' if side<0 else 'Synapse_NoseFlare_R',
                    flare_verts,flare_faces,flare_material)
         for polygon in flare.data.polygons:polygon.use_smooth=True
+
+        # A fine violet light trace follows the raised shoulder crease from
+        # the split beak, along the windshield rail, and into the bodywork.
+        trace_points=[]
+        for z,inner_ratio,outer_ratio,crest,lip in flare_sections:
+            lo,hi=0.0,1.0
+            for _ in range(28):
+                t=(lo+hi)*.5
+                p=catmull(profile,t)
+                if p[0]<z:lo=t
+                else:hi=t
+            width=catmull(profile,(lo+hi)*.5)[1]
+            f=.76
+            ratio=inner_ratio+(outer_ratio-inner_ratio)*f
+            x=side*width*ratio
+            smooth=f*f*(3.0-2.0*f)
+            ridge=crest*math.exp(-((f-.76)/.19)**2)
+            channel=.18*crest*math.exp(-((f-.37)/.16)**2)
+            y=roof_at(z,x/side)+.018+ridge+lip*smooth-channel+.012
+            trace_points.append((x,y,z))
+        for a,b in zip(trace_points,trace_points[1:]):
+            pipe('Synapse shoulder light seam',a,b,.014,flare_trace,8)
 
     # Sculpt a pair of upper-side shoulders that broaden into the split nose.
     def hull_at(z):
