@@ -11,6 +11,8 @@ var busy := false
 var orbit := -0.62
 var elevation := 0.30
 var drag := false
+var camera_distance := 9.0
+var touch_points: Dictionary = {}
 var frames := 0
 var cockpit := false
 var fleet_panel: Control
@@ -131,6 +133,11 @@ func _ready() -> void:
 		camera.h_offset=0
 		camera.position=craft.position+Vector3(0,11.5,.01)
 		camera.look_at(craft.position,Vector3(0,0,-1))
+	if "--fleet-zoomed-rear" in OS.get_cmdline_user_args():
+		orbit=PI
+		elevation=.12
+		camera_distance=5.4
+		update_camera()
 
 func spawn_craft() -> void:
 	craft=Node3D.new()
@@ -143,7 +150,7 @@ func spawn_craft() -> void:
 	visual.set_cockpit(cockpit)
 	visual.update_feedback(1.0,0,0,0,0,0,cockpit)
 	title.text=definition.display_name
-	info.text=Fleet.NOTES[selected]+"\nCRUISE %d KM/H / Drag to orbit"%int(definition.max_forward_speed*3.6)
+	info.text=Fleet.NOTES[selected]+"\nCRUISE %d KM/H / Drag to orbit · pinch or scroll to zoom"%int(definition.max_forward_speed*3.6)
 	get_tree().set_meta("sceneforge_craft",selected)
 
 func select_craft(index: int) -> void:
@@ -181,18 +188,43 @@ func update_camera() -> void:
 		camera.global_transform=visual.global_transform*Transform3D(Basis.from_euler(Vector3(definition.cockpit_pitch,PI,0)),definition.cockpit_eye)
 	else:
 		camera.h_offset=-1.65
-		camera.position=craft.position+Vector3(sin(orbit)*9.0,2.0+elevation*5,cos(orbit)*9.0)
+		camera.position=craft.position+Vector3(sin(orbit)*camera_distance,2.0+elevation*5,cos(orbit)*camera_distance)
 		camera.look_at(craft.position+Vector3(0,1.1,.4))
 
 func _unhandled_input(event: InputEvent) -> void:
-	if event is InputEventMouseButton:drag=event.pressed
+	if event is InputEventMouseButton:
+		if event.button_index==MOUSE_BUTTON_LEFT:
+			drag=event.pressed
+		elif event.pressed and not cockpit and event.button_index==MOUSE_BUTTON_WHEEL_UP:
+			camera_distance=clampf(camera_distance*.88,5.0,15.0)
+			update_camera()
+		elif event.pressed and not cockpit and event.button_index==MOUSE_BUTTON_WHEEL_DOWN:
+			camera_distance=clampf(camera_distance/ .88,5.0,15.0)
+			update_camera()
 	if event is InputEventMouseMotion and drag and not cockpit:
 		orbit-=event.relative.x*.006
 		elevation=clampf(elevation+event.relative.y*.003,.03,.85)
 		update_camera()
+	if event is InputEventScreenTouch:
+		if event.pressed:touch_points[event.index]=event.position
+		else:touch_points.erase(event.index)
 	if event is InputEventScreenDrag and not cockpit:
-		orbit-=event.relative.x*.006
-		elevation=clampf(elevation+event.relative.y*.003,.03,.85)
+		if touch_points.size()>=2:
+			var other_index:int=-1
+			for index in touch_points:
+				if int(index)!=event.index:
+					other_index=int(index)
+					break
+			if other_index>=0:
+				var other:Vector2=touch_points[other_index]
+				var previous_distance:float=(event.position-event.relative-other).length()
+				var current_distance:float=(event.position-other).length()
+				if previous_distance>0.0:
+					camera_distance=clampf(camera_distance*previous_distance/max(current_distance,1.0),5.0,15.0)
+		else:
+			orbit-=event.relative.x*.006
+			elevation=clampf(elevation+event.relative.y*.003,.03,.85)
+		touch_points[event.index]=event.position
 		update_camera()
 
 func _process(_delta: float) -> void:
@@ -200,7 +232,7 @@ func _process(_delta: float) -> void:
 		frames+=1
 		if frames==35:
 			var suffix := ""
-			for view in ["front","rear","tail","cockpit","side","top","under","nose"]:
+			for view in ["front","rear","tail","cockpit","side","top","under","nose","zoomed-rear"]:
 				if "--fleet-"+view in OS.get_cmdline_user_args():suffix="-"+view
 			get_viewport().get_texture().get_image().save_png(OS.get_environment("GITHUB_WORKSPACE")+"/build/Fleet-"+Fleet.IDS[selected]+suffix+".png")
 			visual.stop_audio()
