@@ -127,7 +127,7 @@ def build_synapse_body(material, glass, accent, carbon):
         (.55,.82,.95,.035,.018),
     ]
     flare_material=material
-    flare_trace=mat('Synapse_FlareTrace',(.20,.11,.78),.48,.28,.65)
+    flare_trace=mat('Synapse_FlareTrace',(.12,.20,.58),.52,.30,.30)
     for side in (-1.0,1.0):
         rings=[]
         top_steps=10
@@ -150,8 +150,8 @@ def build_synapse_body(material, glass, accent, carbon):
                 # Replace the soft pillow cross-section with a crisp shoulder
                 # crease, a shallow aero channel, and a raised outer blade lip.
                 ridge=crest*math.exp(-((f-.76)/.19)**2)
-                channel=.18*crest*math.exp(-((f-.37)/.16)**2)
-                lift=.018+ridge+lip*smooth-channel
+                channel=.08*crest*math.exp(-((f-.37)/.16)**2)
+                lift=.040+ridge+lip*smooth-channel
                 section.append((side*x,base+lift,z))
             outer_base=roof_at(z,outer)
             inner_base=roof_at(z,inner)
@@ -194,10 +194,10 @@ def build_synapse_body(material, glass, accent, carbon):
             smooth=f*f*(3.0-2.0*f)
             ridge=crest*math.exp(-((f-.76)/.19)**2)
             channel=.18*crest*math.exp(-((f-.37)/.16)**2)
-            y=roof_at(z,x/side)+.018+ridge+lip*smooth-channel+.012
+            y=roof_at(z,x/side)+.040+ridge+lip*smooth-channel+.008
             trace_points.append((x,y,z))
         for a,b in zip(trace_points,trace_points[1:]):
-            pipe('Synapse shoulder light seam',a,b,.014,flare_trace,8)
+            pipe('Synapse shoulder light seam',a,b,.009,flare_trace,8)
 
     # Sculpt a pair of upper-side shoulders that broaden into the split nose.
     def hull_at(z):
