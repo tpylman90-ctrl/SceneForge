@@ -2,7 +2,7 @@ extends RefCounted
 
 const IDS := ["kestrel","piledriver","shrike","mantis","aurora","forge","synapse"]
 const NAMES := ["KESTREL","PYLDRIVER","SHRIKE","MANTIS","AURORA","FORGE","SYNAPSE"]
-const NOTES := ["Balanced raptor / slate and burnt orange", "Armored racer / purple and brass", "Agile interceptor / silver and orange", "Stable utility racer / olive green", "Fast swept speedster / blue and copper", "Precision racer / graphite and amber", "Body and canopy study / interior and hardware pending"]
+const NOTES := ["Balanced raptor / slate and burnt orange", "Armored racer / purple and brass", "Agile interceptor / silver and orange", "Stable utility racer / olive green", "Fast swept speedster / blue and copper", "Precision racer / graphite and amber", "AI racer / integrated rear ion cluster and polar-glass cockpit"]
 
 static func definition(index: int) -> Resource:
 	index=clampi(index,0,IDS.size()-1)
