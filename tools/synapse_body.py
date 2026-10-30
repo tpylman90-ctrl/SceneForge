@@ -62,7 +62,9 @@ def build_synapse_body(material, glass, accent, carbon):
         _,rw,_,_,rshoulder,rcrown=catmull(profile,(lo+hi)*.5)
         edge=min(1.0,abs(x)/max(rw,1e-5))
         cap=max(0.0,1.0-edge*edge)**.68
-        return rshoulder+(rcrown-rshoulder)*cap
+        flare_weight=math.exp(-((z-2.35)/1.25)**2)
+        shoulder_ridge=.28*flare_weight*math.exp(-((edge-.82)/.14)**2)
+        return rshoulder+(rcrown-rshoulder)*cap+shoulder_ridge
 
     longitudinal=89
     across=33
