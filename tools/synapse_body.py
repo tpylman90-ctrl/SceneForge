@@ -399,6 +399,10 @@ def build_synapse_body(material, glass, accent, carbon):
     canopy=mesh('SynapsePolarCanopy',canopy_verts,canopy_faces,glass)
     for polygon in canopy.data.polygons:
         polygon.use_smooth=True
+    titanium=mat('Synapse_Titanium',(.24,.31,.40),.84,.25)
+    hot_ceramic=mat('Synapse_ThrusterCeramic',(.035,.045,.095),.68,.28)
+    core_glow=mat('Synapse_ThrusterCore',(.14,.28,.92),.10,.22,.9)
+    service_glow=mat('Synapse_ServiceLight',(.12,.48,.95),.14,.28,.65)
     # Visible cockpit hardware sits below the polar glass, inside the hull.
     box('Synapse cockpit floor',(0,-.08,-.05),(1.08,.11,2.20),carbon,.025)
     box('Synapse seat pan',(0,.10,-.30),(.64,.16,.66),rubber,.07)
@@ -421,10 +425,6 @@ def build_synapse_body(material, glass, accent, carbon):
         pipe('Synapse HUD tick',(x,.55,1.09),(x,.58,1.08),.008,service_glow,6)
 
     # Rear propulsion cluster: three nested, rear-facing vector bells.
-    titanium=mat('Synapse_Titanium',(.24,.31,.40),.84,.25)
-    hot_ceramic=mat('Synapse_ThrusterCeramic',(.035,.045,.095),.68,.28)
-    core_glow=mat('Synapse_ThrusterCore',(.14,.28,.92),.10,.22,.9)
-    service_glow=mat('Synapse_ServiceLight',(.12,.48,.95),.14,.28,.65)
     def rear_ring(name,x,y,z,major,minor,material):
         obj=ring(name,(x,y,z),major,minor,material)
         # The shared ring helper starts in the XZ plane; turn it to face aft.
