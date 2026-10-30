@@ -9,10 +9,10 @@ def build_synapse_body(material, glass, accent, carbon):
         (-1.35,1.34,-.45,-.18,.58,1.24),
         (-.20,1.31,-.43,-.17,.55,1.20),
         (.85,1.23,-.36,-.14,.49,1.08),
-        (1.80,1.12,-.26,-.08,.36,.88),
-        (2.65,1.14,-.15,-.02,.25,.62),
-        (3.30,.84,-.06,.02,.16,.40),
-        (3.86,.46,.03,.06,.11,.25),
+        (1.80,1.30,-.26,-.08,.42,.96),
+        (2.65,1.38,-.15,-.02,.33,.72),
+        (3.30,1.12,-.06,.02,.23,.52),
+        (3.86,.62,.03,.06,.16,.34),
         (4.30,.08,.08,.10,.08,.15),
     ]
     def catmull(points,t):
@@ -109,6 +109,59 @@ def build_synapse_body(material, glass, accent, carbon):
     hull_obj=mesh('SynapseHull',verts,faces,material)
     for polygon in hull_obj.data.polygons:
         polygon.use_smooth=True
+
+    # Paired wedge flares grow directly out of the nose point, fan outward,
+    # and disappear into the shoulder before the canopy begins. These are real
+    # intersecting hull volumes, not raised decals or thin wing plates.
+    flare_sections=[
+        (4.22,.10,.38,.015,.012),
+        (3.90,.12,.94,.065,.055),
+        (3.55,.18,1.015,.16,.10),
+        (3.18,.28,1.065,.27,.17),
+        (2.78,.40,1.075,.34,.22),
+        (2.38,.54,1.055,.29,.18),
+        (2.02,.70,1.005,.17,.10),
+    ]
+    flare_material=material
+    for side in (-1.0,1.0):
+        rings=[]
+        top_steps=10
+        for z,inner_ratio,outer_ratio,crest,lip in flare_sections:
+            _,width,_,_,_,_=hull_at(z)
+            inner=width*inner_ratio
+            outer=width*outer_ratio
+            section=[]
+            for j in range(top_steps+1):
+                f=j/top_steps
+                x=inner+(outer-inner)*f
+                base=roof_at(z,x)
+                smooth=f*f*(3.0-2.0*f)
+                dome=crest*math.sin(math.pi*f)**1.15
+                lift=dome+lip*smooth+.012
+                section.append((side*x,base+lift,z))
+            outer_base=roof_at(z,outer)
+            inner_base=roof_at(z,inner)
+            # The hidden lower return overlaps the monocoque so the new skin
+            # reads as broad, molded fender shoulders instead of floating wings.
+            section.extend([
+                (side*outer,outer_base-.16,z),
+                (side*inner,inner_base-.18,z),
+            ])
+            rings.append(section)
+        ring_size=top_steps+3
+        flare_verts=[p for ring in rings for p in ring]
+        flare_faces=[]
+        for row in range(len(rings)-1):
+            for col in range(ring_size):
+                a=row*ring_size+col
+                b=row*ring_size+(col+1)%ring_size
+                flare_faces.append((a,b,b+ring_size,a+ring_size))
+        flare_faces.append(tuple(range(ring_size-1,-1,-1)))
+        last=(len(rings)-1)*ring_size
+        flare_faces.append(tuple(last+i for i in range(ring_size)))
+        flare=mesh('Synapse_NoseFlare_L' if side<0 else 'Synapse_NoseFlare_R',
+                   flare_verts,flare_faces,flare_material)
+        for polygon in flare.data.polygons:polygon.use_smooth=True
 
     # Sculpt a pair of upper-side shoulders that broaden into the split nose.
     def hull_at(z):
