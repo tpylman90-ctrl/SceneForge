@@ -122,6 +122,17 @@ def build_synapse_body(material, glass, accent, carbon):
     faces=[]
     for row in range(longitudinal-1):
         for col in range(section_size):
+            # Leave a real cockpit opening beneath the fitted canopy.
+            if col < across-1:
+                u_mid=-1.0+2.0*(col+.5)/(across-1)
+                z_mid=(sections[row][col][2]+sections[row+1][col][2])*.5
+                if -3.55<z_mid<1.65:
+                    t_mid=(row+.5)/(longitudinal-1)
+                    hull_width=catmull(profile,t_mid)[1]
+                    canopy_width=canopy_at_z(z_mid)[1]
+                    opening_ratio=min(.86,.84*canopy_width/max(hull_width,1e-5))
+                    if abs(u_mid)<opening_ratio:
+                        continue
             a=row*section_size+col
             b=row*section_size+(col+1)%section_size
             faces.append((a,b,b+section_size,a+section_size))
@@ -388,6 +399,27 @@ def build_synapse_body(material, glass, accent, carbon):
     canopy=mesh('SynapsePolarCanopy',canopy_verts,canopy_faces,glass)
     for polygon in canopy.data.polygons:
         polygon.use_smooth=True
+    # Visible cockpit hardware sits below the polar glass, inside the hull.
+    box('Synapse cockpit floor',(0,-.08,-.05),(1.08,.11,2.20),carbon,.025)
+    box('Synapse seat pan',(0,.10,-.30),(.64,.16,.66),rubber,.07)
+    box('Synapse seat shell',(0,.49,-.63),(.68,.90,.20),carbon,.075)
+    box('Synapse seat cushion',(0,.43,-.50),(.52,.58,.10),rubber,.055)
+    box('Synapse headrest',(0,.94,-1.03),(.42,.25,.17),carbon,.055)
+    for side in (-1.0,1.0):
+        pipe('Synapse seat harness',(side*.20,.78,-.50),(side*.13,.17,.02),.026,accent,10)
+        pipe('Synapse seat support',(side*.25,.12,-.52),(side*.31,-.04,-.52),.04,titanium,10)
+    panel('Synapse cockpit control shelf',
+          [(-.50,.05,.62),(.50,.05,.62),(.42,.35,1.02),(-.42,.35,1.02)],carbon)
+    hudmat=mat('Synapse_HoloDisplay',(.04,.42,.88),.03,.22,.55)
+    panel('Synapse holographic HUD glass',
+          [(-.29,.52,1.08),(.29,.52,1.08),(.24,.77,1.00),(-.24,.77,1.00)],hudmat)
+    # Simple luminous telemetry strokes read through the dark canopy.
+    for side in (-1.0,1.0):
+        pipe('Synapse HUD speed arc',(side*.20,.58,1.084),(side*.10,.70,1.035),.012,service_glow,8)
+    pipe('Synapse HUD horizon line',(-.08,.66,1.045),(.08,.66,1.045),.010,core_glow,8)
+    for x in (-.22,-.12,0.0,.12,.22):
+        pipe('Synapse HUD tick',(x,.55,1.09),(x,.58,1.08),.008,service_glow,6)
+
     # Rear propulsion cluster: three nested, rear-facing vector bells.
     titanium=mat('Synapse_Titanium',(.24,.31,.40),.84,.25)
     hot_ceramic=mat('Synapse_ThrusterCeramic',(.035,.045,.095),.68,.28)
@@ -398,7 +430,7 @@ def build_synapse_body(material, glass, accent, carbon):
         # The shared ring helper starts in the XZ plane; turn it to face aft.
         obj.rotation_euler[0]=math.pi/2
         return obj
-    for label,x,y,radius in [('Port',-.73,.10,.245),('Center',0.0,.19,.34),('Starboard',.73,.10,.245)]:
+    for label,x,y,radius in [('Port',-.73,.34,.225),('Center',0.0,.43,.315),('Starboard',.73,.34,.225)]:
         pipe('Synapse '+label+' thrust bell',(x,y,-3.88),(x,y,-4.56),radius,hot_ceramic,28)
         pipe('Synapse '+label+' alloy throat',(x,y,-4.34),(x,y,-4.61),radius*.79,titanium,28)
         pipe('Synapse '+label+' luminous core',(x,y,-4.56),(x,y,-4.62),radius*.58,core_glow,28)
