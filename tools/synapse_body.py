@@ -1,4 +1,4 @@
-"""Synapse hull with a fitted polar-glass canopy; interior and hardware remain pending."""
+"""Synapse racer hull with integrated rear flares, cockpit, and ion thrusters."""
 def build_synapse_body(material, glass, accent, carbon):
     # Godot axes: X spans the hull, Y is height, and +Z is forward.
     profile = [
