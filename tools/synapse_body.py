@@ -2,9 +2,9 @@
 def build_synapse_body(material, glass, accent, carbon):
     # Godot axes: X spans the hull, Y is height, and +Z is forward.
     profile = [
-        (-4.15,.62,-.30,-.16,.22,.48),
-        (-3.78,.98,-.39,-.18,.34,.79),
-        (-3.12,1.44,-.43,-.19,.46,1.02),
+        (-4.15,1.08,-.36,-.12,.29,.64),
+        (-3.78,1.32,-.40,-.16,.39,.88),
+        (-3.12,1.50,-.43,-.19,.46,1.02),
         (-2.35,1.48,-.44,-.18,.55,1.18),
         (-1.35,1.34,-.45,-.18,.58,1.24),
         (-.20,1.31,-.43,-.17,.55,1.20),
@@ -208,9 +208,9 @@ def build_synapse_body(material, glass, accent, carbon):
     # The paired front wedges flow into faceted side shoulders. Their
     # shallow C-channel scoops are shaped into the side skin and darkened below.
     side_kit_stations=[
-        (3.98,.015),(3.58,.085),(3.10,.16),(2.45,.18),
-        (1.70,.155),(.85,.14),(0.0,.14),(-.90,.16),
-        (-1.80,.18),(-2.65,.19),(-3.35,.16),(-3.82,.075),(-4.06,.008),
+        (3.98,.015),(3.58,.105),(3.10,.20),(2.45,.24),
+        (1.70,.25),(.85,.25),(0.0,.27),(-.90,.31),
+        (-1.80,.36),(-2.65,.40),(-3.35,.37),(-3.82,.24),(-4.06,.11),
     ]
     def sidekit_values(z,side,v,lift=0.0):
         for k in range(len(side_kit_stations)-1):
