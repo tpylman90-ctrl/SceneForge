@@ -28,6 +28,19 @@ def build_synapse_body(material, glass, accent, carbon):
             p3=points[min(len(points)-1,i+2)][k]
             out.append(.5*((2*p1)+(-p0+p2)*f+(2*p0-5*p1+4*p2-p3)*f2+(-p0+3*p1-3*p2+p3)*f3))
         return tuple(out)
+    side_kit_stations=[
+        (3.98,.015),(3.58,.105),(3.10,.20),(2.45,.24),
+        (1.70,.32),(.85,.38),(0.0,.48),(-.90,.64),
+        (-1.80,.86),(-2.65,1.08),(-3.35,1.12),(-3.82,.94),(-4.15,.015),
+    ]
+    def sidekit_bulge_at_z(z):
+        for k in range(len(side_kit_stations)-1):
+            if side_kit_stations[k][0]>=z>=side_kit_stations[k+1][0]:
+                span=side_kit_stations[k][0]-side_kit_stations[k+1][0]
+                f=(side_kit_stations[k][0]-z)/span
+                return side_kit_stations[k][1]*(1-f)+side_kit_stations[k+1][1]*f
+        return 0.0
+
     # Broad canopy crown rises out of the nose-side shoulder, carries a
     # purposeful cockpit volume, then flows down in a long rearward sweep.
     canopy_profile=[
@@ -68,7 +81,7 @@ def build_synapse_body(material, glass, accent, carbon):
 
     longitudinal=89
     across=33
-    side_steps=4
+    side_steps=10
     section_size=2*across+2*side_steps
     sections=[]
     for row in range(longitudinal):
@@ -87,8 +100,15 @@ def build_synapse_body(material, glass, accent, carbon):
         for side in [1.0,-1.0]:
             for step in range(1,side_steps+1):
                 f=step/(side_steps+1)
-                y=(shoulder+(belly-shoulder)*f) if side>0 else (belly+(shoulder-belly)*f)
-                x=side*width*(1.0+flank*math.sin(math.pi*f))
+                v=f if side>0 else 1.0-f
+                rear_fade=math.exp(-((z0+3.02)/1.22)**2)
+                scoop_fade=max(0.0,1.0-((z0+.35)/2.25)**2)
+                base_x=width*(1.0+flank*math.sin(math.pi*f))
+                flare=sidekit_bulge_at_z(z0)*math.sin(math.pi*v)
+                channel=.20*math.exp(-((v-.40)/.20)**2)*scoop_fade*math.sin(math.pi*v)
+                x=side*(base_x+flare-channel)
+                rear_lift=1.22*rear_fade*math.sin(math.pi*v)*math.exp(-((v-.19)/.36)**2)
+                y=(shoulder+(belly-shoulder)*v)+rear_lift
                 edge=min(1.0,abs(x)/max(width,1e-5))
                 section.append((x,y,z0-split*(1.0-edge)**1.2))
             if side>0:
@@ -205,20 +225,9 @@ def build_synapse_body(material, glass, accent, carbon):
         for a,b in zip(trace_points,trace_points[1:]):
             pipe('Synapse shoulder light seam',a,b,.009,flare_trace,8)
 
-    # The paired front wedges flow into faceted side shoulders. Their
-    # shallow C-channel scoops are shaped into the side skin and darkened below.
-    side_kit_stations=[
-        (3.98,.015),(3.58,.105),(3.10,.20),(2.45,.24),
-        (1.70,.32),(.85,.38),(0.0,.48),(-.90,.64),
-        (-1.80,.86),(-2.65,1.08),(-3.35,1.12),(-3.82,.94),(-4.15,.015),
-    ]
+    # Rear flares are sculpted into SynapseHull itself; only the recessed
+    # C-channel remains a separate insert, so the rear shoulders cannot gap.
     def sidekit_values(z,side,v,lift=0.0):
-        for k in range(len(side_kit_stations)-1):
-            if side_kit_stations[k][0]>=z>=side_kit_stations[k+1][0]:
-                span=side_kit_stations[k][0]-side_kit_stations[k+1][0]
-                f=(side_kit_stations[k][0]-z)/span
-                bulge=side_kit_stations[k][1]*(1-f)+side_kit_stations[k+1][1]*f
-                break
         lo,hi=0.0,1.0
         for _ in range(28):
             t=(lo+hi)*.5
@@ -226,59 +235,34 @@ def build_synapse_body(material, glass, accent, carbon):
             if p[0]<z:lo=t
             else:hi=t
         t=(lo+hi)*.5
-        _,width,_,belly,shoulder,_=catmull(profile,t)
+        _,width,_,belly,shoulder,_=catmull(profile,(lo+hi)*.5)
         flank=.045+.065*max(0.0,1.0-abs(t-.34)/.32)
-        # Match the side's piecewise hull sections exactly so the flare
-        # roots tuck under the body instead of leaving a visible seam.
+        f=v if side>0 else 1.0-v
         side_divisions=side_steps+1
-        scaled_v=v*side_divisions
-        segment=min(int(scaled_v),side_divisions-1)
-        segment_f=scaled_v-segment
+        scaled_f=f*side_divisions
+        segment=min(int(scaled_f),side_divisions-1)
+        segment_f=scaled_f-segment
         f0=segment/side_divisions
         f1=(segment+1)/side_divisions
-        s0=1.0+flank*math.sin(math.pi*f0) if 0.0<f0<1.0 else 1.0
-        s1=1.0+flank*math.sin(math.pi*f1) if 0.0<f1<1.0 else 1.0
-        base=width*(s0*(1.0-segment_f)+s1*segment_f)
-        long_fade=max(0.0,min(1.0,(3.98-z)/.25 if z>3.73 else (z+4.15)/.33 if z< -3.82 else 1.0))
-        scoop_fade=max(0.0,1.0-((z+.35)/2.25)**2)
         rear_fade=math.exp(-((z+3.02)/1.22)**2)
-        edge_fade=math.sin(math.pi*v)
-        upper_rail=.14*math.exp(-((v-.26)/.16)**2)*long_fade*edge_fade
-        lower_rail=.10*math.exp(-((v-.78)/.16)**2)*long_fade*edge_fade
-        # Broad raised shoulder pods swell around each outer rear thruster.
-        # Fade every flare feature into the hull at the top, belly, nose, and tail.
-        rear_lip=.34*math.exp(-((v-.16)/.22)**2)*rear_fade*long_fade*edge_fade
-        rear_lobe=.40*math.exp(-((v-.23)/.22)**2)*rear_fade*long_fade*edge_fade
-        scoop=.20*math.exp(-((v-.40)/.20)**2)*scoop_fade*edge_fade
-        side_bulge=bulge*edge_fade
-        x=side*(base-.025+side_bulge+upper_rail+lower_rail+rear_lip+rear_lobe-scoop+lift)
-        # Lift the outside shoulder above the side channel to wrap the rear
-        # thruster zone with a broad, arching quarter panel.
-        rear_shoulder=1.22*rear_fade*long_fade*edge_fade*math.exp(-((v-.19)/.36)**2)
-        y=shoulder+(belly-shoulder)*v+rear_shoulder
-        return (x,y,z)
+        scoop_fade=max(0.0,1.0-((z+.35)/2.25)**2)
+        bulge=sidekit_bulge_at_z(z)
+        def sample_side(fraction):
+            v_side=fraction if side>0 else 1.0-fraction
+            base_x=width*(1.0+flank*math.sin(math.pi*fraction))
+            flare=bulge*math.sin(math.pi*v_side)
+            channel=.20*math.exp(-((v_side-.40)/.20)**2)*scoop_fade*math.sin(math.pi*v_side)
+            rear_lift=1.22*rear_fade*math.sin(math.pi*v_side)*math.exp(-((v_side-.19)/.36)**2)
+            y_side=shoulder+(belly-shoulder)*v_side+rear_lift
+            return side*(base_x+flare-channel),y_side
+        x0,y0=sample_side(f0)
+        x1,y1=sample_side(f1)
+        return (x0*(1.0-segment_f)+x1*segment_f+side*lift,
+                y0*(1.0-segment_f)+y1*segment_f,z)
 
-    side_kit_steps=30
     for side in (-1.0,1.0):
-        side_kit_rows=97
-        side_kit_verts=[]
-        for row in range(side_kit_rows):
-            z=side_kit_stations[0][0]+(side_kit_stations[-1][0]-side_kit_stations[0][0])*row/(side_kit_rows-1)
-            for col in range(side_kit_steps+1):
-                v=col/side_kit_steps
-                side_kit_verts.append(sidekit_values(z,side,v))
-        side_kit_faces=[]
-        for row in range(side_kit_rows-1):
-            for col in range(side_kit_steps):
-                a=row*(side_kit_steps+1)+col
-                b=a+side_kit_steps+1
-                side_kit_faces.append((a,b,b+1,a+1))
-        side_kit=mesh('Synapse_SideKit_L' if side<0 else 'Synapse_SideKit_R',
-                      side_kit_verts,side_kit_faces,material)
-        for polygon in side_kit.data.polygons:
-            polygon.use_smooth=True
-
-        # Recessed dark insert follows the channel trough and pinches out at both ends.
+        # The dark C-channel follows the integrated flare and is tucked just
+        # above its surface to avoid z-fighting.
         scoop_material=mat('Synapse_CChannel_Inset',(.012,.025,.075),.48,.22)
         scoop_rows=45
         scoop_steps=10
@@ -291,7 +275,7 @@ def build_synapse_body(material, glass, accent, carbon):
             for col in range(scoop_steps+1):
                 g=col/scoop_steps
                 v=.40-half+2*half*g
-                scoop_verts.append(sidekit_values(z,side,v,.045))
+                scoop_verts.append(sidekit_values(z,side,v,.035))
         scoop_faces=[]
         for row in range(scoop_rows-1):
             for col in range(scoop_steps):
