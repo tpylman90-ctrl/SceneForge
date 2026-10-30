@@ -388,4 +388,96 @@ def build_synapse_body(material, glass, accent, carbon):
     canopy=mesh('SynapsePolarCanopy',canopy_verts,canopy_faces,glass)
     for polygon in canopy.data.polygons:
         polygon.use_smooth=True
+    # Rear propulsion cluster: three nested, rear-facing vector bells.
+    titanium=mat('Synapse_Titanium',(.24,.31,.40),.84,.25)
+    hot_ceramic=mat('Synapse_ThrusterCeramic',(.035,.045,.095),.68,.28)
+    core_glow=mat('Synapse_ThrusterCore',(.14,.28,.92),.10,.22,.9)
+    service_glow=mat('Synapse_ServiceLight',(.12,.48,.95),.14,.28,.65)
+    def rear_ring(name,x,y,z,major,minor,material):
+        obj=ring(name,(x,y,z),major,minor,material)
+        # The shared ring helper starts in the XZ plane; turn it to face aft.
+        obj.rotation_euler[0]=math.pi/2
+        return obj
+    for label,x,y,radius in [('Port',-.73,.10,.245),('Center',0.0,.19,.34),('Starboard',.73,.10,.245)]:
+        pipe('Synapse '+label+' thrust bell',(x,y,-3.88),(x,y,-4.56),radius,hot_ceramic,28)
+        pipe('Synapse '+label+' alloy throat',(x,y,-4.34),(x,y,-4.61),radius*.79,titanium,28)
+        pipe('Synapse '+label+' luminous core',(x,y,-4.56),(x,y,-4.62),radius*.58,core_glow,28)
+        rear_ring('Synapse '+label+' outer turbine lip',x,y,-4.48,radius*1.04,.045,accent)
+        rear_ring('Synapse '+label+' inner ion ring',x,y,-4.60,radius*.78,.025,service_glow)
+        rear_ring('Synapse '+label+' ceramic gasket',x,y,-4.36,radius*.91,.026,titanium)
+    # A shallow rear manifold ties the three thrust modules into the wide shell.
+    pipe('Synapse rear thrust manifold',(-.92,.40,-4.02),(.92,.40,-4.02),.055,carbon,12)
+    for x in (-.92,-.46,0.0,.46,.92):
+        pipe('Synapse manifold fastener',(x,.40,-4.02),(x,.40,-4.055),.028,titanium,10)
+
+    # Thin illuminated rails trace the sculpted C-channels and raised shoulders.
+    for side in (-1.0,1.0):
+        for v_line,material,radius,name in [
+            (.215,accent,.017,'Synapse channel upper rail'),
+            (.585,titanium,.013,'Synapse channel lower rail'),
+            (.145,service_glow,.010,'Synapse shoulder tracer'),
+        ]:
+            pts=[sidekit_values(1.45-4.65*i/32,side,v_line,.045) for i in range(33)]
+            for a,b in zip(pts,pts[1:]):
+                pipe(name,a,b,radius,material,8)
+        # Small slotted louvers sit in the side channel near the rear quarter.
+        for z in (-1.95,-2.25,-2.55):
+            a=sidekit_values(z,side,.31,.055)
+            b=sidekit_values(z-.12,side,.51,.055)
+            pipe('Synapse side-channel louver',a,b,.026,titanium,8)
+            p=sidekit_values(z,side,.41,.072)
+            pipe('Synapse louver pin',(p[0],p[1],p[2]),(p[0]+side*.025,p[1],p[2]),.018,service_glow,8)
+        # Layered carbon armor follows the rear shoulder surface, without a
+        # detached wing plate or exposed seam at its root.
+        armor_rows=17
+        armor_cols=5
+        armor_verts=[]
+        for row in range(armor_rows):
+            z=-1.55-2.05*row/(armor_rows-1)
+            for col in range(armor_cols):
+                v=.12+.22*col/(armor_cols-1)
+                armor_verts.append(sidekit_values(z,side,v,.024))
+        armor_faces=[]
+        for row in range(armor_rows-1):
+            for col in range(armor_cols-1):
+                a=row*armor_cols+col
+                b=a+armor_cols
+                armor_faces.append((a,a+1,b+1,b))
+        armor=mesh('Synapse rear shoulder carbon inlay',armor_verts,armor_faces,carbon)
+        for poly in armor.data.polygons:poly.use_smooth=True
+        # Three flush maintenance fasteners mark the molded shoulder panel.
+        for z in (-2.0,-2.65,-3.25):
+            p=sidekit_values(z,side,.30,.055)
+            pipe('Synapse shoulder fastener',(p[0],p[1],p[2]),(p[0]+side*.035,p[1],p[2]),.022,titanium,10)
+
+    # Heat-extraction gills sit flush on the aft deck behind the canopy.
+    deck_vent=mat('Synapse_DeckVent',(.018,.025,.060),.62,.33)
+    for index,z in enumerate((-1.95,-2.28,-2.61,-2.94)):
+        z_back=z-.16
+        points=[
+            (-.34,roof_at(z,-.34)+.035,z),
+            (.34,roof_at(z,.34)+.035,z),
+            (.27,roof_at(z_back,.27)+.035,z_back),
+            (-.27,roof_at(z_back,-.27)+.035,z_back),
+        ]
+        panel('Synapse aft deck heat extractor',points,deck_vent)
+        for side in (-1.0,1.0):
+            x=side*.23
+            pipe('Synapse vent lip',(x,roof_at(z,x)+.055,z),(x*.82,roof_at(z_back,x*.82)+.055,z_back),.012,service_glow,8)
+
+    # A fine metal reveal frames the polar-glass canopy edge.
+    canopy_edge=mat('Synapse_CanopyFrame',(.18,.27,.42),.78,.24)
+    for side in (-1.0,1.0):
+        frame_pts=[]
+        for row in range(25):
+            z,width,lift=catmull(canopy_profile,row/24)
+            y=roof_at(z,width)+.045
+            frame_pts.append((side*width,y,z))
+        for a,b in zip(frame_pts,frame_pts[1:]):
+            pipe('Synapse canopy perimeter frame',a,b,.024,canopy_edge,10)
+    for z in (-2.15,-.55,.95,1.52):
+        _,width,lift=canopy_at_z(z)
+        y=roof_at(z,width)+.04
+        pipe('Synapse canopy cross tie',(-width*.92,y,z),(width*.92,y,z),.018,titanium,10)
+
     return hull_obj
