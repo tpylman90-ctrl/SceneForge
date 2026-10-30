@@ -444,6 +444,23 @@ def build_synapse_body(material, glass, accent, carbon):
     for x in (-.92,-.46,0.0,.46,.92):
         pipe('Synapse manifold fastener',(x,.40,-4.02),(x,.40,-4.055),.028,titanium,10)
 
+    for x in (-.41,.41):
+        # Narrow vertical vanes sit in the open channels between the three bells.
+        half=.038
+        vane_verts=[
+            (x-half,.08,-3.91),(x-half,.56,-3.91),
+            (x-half,.34,-4.30),(x-half,.035,-4.30),
+            (x+half,.08,-3.91),(x+half,.56,-3.91),
+            (x+half,.34,-4.30),(x+half,.035,-4.30),
+        ]
+        vane_faces=[
+            (0,1,2,3),(4,7,6,5),
+            (0,4,5,1),(1,5,6,2),(2,6,7,3),(3,7,4,0),
+        ]
+        vane=mesh('Synapse carbon diffuser vane',vane_verts,vane_faces,carbon)
+        for polygon in vane.data.polygons:
+            polygon.use_smooth=True
+
     # Thin illuminated rails trace the sculpted C-channels and raised shoulders.
     for side in (-1.0,1.0):
         for v_line,material,radius,name in [
@@ -479,6 +496,11 @@ def build_synapse_body(material, glass, accent, carbon):
                 armor_faces.append((a,a+1,b+1,b))
         armor=mesh('Synapse rear shoulder carbon inlay',armor_verts,armor_faces,carbon)
         for poly in armor.data.polygons:poly.use_smooth=True
+        # Fine transverse breaks segment the shoulder armor as it sweeps into the tail.
+        for seam_z in (-3.18,-3.62):
+            a=sidekit_values(seam_z,side,.145,.042)
+            b=sidekit_values(seam_z-.10,side,.31,.042)
+            pipe('Synapse rear shoulder panel break',a,b,.009,titanium,8)
         # Three flush maintenance fasteners mark the molded shoulder panel.
         for z in (-2.0,-2.65,-3.25):
             p=sidekit_values(z,side,.30,.055)
