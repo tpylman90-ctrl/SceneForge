@@ -127,16 +127,6 @@ def build_synapse_body(material, glass, accent, carbon):
         (1.35,.80,1.025,.115,.065),
         (.95,.82,1.01,.075,.040),
         (.55,.84,.98,.035,.018),
-        (.20,.84,.96,.040,.020),
-        (-.20,.82,.98,.055,.028),
-        (-.70,.78,1.015,.075,.038),
-        (-1.20,.74,1.045,.10,.050),
-        (-1.75,.69,1.07,.13,.065),
-        (-2.30,.63,1.085,.145,.072),
-        (-2.85,.55,1.045,.12,.060),
-        (-3.32,.42,.88,.075,.038),
-        (-3.68,.23,.58,.030,.015),
-        (-3.88,.08,.24,.006,.003),
     ]
     flare_material=material
     flare_trace=mat('Synapse_FlareTrace',(.12,.20,.58),.52,.30,.30)
@@ -212,6 +202,63 @@ def build_synapse_body(material, glass, accent, carbon):
             trace_points.append((x,y,z))
         for a,b in zip(trace_points,trace_points[1:]):
             pipe('Synapse shoulder light seam',a,b,.009,flare_trace,8)
+
+    # The raised front flares taper into a broad, molded side skirt that
+    # carries the shoulder line through the rear body instead of ending as a fin.
+    side_kit_stations=[
+        (3.98,.025),(3.58,.09),(3.10,.19),(2.45,.24),
+        (1.70,.22),(.85,.20),(0.0,.20),(-.90,.22),
+        (-1.80,.23),(-2.65,.21),(-3.35,.14),(-3.82,.055),(-4.06,.008),
+    ]
+    side_kit_steps=8
+    side_kit_sections=[]
+    for row in range(83):
+        z=side_kit_stations[0][0]+(side_kit_stations[-1][0]-side_kit_stations[0][0])*row/82
+        for k in range(len(side_kit_stations)-1):
+            if side_kit_stations[k][0]>=z>=side_kit_stations[k+1][0]:
+                span=side_kit_stations[k][0]-side_kit_stations[k+1][0]
+                f=(side_kit_stations[k][0]-z)/span
+                bulge=side_kit_stations[k][1]*(1-f)+side_kit_stations[k+1][1]*f
+                break
+        lo,hi=0.0,1.0
+        for _ in range(28):
+            t=(lo+hi)*.5
+            p=catmull(profile,t)
+            if p[0]<z:lo=t
+            else:hi=t
+        _,width,_,belly,shoulder,_=catmull(profile,(lo+hi)*.5)
+        ring=[]
+        for side in (-1.0,1.0):
+            outer=[]
+            for j in range(side_kit_steps+1):
+                v=j/side_kit_steps
+                y=shoulder+(belly-shoulder)*v
+                flank=.045+.065*max(0.0,1.0-abs((z+4.15)/8.45-.34)/.32)
+                base=width*(1.0+flank*math.sin(math.pi*v))
+                outer.append((side*(base+bulge*math.sin(math.pi*v)+.035),y,z))
+            inner=[]
+            for j in range(side_kit_steps,-1,-1):
+                v=j/side_kit_steps
+                y=shoulder+(belly-shoulder)*v
+                flank=.045+.065*max(0.0,1.0-abs((z+4.15)/8.45-.34)/.32)
+                base=width*(1.0+flank*math.sin(math.pi*v))
+                inner.append((side*(base-.045),y,z))
+            ring.extend(outer+inner)
+        side_kit_sections.append(ring)
+    side_kit_ring_size=2*(side_kit_steps+1)
+    side_kit_verts=[p for ring in side_kit_sections for p in ring]
+    side_kit_faces=[]
+    for row in range(len(side_kit_sections)-1):
+        for col in range(side_kit_ring_size):
+            a=row*side_kit_ring_size+col
+            b=row*side_kit_ring_size+(col+1)%side_kit_ring_size
+            side_kit_faces.append((a,b,b+side_kit_ring_size,a+side_kit_ring_size))
+    side_kit_faces.append(tuple(range(side_kit_ring_size-1,-1,-1)))
+    side_kit_end=(len(side_kit_sections)-1)*side_kit_ring_size
+    side_kit_faces.append(tuple(side_kit_end+i for i in range(side_kit_ring_size)))
+    side_kit=mesh('Synapse_ContinuousSideKit',side_kit_verts,side_kit_faces,material)
+    for polygon in side_kit.data.polygons:
+        polygon.use_smooth=True
 
     # Sculpt a pair of upper-side shoulders that broaden into the split nose.
     def hull_at(z):
