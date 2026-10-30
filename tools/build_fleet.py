@@ -73,7 +73,7 @@ SPECS=[
  ('shrike',(.40,.46,.49),(.83,.22,.055),(.15,.75,1.0),'Feather-fin interceptor / silver and orange'),
  ('mantis',(.18,.27,.12),(.38,.46,.25),(.44,1.0,.42),'Fork-nose utility racer / olive'),
  ('aurora',(.025,.09,.26),(.65,.28,.12),(.12,.48,1.0),'Low swept speedster / midnight blue and copper'),
- ('synapse',(.012,.016,.052),(.18,.12,.52),(.28,.16,1.0),'Precision AI racer / vantablack and indigo')]
+ ('synapse',(.012,.016,.052),(.18,.12,.52),(.28,.16,1.0),'Precision AI racer / integrated ion drive and indigo composite')]
 selected=os.environ.get('SCENEFORGE_ONLY_CRAFT','').strip().lower()
 assert not selected or selected in {spec[0] for spec in SPECS}, 'Unknown SCENEFORGE_ONLY_CRAFT'
 for ident,color,accent_color,light_color,description in SPECS:
@@ -97,6 +97,9 @@ for ident,color,accent_color,light_color,description in SPECS:
   glass.node_tree.nodes['Principled BSDF'].inputs['Roughness'].default_value=.17
   glass.node_tree.nodes['Principled BSDF'].inputs['Coat Weight'].default_value=.46
   glass.node_tree.nodes['Principled BSDF'].inputs['Coat Roughness'].default_value=.16
+  glass.node_tree.nodes['Principled BSDF'].inputs['Alpha'].default_value=.42
+  glass.node_tree.nodes['Principled BSDF'].inputs['Transmission Weight'].default_value=.16
+  glass.surface_render_method='DITHERED'
   build_synapse_body(body,glass,accent,carbon)
  else:
   if ident=='piledriver':
