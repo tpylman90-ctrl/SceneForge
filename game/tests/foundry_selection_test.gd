@@ -14,6 +14,14 @@ func check() -> void:
 		assert(lot.scene_file_path=="res://main.tscn")
 		assert(lot.chassis.chassis_id==Fleet.IDS[index])
 		assert(lot.craft_title.text==Fleet.NAMES[index])
+		if Fleet.IDS[index]=="synapse":
+			assert(lot.lot_feedback.chassis.chassis_id==Fleet.IDS[index],"Synapse body study must appear in the Foundry lot")
+			lot.open_fleet()
+			await create_timer(.3).timeout
+			hangar=current_scene
+			assert(hangar.selected==index,"Returning from the Foundry must preserve Synapse selection")
+			print("FOUNDRY_SELECTION_OK ",Fleet.IDS[index])
+			continue
 		if index>0:
 			assert(lot.lot_feedback.chassis.chassis_id==Fleet.IDS[index])
 			assert(lot.lot_feedback.get_node("ComponentMounts").get_child_count()==8)
