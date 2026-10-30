@@ -209,8 +209,8 @@ def build_synapse_body(material, glass, accent, carbon):
     # shallow C-channel scoops are shaped into the side skin and darkened below.
     side_kit_stations=[
         (3.98,.015),(3.58,.105),(3.10,.20),(2.45,.24),
-        (1.70,.30),(.85,.34),(0.0,.42),(-.90,.55),
-        (-1.80,.73),(-2.65,.92),(-3.35,.96),(-3.82,.78),(-4.06,.50),
+        (1.70,.32),(.85,.38),(0.0,.48),(-.90,.64),
+        (-1.80,.86),(-2.65,1.08),(-3.35,1.12),(-3.82,.94),(-4.06,.62),
     ]
     def sidekit_values(z,side,v,lift=0.0):
         for k in range(len(side_kit_stations)-1):
@@ -237,10 +237,14 @@ def build_synapse_body(material, glass, accent, carbon):
         # Broad raised shoulder pods swell around each outer rear thruster.
         # Their tall upper shoulder and wide lower return read as one molded
         # rear fender instead of a small accent floating beside the hull.
-        rear_lip=.30*math.exp(-((v-.16)/.21)**2)*rear_fade
-        scoop=.19*math.exp(-((v-.40)/.20)**2)*scoop_fade
-        x=side*(base+.025+bulge*math.sin(math.pi*v)+upper_rail+lower_rail+rear_lip-scoop+lift)
-        rear_shoulder=.82*rear_fade*math.sin(math.pi*v)*math.exp(-((v-.19)/.36)**2)
+        rear_lip=.34*math.exp(-((v-.16)/.22)**2)*rear_fade
+        rear_lobe=.40*math.exp(-((v-.23)/.22)**2)*rear_fade
+        scoop=.20*math.exp(-((v-.40)/.20)**2)*scoop_fade
+        side_bulge=bulge*math.sin(math.pi*v)
+        x=side*(base+.025+side_bulge+upper_rail+lower_rail+rear_lip+rear_lobe-scoop+lift)
+        # Lift the outside shoulder above the side channel to wrap the rear
+        # thruster zone with a broad, arching quarter panel.
+        rear_shoulder=1.22*rear_fade*math.sin(math.pi*v)*math.exp(-((v-.19)/.36)**2)
         y=shoulder+(belly-shoulder)*v+rear_shoulder
         return (x,y,z)
 
