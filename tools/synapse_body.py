@@ -228,7 +228,17 @@ def build_synapse_body(material, glass, accent, carbon):
         t=(lo+hi)*.5
         _,width,_,belly,shoulder,_=catmull(profile,t)
         flank=.045+.065*max(0.0,1.0-abs(t-.34)/.32)
-        base=width*(1.0+flank*math.sin(math.pi*v))
+        # Match the side's piecewise hull sections exactly so the flare
+        # roots tuck under the body instead of leaving a visible seam.
+        side_divisions=side_steps+1
+        scaled_v=v*side_divisions
+        segment=min(int(scaled_v),side_divisions-1)
+        segment_f=scaled_v-segment
+        f0=segment/side_divisions
+        f1=(segment+1)/side_divisions
+        s0=1.0+flank*math.sin(math.pi*f0) if 0.0<f0<1.0 else 1.0
+        s1=1.0+flank*math.sin(math.pi*f1) if 0.0<f1<1.0 else 1.0
+        base=width*(s0*(1.0-segment_f)+s1*segment_f)
         long_fade=max(0.0,min(1.0,(3.98-z)/.25 if z>3.73 else (z+4.15)/.33 if z< -3.82 else 1.0))
         scoop_fade=max(0.0,1.0-((z+.35)/2.25)**2)
         rear_fade=math.exp(-((z+3.02)/1.22)**2)
@@ -248,7 +258,7 @@ def build_synapse_body(material, glass, accent, carbon):
         y=shoulder+(belly-shoulder)*v+rear_shoulder
         return (x,y,z)
 
-    side_kit_steps=18
+    side_kit_steps=30
     for side in (-1.0,1.0):
         side_kit_rows=97
         side_kit_verts=[]
