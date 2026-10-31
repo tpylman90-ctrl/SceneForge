@@ -70,7 +70,7 @@ exec((ROOT/'tools/synapse_body.py').read_text(),globals())
 SPECS=[
  ('forge',(.045,.055,.065),(.65,.32,.07),(1.0,.28,.025),'Graphite precision racer / amber induction core'),
  ('piledriver',(0.20,.035,.40),(.72,.43,.08),(.65,.06,1.0),'Heavy framed racer / purple and brass'),
- ('shrike',(.40,.46,.49),(.83,.22,.055),(.15,.75,1.0),'Feather-fin interceptor / silver and orange'),
+ ('shrike',(.44,.48,.52),(.61,.94,.045),(.20,.94,.96),'Wide-body interceptor / satin silver, electric lime and deep purple'),
  ('mantis',(.18,.27,.12),(.38,.46,.25),(.44,1.0,.42),'Fork-nose utility racer / olive'),
  ('aurora',(.025,.09,.26),(.65,.28,.12),(.12,.48,1.0),'Low swept speedster / midnight blue and copper'),
  ('synapse',(.012,.016,.052),(.18,.12,.52),(.28,.16,1.0),'Precision AI racer / integrated ion drive and indigo composite')]
@@ -80,6 +80,7 @@ for ident,color,accent_color,light_color,description in SPECS:
  if selected and ident!=selected:continue
  bpy.ops.object.select_all(action='SELECT');bpy.ops.object.delete(use_global=False)
  body=mat(ident+'_body',color,.65,.36);accent=mat(ident+'_accent',accent_color,.75,.3)
+ purple=mat(ident+'_purple',(.10,.016,.19),.34,.38)
  carbon=mat(ident+'_carbon',(.025,.032,.04),.45,.5);steel=mat(ident+'_alloy',(.22,.28,.31),.8,.3)
  rubber=mat(ident+'_padding',(.02,.025,.03),0,.8);glow=mat(ident+'_glow',light_color,.1,.3,2)
  glass=mat('vehicle_glass_'+ident,(.025,.065,.095),.25,.15)
@@ -88,7 +89,7 @@ for ident,color,accent_color,light_color,description in SPECS:
  elif ident=='piledriver':
   build_piledriver(body,accent,carbon,steel,rubber,glow,glass)
  elif ident=='shrike':
-  build_shrike(body,accent,carbon,steel,rubber,glow,glass)
+  build_shrike(body,accent,carbon,steel,rubber,glow,glass,purple)
  elif ident=='synapse':
   body.node_tree.nodes['Principled BSDF'].inputs['Coat Weight'].default_value=.68
   body.node_tree.nodes['Principled BSDF'].inputs['Coat Roughness'].default_value=.2
@@ -179,7 +180,7 @@ for ident,color,accent_color,light_color,description in SPECS:
    panel('Tail feather',[(x-.14,1.68,-1.8),(x+.14,1.68,-1.8),(x+.18,1.75,-2.6),(x-.18,1.75,-2.6)],accent)
    rig('Kestrel_Tail_%d'%i,since(before),(x,1.65,-1.8))
  # Join static parts per material; preserve control/nozzle transforms.
- for material in [body,accent,carbon,steel,rubber,glow,glass]:
+ for material in [body,accent,carbon,steel,rubber,glow,glass,purple]:
   objects=[o for o in bpy.context.scene.objects if o.type=='MESH' and o.parent is None and o.data.materials[0]==material]
   if not objects:continue
   bpy.ops.object.select_all(action='DESELECT')
