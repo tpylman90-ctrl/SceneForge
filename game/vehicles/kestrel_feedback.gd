@@ -91,7 +91,7 @@ func configure(definition: Resource) -> void:
 					if chassis.chassis_id in ["kestrel","piledriver","forge","shrike"]:
 						mat=mat.duplicate()
 						mat.transparency=BaseMaterial3D.TRANSPARENCY_ALPHA
-						mat.albedo_color=Color(.045,.085,.12,.38 if chassis.chassis_id=="shrike" else .36)
+						mat.albedo_color=Color(.018,.026,.047,.70 if chassis.chassis_id=="shrike" else .36)
 						mat.metallic=.09 if chassis.chassis_id=="shrike" else .15
 						mat.cull_mode=BaseMaterial3D.CULL_DISABLED
 						node.set_surface_override_material(surface,mat)
