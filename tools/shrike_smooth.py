@@ -10,11 +10,11 @@ def build_shrike(body, accent, carbon, steel, rubber, glow, glass):
     import math
 
     # Medium-silver finish avoids the previously clipped pure-white body.
-    body.diffuse_color = (.40, .46, .50, 1)
+    body.diffuse_color = (.29, .34, .39, 1)
     shader = body.node_tree.nodes['Principled BSDF']
     shader.inputs['Base Color'].default_value = body.diffuse_color
-    shader.inputs['Metallic'].default_value = .32
-    shader.inputs['Roughness'].default_value = .39
+    shader.inputs['Metallic'].default_value = .24
+    shader.inputs['Roughness'].default_value = .44
     shader.inputs['Coat Weight'].default_value = .18
 
     # Controllable independent plan, sill, crown and edge rails. These profiles
@@ -272,8 +272,8 @@ def build_shrike(body, accent, carbon, steel, rubber, glow, glass):
         # Long inset C-channel with a deliberate upward sweep at the rear.
         path=[(1.94,.63),(1.12,.60),(.33,.64),(-.35,.82),
               (-.98,1.14),(-1.51,1.41),(-1.83,1.50)]
-        side_stroke('Shrike recessed C-channel',side,path,.155,carbon)
-        side_stroke('Shrike orange C-channel core',side,path,.088,accent)
+        side_stroke('Shrike recessed C-channel',side,path,.30,carbon)
+        side_stroke('Shrike orange C-channel core',side,path,.22,accent)
         side_plate('Shrike aft swept extractor',side,
                    [(-2.16,1.29),(-2.80,1.27),(-3.18,1.04),
                     (-2.62,1.03)],carbon)
@@ -287,18 +287,27 @@ def build_shrike(body, accent, carbon, steel, rubber, glow, glass):
             pipe('Shrike recessed induction cell',
                  (side*x,.30,z),(side*x,.41,z),.18,carbon,24)
 
-    # Real front fascia depth and lower intake behind a rounded blunt bumper.
-    panel('Shrike black front intake',[
-        (-.99,.46,3.484),(.99,.46,3.484),
-        (.96,.71,3.481),(-.96,.71,3.481)],carbon)
-    pipe('Shrike intake upper rim',(-.98,.73,3.495),
-         (.98,.73,3.495),.026,steel,12)
-    pipe('Shrike blue lower intake blade',(-.86,.48,3.502),
-         (.86,.48,3.502),.018,glow,12)
-    for x in [-.68,-.34,0,.34,.68]:
-        pipe('Shrike recessed grille support',(x,.47,3.51),
-             (x,.69,3.51),.010,steel,8)
-
+    # Sculpted fascia: a dark *recessed trapezoid* rather than a rectangular
+    # radiator bumper floating forward of the monocoque. A narrow lower blade
+    # runs the full opening, with restrained internal blades.
+    nose_z=sections[-1][0]+.012
+    fascia=mesh('Shrike formed front intake cavity',[
+        (-.98,.51,nose_z),(.98,.51,nose_z),
+        (.91,.76,nose_z),(.77,.84,nose_z),
+        (-.77,.84,nose_z),(-.91,.76,nose_z)],
+        [(0,1,2,3,4,5)],carbon)
+    for a,b in [
+        ((-.97,.50,nose_z+.012),(.97,.50,nose_z+.012)),
+        ((-.91,.76,nose_z+.014),(-.77,.84,nose_z+.014)),
+        ((.91,.76,nose_z+.014),(.77,.84,nose_z+.014))]:
+        pipe('Shrike flush machined grille frame',a,b,.014,steel,10)
+    for y,half in [(.585,.72),(.685,.77)]:
+        pipe('Shrike horizontal air splitter',
+             (-half,y,nose_z+.020),(half,y,nose_z+.020),
+             .012,carbon,10)
+    for side in (-1,1):
+        pipe('Shrike blue intake eye',(side*.55,.535,nose_z+.028),
+             (side*.78,.535,nose_z+.028),.016,glow,10)
     # Raised but nearly level rear deck and inset cooling pack.
     skin_patch('Shrike recessed dorsal cooling deck',[
         (-3.31,[-.39,-.22,0,.22,.39]),
