@@ -13,9 +13,9 @@ def build_shrike(body,accent,carbon,steel,rubber,glow,glass):
     # Reference-led controlled cross-section loft. Each ring has independent
     # waist width, hood crown, shoulder height, sill and rear deck control.
     # Positive Z = nose; negative Z = tail. No applied fender attachments.
-    stations=[(-3.55,.80,.51,1.39),(-3.35,.96,.44,1.53),
-              (-3.03,1.09,.39,1.60),(-2.55,1.20,.36,1.65),
-              (-2.05,1.22,.34,1.66),(-1.30,1.20,.32,1.68),
+    stations=[(-3.55,1.03,.51,1.42),(-3.35,1.12,.44,1.53),
+              (-3.03,1.23,.39,1.60),(-2.55,1.26,.36,1.65),
+              (-2.05,1.25,.34,1.66),(-1.30,1.20,.32,1.68),
               (-.50,1.18,.30,1.54),(.40,1.18,.29,1.47),
               (1.18,1.23,.28,1.36),(1.82,1.28,.28,1.16),
               (2.40,1.29,.30,1.00),(2.83,1.24,.32,.89),
@@ -60,25 +60,29 @@ def build_shrike(body,accent,carbon,steel,rubber,glow,glass):
         front=gauss(z,2.18,.89)
         rear=gauss(z,-2.48,1.10)
         mid=gauss(z,.00,1.18)
-        width=base_width+.16*front+.21*rear-.075*mid
+        width=base_width+.19*front+.24*rear-.09*mid
         for j in range(n):
             angle=math.tau*j/n
             cosine=math.cos(angle)
             u=abs(cosine)
             sine=math.sin(angle)
-            x=width*cosine
-            shoulder_height=(.30*front+.25*rear)
-            center_drop=.10*front+.07*rear
+            # Rear-biased superellipse widens the tail into a squared stance.
+            exponent=.90-.31*rear-.07*front
+            x=width*math.copysign(u**exponent,cosine)
+            # Lower side undercut is part of the continuous body.
+            x*=1-.13*mid*math.exp(-((sine+.39)/.27)**2)
+            shoulder_height=(.53*front+.36*rear)
+            center_drop=.20*front+.12*rear
             if sine>=0:
                 # Low central bonnet with two distinct formed fender crowns.
                 # Two positive-curvature crests at x~+/-0.78 body half-width.
-                arch=math.exp(-((u-.78)/.155)**2)
+                arch=math.exp(-((u-.78)/.145)**2)
                 blend=(1-u*u)**.73
                 edge=(high+low)*.5+.065
                 crown=high-center_drop
                 y=edge+(crown-edge)*blend+shoulder_height*arch
                 # Rear tail has nearly planar upper deck, without a bubble.
-                y-=rear*.075*max(0,1-u/.72)**2
+                y-=rear*.115*max(0,1-u/.78)**2
             else:
                 # Shallow underside, flat lower chine at both bumper ends.
                 edge=(high+low)*.5+.065
@@ -89,7 +93,12 @@ def build_shrike(body,accent,carbon,steel,rubber,glow,glass):
         z_mid=-3.55+6.95*(k+.5)/segment_count
         for j in range(n):
             # Cockpit is genuinely open beneath the roof glazing.
-            if -1.56<z_mid<1.36 and 3<=j<=13:
+            # Tapered canopy aperture, centered on greenhouse footprint.
+            fade=min(1.0,(z_mid+1.42)/.25,(1.38-z_mid)/.25)
+            opening=.57*max(0.0,fade)
+            angle=math.tau*(j+.5)/n
+            if (-1.42<z_mid<1.38 and math.sin(angle)>0
+                    and abs(math.cos(angle))<opening):
                 continue
             a=k*n+j
             faces.append((a,k*n+(j+1)%n,(k+1)*n+(j+1)%n,(k+1)*n+j))
