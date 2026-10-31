@@ -44,7 +44,7 @@ def build_shrike(body,accent,carbon,steel,rubber,glow,glass):
                     result.append(value)
                 return result
         return list(stations[0][1:] if z<stations[0][0] else stations[-1][1:])
-    # Four-view orthographic reference: wide planform, defined fender shoulders,\n    # slim side elevation, squared rear termination.\n    # Automotive quad cage: 96 longitudinal rings and 32 matched peripheral
+    # Four-view reference: broad planform, pronounced outer shoulder arches.\n    # Automotive quad cage: 96 longitudinal rings and 32 matched peripheral
     # vertices. The body is one contiguous mesh, not overlapping trim panels.
     # Explicit three-rail shoulder profiles replace a radial oval crown.
     segment_count=96
@@ -71,16 +71,19 @@ def build_shrike(body,accent,carbon,steel,rubber,glow,glass):
             x=width*math.copysign(u**exponent,cosine)
             # Lower side undercut is part of the continuous body.
             x*=1-.052*mid*math.exp(-((sine+.39)/.27)**2)
-            shoulder_height=(.43*front+.26*rear)
-            center_drop=.16*front+.095*rear
             if sine>=0:
-                # Low central bonnet with two distinct formed fender crowns.
-                # Two positive-curvature crests at x~+/-0.78 body half-width.
-                arch=math.exp(-((u-.80)/.18)**2)
+                # Two deliberately sculpted outer fender arches. In the user's
+                # white markup each crest sweeps UP from the outboard cheek,
+                # peaks over the front wheel-hub region, then drops toward the
+                # central bonnet. Avoid the former long convex bonnet swell.
+                # These are part of the same connected quad body surface.
+                arch=math.exp(-((u-.72)/.155)**2)
+                shoulder=(.54*front+.23*rear)*arch
+                hood_channel=.19*front*math.exp(-((u-.34)/.25)**2)
                 blend=(1-u*u)**.73
                 edge=(high+low)*.5+.065
-                crown=high-center_drop
-                y=edge+(crown-edge)*blend+shoulder_height*arch
+                crown=high-.10*front-.09*rear
+                y=edge+(crown-edge)*blend+shoulder-hood_channel
                 # Rear tail has nearly planar upper deck, without a bubble.
                 y-=rear*.09*max(0,1-u/.78)**2
             else:
