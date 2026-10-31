@@ -7,7 +7,8 @@ def build_shrike(body,accent,carbon,steel,rubber,glow,glass):
     body.diffuse_color=(.23,.29,.35,1)
     bs=body.node_tree.nodes['Principled BSDF']
     bs.inputs['Base Color'].default_value=body.diffuse_color
-    bs.inputs['Roughness'].default_value=.52
+    bs.inputs['Roughness'].default_value=.65
+    bs.inputs['Metallic'].default_value=.16
     bs.inputs['Coat Weight'].default_value=.08
     # Reference-led controlled cross-section loft. Each ring has independent
     # waist width, hood crown, shoulder height, sill and rear deck control.
@@ -19,15 +20,30 @@ def build_shrike(body,accent,carbon,steel,rubber,glow,glass):
               (1.18,1.23,.28,1.36),(1.82,1.28,.28,1.16),
               (2.40,1.29,.30,1.00),(2.83,1.24,.32,.89),
               (3.15,1.10,.36,.77),(3.40,.89,.40,.68)]
-    # Smoothstep interpolation avoids creases where longitudinal sections join.
+    # Synapse-style cubic profile blending, parameterized by actual distance.
+    # Unlike smoothstep, this retains a continuous nonzero tangent at each
+    # station; flat spots in side reflections are no longer baked into the loft.
     def profile(z):
         for k in range(len(stations)-1):
             a,b=stations[k:k+2]
-            if a[0]<=z<=b[0]:
-                t=(z-a[0])/(b[0]-a[0])
-                t=t*t*(3-2*t)
-                return [a[i]*(1-t)+b[i]*t for i in range(1,4)]
-        return list(stations[-1][1:])
+            if a[0] <= z <= b[0]:
+                span=b[0]-a[0]
+                t=(z-a[0])/span
+                t2=t*t
+                t3=t2*t
+                before=stations[max(0,k-1)]
+                after=stations[min(len(stations)-1,k+2)]
+                result=[]
+                for axis in range(1,4):
+                    left=(b[axis]-before[axis])/(b[0]-before[0])
+                    right=(after[axis]-a[axis])/(after[0]-a[0])
+                    value=((2*t3-3*t2+1)*a[axis]
+                           +(t3-2*t2+t)*span*left
+                           +(-2*t3+3*t2)*b[axis]
+                           +(t3-t2)*span*right)
+                    result.append(value)
+                return result
+        return list(stations[0][1:] if z<stations[0][0] else stations[-1][1:])
     segment_count=84
     n=24
     points=[]
