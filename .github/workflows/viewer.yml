@@ -77,6 +77,14 @@ jobs:
             args="--fleet-$view"
             timeout 120 xvfb-run -a godot --audio-driver Dummy --path game --rendering-method gl_compatibility --resolution 1280x720 res://fleet_hangar.tscn -- --capture --craft-$PREVIEW_CRAFT $args 2>&1 | tee build/viewer-$view.log
           done
+          if [ "$PREVIEW_CRAFT" = 2 ]; then
+            for diagnostic in clay wire; do
+              for view in front side top; do
+                timeout 120 xvfb-run -a godot --audio-driver Dummy --path game --rendering-method gl_compatibility --resolution 1280x720 res://fleet_hangar.tscn -- --capture --craft-2 --fleet-$view --fleet-$diagnostic 2>&1 | tee build/viewer-$view-$diagnostic.log
+                test -s "build/Fleet-shrike-$view-$diagnostic.png"
+              done
+            done
+          fi
           if grep -E 'SCRIPT ERROR:|ERROR:' build/viewer-*.log; then exit 1; fi
           name=piledriver
           if [ "$PREVIEW_CRAFT" = 0 ]; then name=kestrel; fi
@@ -123,6 +131,11 @@ jobs:
             test -s "build/Fleet-$name-$view.png"
           done
           if [ "$name" != synapse ]; then test -s "build/Fleet-$name-cockpit.png"; fi
+          if [ "$name" = shrike ]; then
+            for diagnostic in clay wire; do
+              for view in front side top; do test -s "build/Fleet-shrike-$view-$diagnostic.png"; done
+            done
+          fi
           gh release create "$tag" build/Fleet-*.png build/SelectedCraft.glb build/fleet-report.json build/VIEWER.txt \
             --target "$GITHUB_SHA" --prerelease \
             --title "Viewer $name — $short_sha" \
