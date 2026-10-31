@@ -212,6 +212,78 @@ def build_forge(body,accent,carbon,steel,rubber,glow,glass):
   mod.operation='DIFFERENCE';mod.solver='EXACT';mod.object=cutter
   bpy.ops.object.modifier_apply(modifier=mod.name)
   bpy.data.objects.remove(cutter,do_unlink=True)
+ # First finish pass. All upper trim is projected onto the evaluated body.
+ def surface_point(x,z,lift=.008):
+  hit,loc,normal,index=hull_master.ray_cast(Vector((x,-z,4)),Vector((0,0,-1)))
+  assert hit,('Finish panel must stay on the body',x,z)
+  return (x,loc.z+lift,z)
+ def fitted_ribbon(name,stations,material):
+  # Finish the existing body faces directly: no overlapping armor sheets.
+  if material.name not in hull_master.data.materials:hull_master.data.materials.append(material)
+  slot=hull_master.data.materials.find(material.name)
+  for face in hull_master.data.polygons:
+   if face.normal.z<.25:continue
+   centre=sum((hull_master.data.vertices[i].co for i in face.vertices),Vector())/len(face.vertices)
+   x=centre.x;z=-centre.y
+   for a,b in zip(stations,stations[1:]):
+    if min(a[0],b[0])<=z<=max(a[0],b[0]):
+     t=(z-a[0])/(b[0]-a[0]);inner=a[1]+(b[1]-a[1])*t;outer=a[2]+(b[2]-a[2])*t
+     if min(inner,outer)<=x<=max(inner,outer):face.material_index=slot
+     break
+ # Automotive clearcoat and satin carbon separate broad surfaces in inspection.
+ shader=body.node_tree.nodes.get('Principled BSDF')
+ shader.inputs['Coat Weight'].default_value=.40
+ shader.inputs['Coat Roughness'].default_value=.23
+ glass.node_tree.nodes['Principled BSDF'].inputs['Coat Weight'].default_value=.65
+ glass.node_tree.nodes['Principled BSDF'].inputs['Roughness'].default_value=.16
+ for side in [-1,1]:
+  front=[]
+  for i in range(13):
+   t=i/12;front.append((1.18+1.60*t,side*(1.08-.12*t),side*(1.46-.42*t)))
+  fitted_ribbon('Inset front carbon armor',front,carbon)
+  rear=[]
+  for i in range(13):
+   t=i/12;rear.append((-.85-1.48*t,side*(1.04+.16*t),side*(1.51+.23*t)))
+  fitted_ribbon('Inset nacelle carbon armor',rear,carbon)
+  for name,stations in [('Front running light',front),('Rear shoulder energy channel',rear)]:
+   path=[surface_point(outer,z,.018) for z,inner,outer in stations]
+   for a,b in zip(path,path[1:]):pipe(name,a,b,.012,glow,8)
+   # Opposite edge is a fine metal panel border rather than another neon stripe.
+   path=[surface_point(inner,z,.016) for z,inner,outer in stations]
+   for a,b in zip(path,path[1:]):pipe('Flush armor edge',a,b,.009,accent,6)
+  # Side intake pockets are cut into the thick body; grille sits inside the recess.
+  for z,y,length in [(-1.28,.77,.64),(1.25,.62,.36)]:
+   hit,loc,normal,index=hull_master.ray_cast(Vector((side*3,-z,y)),Vector((-side,0,0)))
+   assert hit,'Intake pocket must intersect a body flank'
+   face_x=loc.x
+   cutter=box('Temporary intake recess',(face_x-side*.065,y,z),(.24,.22,length),steel,.025)
+   bpy.context.view_layer.objects.active=hull_master
+   mod=hull_master.modifiers.new('Machined flank intake','BOOLEAN');mod.operation='DIFFERENCE';mod.solver='EXACT';mod.object=cutter
+   bpy.ops.object.modifier_apply(modifier=mod.name);bpy.data.objects.remove(cutter,do_unlink=True)
+   box('Intake recessed backing',(face_x-side*.172,y,z),(.016,.19,length-.035),carbon,.008)
+   for i in range(5):
+    zz=z-length*.36+i*length*.18
+    pipe('Intake angled louvre',(face_x-side*.10,y-.074,zz-.025),(face_x-side*.07,y+.074,zz+.025),.014,steel,8)
+  for z,x in [(1.24,1.12),(2.45,.94),(-1.0,1.20),(-2.18,1.35)]:
+   x*=side;p=surface_point(x,z,.014)
+   pipe('Flush service fastener',p,(p[0],p[1]+.010,p[2]),.022,steel,12)
+   pipe('Fastener hex recess',(p[0],p[1]+.011,p[2]),(p[0],p[1]+.013,p[2]),.010,carbon,6)
+  # Segmented exhaust retaining collars and radial guide vanes.
+  for z in [-2.95,-3.10]:
+   for i in range(16):
+    a=i*math.tau/16;b=a+math.tau/16*.72
+    p=(side*1.20+.285*math.cos(a),.98+.285*math.sin(a),z)
+    q=(side*1.20+.285*math.cos(b),.98+.285*math.sin(b),z)
+    pipe('Exhaust segmented retaining collar',p,q,.020,accent,6)
+  for i in range(8):
+   a=i*math.tau/8
+   pipe('Exhaust inner stator',(side*1.20+.16*math.cos(a),.98+.16*math.sin(a),-2.72),(side*1.20+.25*math.cos(a+.16),.98+.25*math.sin(a+.16),-2.98),.012,carbon,6)
+ # Recessed deck cooling bank: project each slat and follow the spine taper.
+ for i in range(8):
+  z=-1.45-i*.13;width=.32-i*.021
+  path=[surface_point(-width+2*width*j/8,z,.014) for j in range(9)]
+  for a,b in zip(path,path[1:]):pipe('Rear spine cooling louvre',a,b,.020,carbon,6)
+ print('SCENEFORGE_FORGE_FITTED_DETAIL_OK')
  # Both tips must belong to the same connected mesh component as the hull.
  adjacency=[[] for vertex in hull_master.data.vertices]
  for edge in hull_master.data.edges:
