@@ -18,6 +18,15 @@ static func definition(index: int) -> Resource:
 		craft.mount_points["repulsor_rl"]=Vector3(1.12,.76,-.65)
 		craft.mount_points["repulsor_rr"]=Vector3(-1.12,.76,-.65)
 		craft.accent_color=[Color("66dcf0"),Color("b44dff"),Color("63d8ff"),Color("91ed77"),Color("5d9fff"),Color("ff981c"),Color("9360ff")][index]
+	if index==2:
+		# Shrike MK I cockpit is lower than Kestrel and inside its sculpted
+		# panoramic canopy. The eye looks forward through the windshield.
+		craft.cockpit_eye=Vector3(0,1.48,-.38)
+		craft.cockpit_pitch=-.08
+		craft.mount_points["repulsor_fl"]=Vector3(1.14,.33,2.07)
+		craft.mount_points["repulsor_fr"]=Vector3(-1.14,.33,2.07)
+		craft.mount_points["repulsor_rl"]=Vector3(1.21,.33,-2.42)
+		craft.mount_points["repulsor_rr"]=Vector3(-1.21,.33,-2.42)
 	if index==1:
 		craft.footprint_stretch=2.6
 		craft.cockpit_eye=Vector3(0,1.942,-.22)
