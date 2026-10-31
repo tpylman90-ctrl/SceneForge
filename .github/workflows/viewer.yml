@@ -6,10 +6,10 @@ on:
 permissions:
   contents: write
 concurrency:
-  group: vehicle-viewer-${{ contains(github.event.head_commit.message, '[kestrel]') && 'kestrel' || (contains(github.event.head_commit.message, '[piledriver]') && 'piledriver' || (contains(github.event.head_commit.message, '[synapse]') && 'synapse' || 'shrike')) }}
+  group: vehicle-viewer-${{ contains(github.event.head_commit.message, '[kestrel]') && 'kestrel' || (contains(github.event.head_commit.message, '[piledriver]') && 'piledriver' || (contains(github.event.head_commit.message, '[synapse]') && 'synapse' || (contains(github.event.head_commit.message, '[forge]') && 'forge' || 'shrike'))) }}
   cancel-in-progress: true
 env:
-  PREVIEW_CRAFT: "${{ contains(github.event.head_commit.message, '[kestrel]') && '0' || (contains(github.event.head_commit.message, '[piledriver]') && '1' || (contains(github.event.head_commit.message, '[synapse]') && '6' || '2')) }}"
+  PREVIEW_CRAFT: "${{ contains(github.event.head_commit.message, '[kestrel]') && '0' || (contains(github.event.head_commit.message, '[piledriver]') && '1' || (contains(github.event.head_commit.message, '[synapse]') && '6' || (contains(github.event.head_commit.message, '[forge]') && '5' || '2'))) }}"
 jobs:
   preview:
     if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[viewer]')
@@ -54,6 +54,7 @@ jobs:
             0) craft=kestrel ;;
             1) craft=piledriver ;;
             2) craft=shrike ;;
+            5) craft=forge ;;
             6) craft=synapse ;;
             *) echo "Unsupported preview craft: $PREVIEW_CRAFT"; exit 1 ;;
           esac
@@ -89,6 +90,7 @@ jobs:
           name=piledriver
           if [ "$PREVIEW_CRAFT" = 0 ]; then name=kestrel; fi
           if [ "$PREVIEW_CRAFT" = 2 ]; then name=shrike; fi
+          if [ "$PREVIEW_CRAFT" = 5 ]; then name=forge; fi
           if [ "$PREVIEW_CRAFT" = 6 ]; then name=synapse; fi
           for view in "${views[@]}"; do test -s build/Fleet-$name-$view.png; done
           if [ "$name" = kestrel ]; then cp game/assets/neon_foundry.glb build/SelectedCraft.glb; else cp game/assets/fleet/$name.glb build/SelectedCraft.glb; fi
@@ -125,6 +127,7 @@ jobs:
             0) name=kestrel ;;
             1) name=piledriver ;;
             2) name=shrike ;;
+            5) name=forge ;;
             6) name=synapse ;;
           esac
           for view in front rear side top; do

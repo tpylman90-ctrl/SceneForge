@@ -1,7 +1,42 @@
 """FORGE: original graphite / amber precision racer, authored in metres."""
+def forge_shell(profile,material):
+ # Loft the primary shell from a sparse design section set. The dense
+ # longitudinal sampling keeps the body silhouette fair without adding
+ # decorative geometry before the main surfacing is resolved.
+ def sample(values,t):
+  scaled=t*(len(values)-1);i=min(int(scaled),len(values)-2);f=scaled-i
+  f2=f*f;f3=f2*f;out=[]
+  for k in range(len(values[0])):
+   p0=values[max(0,i-1)][k];p1=values[i][k];p2=values[i+1][k];p3=values[min(len(values)-1,i+2)][k]
+   out.append(.5*((2*p1)+(-p0+p2)*f+(2*p0-5*p1+4*p2-p3)*f2+(-p0+3*p1-3*p2+p3)*f3))
+  return out
+ sections=[]
+ steps=12
+ for i in range((len(profile)-1)*steps+1):
+  z,width,low,high=sample(profile,i/((len(profile)-1)*steps))
+  sections.append((z,width,low,high))
+ outline=[(-.72,0),(-.92,.06),(-1,.28),(-.96,.58),(-.72,.83),(0,1),(.72,.83),(.96,.58),(1,.28),(.92,.06),(.72,0),(0,-.04)]
+ cross_count=len(outline);points=[]
+ for z,width,low,high in sections:
+  for x_ratio,y_ratio in outline:
+   points.append((x_ratio*width,low+(high-low)*y_ratio,z))
+ faces=[]
+ for row in range(len(sections)-1):
+  z_mid=(sections[row][0]+sections[row+1][0])*.5
+  for edge in range(cross_count):
+   # Leave a real cockpit aperture; glass and its frame bridge the opening.
+   if -1.0<z_mid<1.42 and edge in (4,5):continue
+   a=row*cross_count+edge;b=row*cross_count+(edge+1)%cross_count
+   faces.append((a,b,b+cross_count,a+cross_count))
+ faces.append(tuple(reversed(range(cross_count))))
+ end=(len(sections)-1)*cross_count
+ faces.append(tuple(end+i for i in range(cross_count)))
+ shell=mesh('Forge_Faired_Monocoque',points,faces,material)
+ for polygon in shell.data.polygons:polygon.use_smooth=True
+
 def build_forge(body,accent,carbon,steel,rubber,glow,glass):
  # Broad rear power shoulders feed two tapered, separated forward spars.
- hull([(-2.65,.65,.70,1.32),(-2.0,1.02,.48,1.45),(-.9,.80,.30,1.25),(.4,.69,.28,1.14),(1.4,.64,.30,1.08),(2.3,.36,.27,.74),(3.15,.035,.30,.39)],body)
+ forge_shell([(-2.65,.65,.70,1.32),(-2.0,1.02,.48,1.45),(-.9,.80,.30,1.25),(.4,.69,.28,1.14),(1.4,.64,.30,1.08),(2.3,.36,.27,.74),(3.15,.035,.30,.39)],body)
  def line(name,pts,r,m):
   for a,b in zip(pts,pts[1:]):pipe(name,a,b,r,m,12)
  for side in [-1,1]:
