@@ -108,6 +108,16 @@ func _ready() -> void:
 	if "--fleet-clay" in OS.get_cmdline_user_args() or "--fleet-wire" in OS.get_cmdline_user_args():
 		apply_diagnostic_materials()
 	update_camera()
+	if "--fleet-hero" in OS.get_cmdline_user_args():
+		orbit=-.68
+		elevation=.19
+		camera_distance=7.7
+		update_camera()
+	if "--fleet-rear-quarter" in OS.get_cmdline_user_args():
+		orbit=2.48
+		elevation=.22
+		camera_distance=7.8
+		update_camera()
 	if "--fleet-nose" in OS.get_cmdline_user_args():
 		orbit=0.0
 		elevation=.15
@@ -287,7 +297,7 @@ func _process(_delta: float) -> void:
 		frames+=1
 		if frames==35:
 			var suffix := ""
-			for view in ["front","rear","tail","cockpit","side","top","under","nose","zoomed-rear"]:
+			for view in ["hero","rear-quarter","front","rear","tail","cockpit","side","top","under","nose","zoomed-rear"]:
 				if "--fleet-"+view in OS.get_cmdline_user_args():suffix="-"+view
 			if "--fleet-wire" in OS.get_cmdline_user_args():suffix+="-wire"
 			elif "--fleet-clay" in OS.get_cmdline_user_args():suffix+="-clay"
