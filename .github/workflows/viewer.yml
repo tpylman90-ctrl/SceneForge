@@ -64,6 +64,9 @@ jobs:
             SCENEFORGE_ONLY_CRAFT="$craft" /tmp/blender-4.5.3-linux-x64/blender --background --threads 4 --python tools/build_fleet.py 2>&1 | tee build/viewer-blender.log
             test -s "game/assets/fleet/$craft.glb"
             grep -q "SCENEFORGE_FLEET_ASSET_OK $craft" build/viewer-blender.log
+            if [ "$craft" = shrike ]; then
+              grep -q "SCENEFORGE_SHRIKE_REFERENCE_BODY_OK" build/viewer-blender.log
+            fi
           fi
           godot --headless --path game --editor --import --quit 2>&1 | tee build/viewer-import.log
           if grep -E 'SCRIPT ERROR:|ERROR:' build/viewer-import.log; then exit 1; fi
@@ -88,6 +91,9 @@ jobs:
             done
           fi
           if grep -E 'SCRIPT ERROR:|ERROR:' build/viewer-*.log; then exit 1; fi
+          if [ "$PREVIEW_CRAFT" = 2 ]; then
+            grep -q SCENEFORGE_SHRIKE_HUD_IN_COCKPIT_OK build/viewer-cockpit.log
+          fi
           name=piledriver
           if [ "$PREVIEW_CRAFT" = 0 ]; then name=kestrel; fi
           if [ "$PREVIEW_CRAFT" = 2 ]; then name=shrike; fi
