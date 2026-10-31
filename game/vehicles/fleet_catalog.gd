@@ -2,7 +2,7 @@ extends RefCounted
 
 const IDS := ["kestrel","piledriver","shrike","mantis","aurora","forge","synapse"]
 const NAMES := ["KESTREL","PYLDRIVER","SHRIKE","MANTIS","AURORA","FORGE","SYNAPSE"]
-const NOTES := ["Balanced raptor / slate and burnt orange", "Armored racer / purple and brass", "Agile interceptor / silver and orange", "Stable utility racer / olive green", "Fast swept speedster / blue and copper", "Precision racer / graphite and amber", "AI racer / active four-point hover array and ion propulsion"]
+const NOTES := ["Balanced raptor / slate and burnt orange", "Armored racer / purple and brass", "Wide-body interceptor / silver, lime and deep purple", "Stable utility racer / olive green", "Fast swept speedster / blue and copper", "Precision racer / graphite and amber", "AI racer / active four-point hover array and ion propulsion"]
 
 static func definition(index: int) -> Resource:
 	index=clampi(index,0,IDS.size()-1)
@@ -17,7 +17,7 @@ static func definition(index: int) -> Resource:
 		craft.mount_points["repulsor_fr"]=Vector3(-1,.58,2.1)
 		craft.mount_points["repulsor_rl"]=Vector3(1.12,.76,-.65)
 		craft.mount_points["repulsor_rr"]=Vector3(-1.12,.76,-.65)
-		craft.accent_color=[Color("66dcf0"),Color("b44dff"),Color("63d8ff"),Color("91ed77"),Color("5d9fff"),Color("ff981c"),Color("9360ff")][index]
+		craft.accent_color=[Color("66dcf0"),Color("b44dff"),Color("a6f018"),Color("91ed77"),Color("5d9fff"),Color("ff981c"),Color("9360ff")][index]
 	if index==2:
 		# Shrike MK I cockpit is lower than Kestrel and inside its sculpted
 		# panoramic canopy. The eye looks forward through the windshield.
