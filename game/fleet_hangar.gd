@@ -105,6 +105,15 @@ func _ready() -> void:
 		button.pressed.connect(action.bind(label))
 		row.add_child(button)
 	spawn_craft()
+	if "--fleet-clean" in OS.get_cmdline_user_args():
+		# Screenshot-only presentation: no menu obscuring the sculpt, with
+		# the vehicle centered and larger for actual proportion review.
+		craft.position.x=0.0
+		panel.hide()
+		list.hide()
+		title.hide()
+		info.hide()
+		row.hide()
 	if "--fleet-clay" in OS.get_cmdline_user_args() or "--fleet-wire" in OS.get_cmdline_user_args():
 		apply_diagnostic_materials()
 	update_camera()
@@ -299,6 +308,7 @@ func _process(_delta: float) -> void:
 			var suffix := ""
 			for view in ["hero","rear-quarter","front","rear","tail","cockpit","side","top","under","nose","zoomed-rear"]:
 				if "--fleet-"+view in OS.get_cmdline_user_args():suffix="-"+view
+			if "--fleet-clean" in OS.get_cmdline_user_args():suffix+="-clean"
 			if "--fleet-wire" in OS.get_cmdline_user_args():suffix+="-wire"
 			elif "--fleet-clay" in OS.get_cmdline_user_args():suffix+="-clay"
 			get_viewport().get_texture().get_image().save_png(OS.get_environment("GITHUB_WORKSPACE")+"/build/Fleet-"+Fleet.IDS[selected]+suffix+".png")
