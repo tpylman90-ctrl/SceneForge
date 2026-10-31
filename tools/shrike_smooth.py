@@ -123,10 +123,23 @@ def build_shrike(body, accent, carbon, steel, rubber, glow, glass):
     for k in range(count):
         z=(sections[0][0]+(sections[-1][0]-sections[0][0])*(k+.5)/count)
         for j in range(ring_size):
-            # Under the greenhouse the central upper skin is an aperture
-            # bounded by its body sills, not a square hole across the full deck.
-            if -1.35<z<1.22 and 5<=j<=14:
-                continue
+            # Greenhouse aperture follows the CYAN cockpit's actual plan
+            # outline. The old constant 5..14 deletion cut far beyond the
+            # glass sides and created visible black triangular gaps.
+            if -1.35<z<1.22 and j<len(top_t)-1:
+                plan=[(-1.67,.62),(-1.40,.73),(-.94,.79),
+                      (-.35,.81),(.27,.80),(.89,.72),
+                      (1.31,.57),(1.57,.43)]
+                aperture_width=plan[0][1]
+                for q in range(len(plan)-1):
+                    za,wa=plan[q]
+                    zb,wb=plan[q+1]
+                    if za<=z<=zb:
+                        aperture_width=wa+(wb-wa)*(z-za)/(zb-za)
+                        break
+                t_mid=(top_t[j]+top_t[j+1])*.5
+                if abs(t_mid)*lerp_profile(z)[0]<aperture_width+.055:
+                    continue
             a=k*ring_size+j
             quads.append((a,k*ring_size+(j+1)%ring_size,
                           (k+1)*ring_size+(j+1)%ring_size,(k+1)*ring_size+j))
@@ -402,6 +415,8 @@ def build_shrike(body, accent, carbon, steel, rubber, glow, glass):
         'Shrike rear fender and recessed engine deck must be distinct')
     assert abs(surface(-.35,.79)[0]) > .75, 'Shrike cabin shoulder pinched'
     assert canopy[3][2] < canopy[3][3], 'Shrike canopy roof cannot be buried'
+    assert lerp_profile(.20)[0] > 1.50, 'Shrike top plan body pinched'
+    assert len(lower_rails) >= 13, 'Shrike formed rocker rails missing'
     assert len(quads) > 2000, 'Shrike continuous quad cage incomplete'
     print('SCENEFORGE_SHRIKE_REFERENCE_BODY_OK',len(quads))
     # Five unexposed rigged nozzle nodes are required by SceneForge animation.
