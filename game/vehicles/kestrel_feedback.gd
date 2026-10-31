@@ -53,6 +53,10 @@ func configure(definition: Resource) -> void:
 		details=preload("res://vehicles/forge_cockpit.gd").new()
 		add_child(details)
 		details.build()
+	elif chassis.chassis_id=="shrike":
+		details=preload("res://vehicles/shrike_cockpit.gd").new()
+		add_child(details)
+		details.build()
 	else:
 		var factory := preload("res://foundry.gd").new()
 		factory.build_cockpit_details()
@@ -84,11 +88,11 @@ func configure(definition: Resource) -> void:
 			if mat is StandardMaterial3D and node != display:
 				mat.vertex_color_use_as_albedo = true
 				if "vehicle_glass" in node.name:
-					if chassis.chassis_id in ["kestrel","piledriver","forge"]:
+					if chassis.chassis_id in ["kestrel","piledriver","forge","shrike"]:
 						mat=mat.duplicate()
 						mat.transparency=BaseMaterial3D.TRANSPARENCY_ALPHA
-						mat.albedo_color=Color(.08,.16,.22,.36)
-						mat.metallic=.15
+						mat.albedo_color=Color(.045,.085,.12,.38 if chassis.chassis_id=="shrike" else .36)
+						mat.metallic=.09 if chassis.chassis_id=="shrike" else .15
 						mat.cull_mode=BaseMaterial3D.CULL_DISABLED
 						node.set_surface_override_material(surface,mat)
 					var inside: StandardMaterial3D = mat.duplicate()
