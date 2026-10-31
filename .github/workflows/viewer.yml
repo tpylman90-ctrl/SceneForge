@@ -14,7 +14,7 @@ jobs:
   preview:
     if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[viewer]')
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
       - name: Restore existing environment assets
@@ -73,6 +73,7 @@ jobs:
         run: |
           set -euo pipefail
           views=(front rear side top cockpit)
+          if [ "$PREVIEW_CRAFT" = 2 ]; then views=(hero rear-quarter front rear side top cockpit); fi
           if [ "$PREVIEW_CRAFT" = 6 ]; then views=(front rear side top under zoomed-rear); fi
           for view in "${views[@]}"; do
             args="--fleet-$view"
@@ -135,6 +136,7 @@ jobs:
           done
           if [ "$name" != synapse ]; then test -s "build/Fleet-$name-cockpit.png"; fi
           if [ "$name" = shrike ]; then
+            for view in hero rear-quarter; do test -s "build/Fleet-shrike-$view.png"; done
             for diagnostic in clay wire; do
               for view in front side top; do test -s "build/Fleet-shrike-$view-$diagnostic.png"; done
             done
