@@ -196,8 +196,27 @@ def build_forge(body,accent,carbon,steel,rubber,glow,glass):
   before=set(bpy.context.scene.objects);x=(i-2)*.18
   box('Rear vector vane',(x,1.15,-2.70),(.15,.045,.38),body,.012)
   rig('Kestrel_Tail_%d'%i,since(before),(x,1.15,-2.51))
+ # Layered rear flare accents grow out of the nacelle shoulders, with
+ # broad buried roots and tapered tips framing the three exhaust positions.
+ def rear_accent(name,outline,ridge,side):
+  count=len(outline)
+  points=outline+[ridge]+[(x-side*.025,y-.10,z+.015) for x,y,z in outline]
+  faces=[(i,(i+1)%count,count) for i in range(count)]
+  faces.append(tuple(reversed(range(count+1,2*count+1))))
+  for i in range(count):faces.append((i,(i+1)%count,(i+1)%count+count+1,i+count+1))
+  return mesh('Forge_Rear_Accent_'+name,points,faces,body,.014)
+ for side in [-1,1]:
+  rear_accent('Upper_Swept_Flare',[(side*1.14,1.19,-1.42),(side*1.59,1.30,-1.80),
+               (side*2.12,1.68,-3.13),(side*1.40,1.29,-2.85)],(side*1.56,1.48,-2.30),side)
+  rear_accent('Inner_Raised_Fin',[(side*.50,1.19,-1.50),(side*.78,1.28,-1.70),
+               (side*.94,1.97,-2.95),(side*.62,1.27,-2.65)],(side*.70,1.49,-2.16),side)
+  rear_accent('Lower_Exhaust_Chine',[(side*1.47,.52,-1.84),(side*1.83,.49,-2.28),
+               (side*2.02,.36,-3.15),(side*1.53,.40,-2.90)],(side*1.76,.53,-2.62),side)
+  # Fine metal leading edges and restrained light channels articulate the new fins.
+  pipe('Raised fin alloy leading edge',(side*.78,1.30,-1.74),(side*.94,1.97,-2.95),.018,accent,8)
+  pipe('Rear flare light channel',(side*1.62,1.36,-1.98),(side*2.05,1.64,-3.02),.013,glow,8)
  # Weld the overlapping structural volumes; no hidden disconnected root panels.
- for prefix in ['Continuous fender to hull fillet','Forge_Triangular_Front_Fender','Forge_Continuous_Rear_Root','Forge_Integrated_Rear_Nacelle','Forge_Aft_Spine']:
+ for prefix in ['Continuous fender to hull fillet','Forge_Triangular_Front_Fender','Forge_Continuous_Rear_Root','Forge_Integrated_Rear_Nacelle','Forge_Aft_Spine','Forge_Rear_Accent_']:
   for part in [o for o in list(bpy.context.scene.objects) if o.name.startswith(prefix)]:
    bpy.context.view_layer.objects.active=hull_master
    mod=hull_master.modifiers.new('Union sculpted fender root','BOOLEAN')
@@ -301,6 +320,9 @@ def build_forge(body,accent,carbon,steel,rubber,glow,glass):
   upper=hull_master.ray_cast(Vector((side*1.60,1.95,4)),Vector((0,0,-1)))
   lower=hull_master.ray_cast(Vector((side*1.60,1.95,-1)),Vector((0,0,1)))
   assert upper[0] and lower[0] and upper[1].z-lower[1].z>.70,'Rear flare must have full body depth'
+  assert any(side*hull_master.data.vertices[i].co.x>2.0 and hull_master.data.vertices[i].co.z>1.55 for i in seen),'Disconnected rear swept accent'
+  assert any(.80<side*hull_master.data.vertices[i].co.x<1.10 and hull_master.data.vertices[i].co.z>1.85 for i in seen),'Disconnected rear raised fin'
+ print('SCENEFORGE_FORGE_REAR_ACCENTS_OK')
  print('SCENEFORGE_FORGE_REAR_DEPTH_OK')
  print('SCENEFORGE_FORGE_VOLUMETRIC_FLARES_OK')
  print('SCENEFORGE_FORGE_CONNECTED_NACELLES_OK')
