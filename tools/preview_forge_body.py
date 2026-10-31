@@ -11,7 +11,7 @@ for material in bpy.data.materials:
  if material.use_nodes:
   p=material.node_tree.nodes.get('Principled BSDF')
   if p:
-   p.inputs['Base Color'].default_value=(.11,.16,.20,1) if 'glass' in material.name else (.42,.46,.50,1)
+   p.inputs['Base Color'].default_value=(.11,.16,.20,1) if 'glass' in material.name else ((.055,.065,.075,1) if 'carbon' in material.name else (.42,.46,.50,1))
    p.inputs['Metallic'].default_value=.25;p.inputs['Roughness'].default_value=.30
 world=bpy.data.worlds.new('Review studio');scene.world=world;world.use_nodes=True
 world.node_tree.nodes['Background'].inputs[0].default_value=(.1,.1,.1,1)

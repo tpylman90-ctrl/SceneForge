@@ -1,7 +1,7 @@
 """FORGE sparse master surfaces; metres, Godot +Z forward.
 Mirror -> Catmull-Clark -> inward thickness. Shared hull/canopy boundary.
 """
-FORGE_STATIONS=[(-2.70,.76,.65,1.20,1.20),(-2.62,.88,.60,1.28,1.28),(-2.10,1.08,.48,1.39,1.39),(-1.35,1.04,.40,1.40,1.40),(-1.10,.98,.36,1.35,1.82),(-.70,.92,.33,1.29,2.00),(-.15,.87,.30,1.23,2.02),(.45,.82,.28,1.16,1.89),(1.05,.76,.26,1.05,1.78),(1.50,.66,.25,.91,.91),(1.90,.56,.25,.79,.79),(2.40,.39,.26,.61,.61),(2.85,.20,.27,.44,.44),(3.12,.08,.28,.35,.35),(3.18,.06,.29,.33,.33)]
+FORGE_STATIONS=[(-2.70,.76,.65,1.20,1.20),(-2.62,.88,.60,1.28,1.28),(-2.10,1.08,.48,1.39,1.39),(-1.35,1.04,.40,1.40,1.40),(-1.10,.98,.36,1.35,1.76),(-.70,.92,.33,1.29,1.94),(-.15,.87,.30,1.23,1.96),(.45,.82,.28,1.16,1.80),(1.05,.76,.26,1.05,1.48),(1.50,.66,.25,.91,.91),(1.90,.56,.25,.79,.79),(2.40,.39,.26,.61,.61),(2.85,.20,.27,.44,.44),(3.12,.08,.28,.35,.35),(3.18,.06,.29,.33,.33)]
 
 def forge_surface(name,points,faces,material,mirror=True,thickness=.025):
  obj=mesh(name,points,faces,material)
@@ -30,25 +30,67 @@ def build_forge(body,accent,carbon,steel,rubber,glow,glass):
  # Glass uses the hull's aperture stations and sill coordinates.
  pts=[];faces=[]
  for z,w,lo,hi,crown in FORGE_STATIONS[3:10]:
-  for u in [0,.25,.50,.75,.93,1]:pts.append((.62*w*u,hi+.012+(crown-hi)*math.cos(u*math.pi/2),z))
+  for u in [0,.25,.50,.75,.93,1]:pts.append((.62*w*u,hi+.012+(crown-hi)*max(0,math.cos(u*math.pi/2))**.48,z))
  for r in range(6):
   for c in range(5):
    a=r*6+c;faces.append((a,a+6,a+7,a+1))
- forge_surface('vehicle_glass_forge_master',pts,faces,glass,thickness=.018)
- rows=[(-2.50,.70,1.22,1.18),(-2.42,.73,1.27,1.22),(-1.65,.77,1.40,1.22),(-.7,.78,1.25,1.03),(.6,.70,1.12,.82),(1.7,.58,.93,.61),(2.7,.46,.70,.40),(3.35,.40,.45,.30),(3.42,.40,.43,.30)]
+ canopy=forge_surface('vehicle_glass_forge_master',pts,faces,glass,thickness=.018)
+ # A narrow rollover bow articulates roof and rear glass; sills track the master.
+ z,w,lo,hi,crown=FORGE_STATIONS[5]
+ for side in [-1,1]:
+  path=[]
+  for i in range(13):
+   u=i/12;x=side*.62*w*u
+   hit,loc,normal,index=canopy.ray_cast(Vector((x,-z,4)),Vector((0,0,-1)))
+   if hit:path.append((x,loc.z+.009,z))
+  for a,b in zip(path,path[1:]):pipe('Flush canopy rollover bow',a,b,.022,accent,8)
+  sill=[(side*.62*w,hi+.012,z) for z,w,lo,hi,crown in FORGE_STATIONS[3:10]]
+  for a,b in zip(sill,sill[1:]):pipe('Canopy lower seal',a,b,.018,carbon,8)
+ rows=[(-2.50,.70,1.22,1.18),(-2.42,.73,1.27,1.22),(-1.65,.77,1.52,1.30),(-.7,.78,1.30,1.13),(.6,.70,1.22,.91),(1.7,.58,1.04,.64),(2.7,.46,.70,.40),(3.35,.40,.45,.30),(3.42,.40,.43,.30)]
  for side in [-1,1]:
   pts=[];faces=[]
   for z,inner,outer,y in rows:
-   for x,h in [(inner,y-.06),(inner+.035,y+.015),(inner+(outer-inner)*.55,y+.05),(outer-.025,y-.02),(outer,y-.08),(outer-.03,y-.15),(inner+.03,y-.15),(inner,y-.12)]:pts.append((side*x,h,z))
+   for x,h in [(inner,y-.06),(inner+.035,y+.015),(inner+(outer-inner)*.65,y+.14),(outer-.025,y+.05),(outer,y-.08),(outer-.03,y-.15),(inner+.03,y-.15),(inner,y-.12)]:pts.append((side*x,h,z))
   for r in range(len(rows)-1):
    for c in range(8):
     a=r*8+c;b=r*8+(c+1)%8;faces.append((a,b,b+8,a+8))
   for off in [0,(len(rows)-1)*8]:
    for cap in [(0,1,2,3),(0,3,4,7),(4,5,6,7)]:faces.append(tuple(off+i for i in cap))
   forge_surface('Forge_Swept_Blade',pts,faces,body,mirror=False,thickness=.012)
+  # A supported folded shoulder adds a strong swept crease to the main mass.
+  outline=[(side*.84,1.34,-2.28),(side*1.59,1.39,-2.48),(side*1.43,1.25,-1.25),(side*.87,.91,.82)]
+  ridge=(side*1.18,1.49,-1.68)
+  verts=outline+[ridge]+[(x,y-.065,z) for x,y,z in outline]
+  facets=[(0,1,4),(1,2,4),(2,3,4),(3,0,4),(5,8,7,6)]
+  for i in range(4):facets.append((i,(i+1)%4,(i+1)%4+5,i+5))
+  mesh('Folded swept shoulder',verts,facets,body,.009)
+  # Sculpted oval nacelles: stepped armour lip, recessed field and radial vanes.
   for z,y in [(1.8,.43),(-1.5,.61)]:
-   x=side*(.88 if z>0 else 1.12)
-   pipe('Recessed hover cell',(x,y-.12,z),(x,y,z),.24,carbon,32)
+   x=side*(.98 if z>0 else 1.29)
+   points=[];faces=[];n=32
+   for radius,height in [(.24,.12),(.32,.08),(.35,-.01),(.35,-.13),(.30,-.17),(.25,-.14),(.24,-.06)]:
+    for i in range(n):
+     t=math.tau*i/n;points.append((x+radius*math.cos(t),y+height,z+radius*1.75*math.sin(t)))
+   for r in range(6):
+    for i in range(n):
+     a=r*n+i;b=r*n+(i+1)%n;faces.append((a,b,b+n,a+n))
+   casing=mesh('Oval armoured repulsor duct',points,faces,steel)
+   for f in casing.data.polygons:f.use_smooth=True
+   # The dark recess remains above the luminous underside, never a solid puck.
+   core=pipe('Recessed field core',(x,y-.05,z),(x,y-.08,z),.23,carbon,32);core.scale.y=1.75
+   for i in range(12):
+    t=math.tau*i/12
+    pipe('Repulsor radial stator',(x+.10*math.cos(t),y-.11,z+.175*math.sin(t)),(x+.265*math.cos(t+.15),y-.13,z+.464*math.sin(t+.15)),.012,carbon,6)
+   pts=[];fs=[]
+   for radius,height in [(.307,-.151),(.327,-.151)]:
+    for i in range(n):
+     t=math.tau*i/n;pts.append((x+radius*math.cos(t),y+height,z+radius*1.75*math.sin(t)))
+   for i in range(n):fs.append((i,(i+1)%n,(i+1)%n+n,i+n))
+   mesh('Inset oval field emitter',pts,fs,glow)
+   for dz in [-.21,.21]:
+    pipe('Pod recessed suspension',(side*.70,y+.21,z+dz),(x,y+.05,z+dz),.045,carbon,12)
+   # Swept eyebrow, separated from the duct opening by a real air gap.
+   panel('Pod blade eyebrow',[(x-side*.32,y+.13,z-.50),(x+side*.32,y+.13,z-.36),(x+side*.36,y+.20,z+.15),(x+side*.10,y+.24,z+.69),(x-side*.27,y+.16,z+.34)],body)
   pipe('Rear drive housing',(side*.82,.93,-2.10),(side*.82,.93,-2.82),.32,steel,32)
   pipe('Rear drive recess',(side*.82,.93,-2.83),(side*.82,.93,-2.85),.25,carbon,32)
  pipe('Central drive housing',(0,1.05,-2.18),(0,1.05,-2.90),.24,carbon,32)
@@ -59,6 +101,7 @@ def build_forge(body,accent,carbon,steel,rubber,glow,glass):
  before=set(bpy.context.scene.objects)
  pipe('Yoke bridge',(-.22,1.23,1.08),(.22,1.23,1.08),.03,steel)
  for s in [-1,1]:pipe('Yoke grip',(s*.22,1.18,1.08),(s*.23,1.38,1.05),.035,rubber)
+ for obj in since(before):obj.location += v((0,0,-.28))
  rig('Kestrel_Yoke',since(before),(0,1.25,1.08))
  for i in range(5):
   before=set(bpy.context.scene.objects);x=(i-2)*.25
