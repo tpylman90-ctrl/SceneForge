@@ -341,6 +341,11 @@ func update_feedback(delta: float, signed_speed: float, drive: float, steering: 
 		var base := Vector3((i-2)*0.42,0.2+yy*sin(deg_to_rad(6))+1.125*cos(deg_to_rad(6)),0.8-yy*cos(deg_to_rad(6))+1.125*sin(deg_to_rad(6)))
 		if chassis.chassis_id=="piledriver":
 			base=Vector3((i-2)*.36,1.9201,-2.34)
+		if chassis.chassis_id=="shrike":
+			# Drive exhaust through the five recessed rear induction outlets.
+			# Old Kestrel positions floated ABOVE the canopy as five white dots.
+			base=Vector3((i-2)*.24,.73,-3.57)
+			exhaust.visible=drive>.04 or absf(signed_speed)>4.0 or boosting
 		var length := 0.10+drive*0.58+absf(signed_speed)/32*0.20+(0.35 if boosting else 0.0)
 		var nozzle_motion := tails[i].transform*tail_rest[i].affine_inverse()
 		var axis := nozzle_motion.basis*Basis(Vector3.RIGHT,PI/2)*Basis.from_scale(Vector3(1,length,1))
