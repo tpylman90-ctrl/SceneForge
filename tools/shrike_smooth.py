@@ -279,9 +279,12 @@ def build_shrike(body, accent, carbon, steel, rubber, glow, glass):
     panel('Shrike recessed rear aperture',[
         (-1.12,.69,-3.574),(1.12,.69,-3.574),
         (1.16,1.24,-3.574),(-1.16,1.24,-3.574)],carbon)
-    pipe('Shrike continuous rear light bar',
+    rear_lamp=pipe('Shrike continuous rear light bar',
          (-1.15,1.26,-3.586),(1.15,1.26,-3.586),
          .037,red,16)
+    # A separate red material is not in the main material join set.
+    # Name it as a fleet node so kestrel_feedback.gd retains the mesh.
+    rear_lamp.name='Kestrel_ShrikeRedTailLight'
     for side in (-1,1):
         pipe('Shrike rear vector duct', (side*.64,.80,-3.39),
              (side*.64,.80,-3.61),.21,steel,22)
@@ -291,6 +294,14 @@ def build_shrike(body, accent, carbon, steel, rubber, glow, glass):
              (side*.64,.80,-3.65),.085,glow,18)
         pipe('Shrike tail outer accent',(side*1.30,.77,-3.57),
              (side*1.24,1.13,-3.57),.026,accent,10)
+    # Reference-geometry acceptance gates: catch a regression to tubular
+    # proportions before publishing the next Android or viewer build.
+    assert lerp_profile(0)[0] > 1.43, 'Shrike cockpit waist too narrow'
+    assert lerp_profile(-2.58)[0] > 1.50, 'Shrike rear haunches too narrow'
+    assert surface(2.42,.77)[1]-surface(2.42,.38)[1] > .15, (
+        'Shrike outboard fender crest missing')
+    assert len(quads) > 2000, 'Shrike continuous quad cage incomplete'
+    print('SCENEFORGE_SHRIKE_REFERENCE_BODY_OK',len(quads))
     # Five unexposed rigged nozzle nodes are required by SceneForge animation.
     for i in range(5):
         before=set(bpy.context.scene.objects)
