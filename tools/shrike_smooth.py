@@ -74,13 +74,28 @@ def build_shrike(body, accent, carbon, steel, rubber, glow, glass):
         top_rail=(1-blend)*top_rail+blend*edge
         return (w*t,top_rail,z)
     def side_surface(z,y,side=1):
-        w,low,high,edge=lerp_profile(z)
-        # Fit inset channels to the sloping upper shoulder instead of
-        # positioning every detail on an imaginary vertical outer wall.
-        upper=max(0.0,min(1.0,(y-edge)/max(.10,high-edge)))
-        shoulder_setback=.18*w*upper**1.25
-        undercut=.13*gauss(z,-.1,1.62)*gauss(y,.53,.20)
-        return (side*(w-shoulder_setback-undercut),y,z)
+        """Project a detail onto the OUTER cheek of the actual body skin.
+
+        The old analytical side approximation was independent of the body
+        surface and caused C-channel accents and air intakes to float.
+        """
+        w,low,crown,edge=lerp_profile(z)
+        outboard_crest=surface(z,side*.79)[1]
+        if y>edge:
+            actual_y=min(y,outboard_crest-.004)
+            lo,hi=.79,1.0
+            for _ in range(18):
+                mid=(lo+hi)*.5
+                if surface(z,side*mid)[1]>actual_y:
+                    lo=mid
+                else:
+                    hi=mid
+            u=(lo+hi)*.5
+            return (side*w*u,actual_y,z)
+        # At and below the shoulder, the beltline uses genuine vertical
+        # side rails. Lower undercut is reserved for the rocker.
+        lower=max(0,min(1,(edge-y)/max(.01,edge-low)))
+        return (side*w*(1-.025*lower),y,z)
     # Polygon rails run from right sill, across the upper hood to left sill,
     # then back underneath. All longitudinal sections use matching quad rings.
     top_t=[1,.96,.90,.83,.77,.69,.56,.42,.28,.14,0,
@@ -138,10 +153,24 @@ def build_shrike(body, accent, carbon, steel, rubber, glow, glass):
         for face in o.data.polygons:face.use_smooth=True
         return o
     def side_plate(name, side, coords, material):
-        # side silhouette coords (z, y), surface-mounted at natural shoulder.
-        pts=[side_surface(z,y,side) for z,y in coords]
-        pts=[(x+side*.016,y,z) for x,y,z in pts]
-        return panel(name,pts,material)
+        """Recessed faceted vent with a fitted outer lip and sloped inner wall."""
+        cy=sum(y for z,y in coords)/len(coords)
+        cz=sum(z for z,y in coords)/len(coords)
+        outer=[]
+        inner=[]
+        for z,y in coords:
+            x,yy,zz=side_surface(z,y,side)
+            outer.append((x+side*.020,yy,zz))
+            zi=cz+(z-cz)*.81
+            yi=cy+(y-cy)*.79
+            xi,yi,zi=side_surface(zi,yi,side)
+            inner.append((xi-side*.032,yi,zi))
+        p=outer+inner
+        n=len(coords)
+        quads=[(i,(i+1)%n,n+(i+1)%n,n+i) for i in range(n)]
+        quads.append(tuple(range(n,2*n)))
+        o=mesh(name,p,quads,material)
+        return o
     def spline_points(ctrl,steps=5):
         out=[]
         for i in range(len(ctrl)-1):
@@ -322,12 +351,22 @@ def build_shrike(body, accent, carbon, steel, rubber, glow, glass):
     for side in (-1,1):
         pipe('Shrike blue intake eye',(side*.55,.535,nose_z+.028),
              (side*.78,.535,nose_z+.028),.016,glow,10)
-    # Raised but nearly level rear deck and inset cooling pack.
-    skin_patch('Shrike recessed dorsal cooling deck',[
-        (-3.31,[-.39,-.22,0,.22,.39]),
-        (-3.04,[-.39,-.22,0,.22,.39]),
-        (-2.79,[-.35,-.19,0,.19,.35]),
-        (-2.55,[-.30,-.15,0,.15,.30])],carbon,.026)
+    # Magenta engine-deck blueprint: an elongated black engine bay centered
+    # between the two substantial orange rear fenders, ending just behind
+    # the canopy rather than starting only at the tail bumper.
+    skin_patch('Shrike recessed engine deck black insert',[
+        (-3.36,[-.39,-.23,0,.23,.39]),
+        (-3.13,[-.39,-.23,0,.23,.39]),
+        (-2.85,[-.41,-.24,0,.24,.41]),
+        (-2.50,[-.41,-.24,0,.24,.41]),
+        (-2.12,[-.40,-.22,0,.22,.40]),
+        (-1.82,[-.37,-.20,0,.20,.37])],carbon,.012)
+    # Dedicated sculpted twin engine scoops rather than a flat painted box.
+    for side in (-1,1):
+        skin_patch('Shrike recessed aft engine induction',[
+            (-3.18,[side*.09,side*.27]),
+            (-2.94,[side*.09,side*.27]),
+            (-2.75,[side*.10,side*.28])],steel,.027)
     for side in (-1,1):
         surface_stroke('Shrike rear dorsal accent',[
             (-3.25,side*.50),(-2.99,side*.54),
@@ -359,6 +398,10 @@ def build_shrike(body, accent, carbon, steel, rubber, glow, glass):
     assert lerp_profile(-2.58)[0] > 1.50, 'Shrike rear haunches too narrow'
     assert surface(2.42,.77)[1]-surface(2.42,.38)[1] > .15, (
         'Shrike outboard fender crest missing')
+    assert surface(-2.55,.79)[1]-surface(-2.55,0)[1] > .15, (
+        'Shrike rear fender and recessed engine deck must be distinct')
+    assert abs(surface(-.35,.79)[0]) > .75, 'Shrike cabin shoulder pinched'
+    assert canopy[3][2] < canopy[3][3], 'Shrike canopy roof cannot be buried'
     assert len(quads) > 2000, 'Shrike continuous quad cage incomplete'
     print('SCENEFORGE_SHRIKE_REFERENCE_BODY_OK',len(quads))
     # Five unexposed rigged nozzle nodes are required by SceneForge animation.
