@@ -44,52 +44,62 @@ def build_shrike(body,accent,carbon,steel,rubber,glow,glass):
                     result.append(value)
                 return result
         return list(stations[0][1:] if z<stations[0][0] else stations[-1][1:])
-    segment_count=84
-    n=24
+    # Automotive quad cage: 96 longitudinal rings and 32 matched peripheral
+    # vertices. The body is one contiguous mesh, not overlapping trim panels.
+    # Explicit three-rail shoulder profiles replace a radial oval crown.
+    segment_count=96
+    n=32
     points=[]
+    def gauss(z,mid,radius):
+        return math.exp(-((z-mid)/radius)**2)
     for k in range(segment_count+1):
         z=-3.55+6.95*k/segment_count
-        w,low,high=profile(z)
-        front=math.exp(-((z-2.20)/.79)**2)
-        rear=math.exp(-((z+2.35)/.95)**2)
-        waist=math.exp(-((z-.05)/1.1)**2)
-        # Sidewalls and top have authored independent contours.
-        max_width=w+.17*front+.20*rear-.055*waist
+        base_width,low,high=profile(z)
+        # Front axle shoulders taper into a broad/blunt bumper. Rear arches
+        # transition gradually into a flat tail rather than a rounded capsule.
+        front=gauss(z,2.18,.89)
+        rear=gauss(z,-2.48,1.10)
+        mid=gauss(z,.00,1.18)
+        width=base_width+.16*front+.21*rear-.075*mid
         for j in range(n):
             angle=math.tau*j/n
-            u=abs(math.cos(angle))
-            sin_a=math.sin(angle)
-            x=max_width*math.cos(angle)
-            if sin_a>=0:
-                # Raised shoulders at 70-85% of half-width, with an
-                # unobstructed lower center hood / flat rear deck.
-                shoulder=math.exp(-((u-.77)/.17)**2)
-                top_curve=(1-u*u)**.55
-                central=high-.09*front-.075*rear
-                side_level=(high+low)*.5+.055
-                y=side_level+(central-side_level)*top_curve
-                y+=shoulder*(.27*front+.20*rear)*(sin_a**.65)
-                # Flatter trunk surface without an exaggerated rear hump.
-                y-=.035*rear*(1-u)**2
+            cosine=math.cos(angle)
+            u=abs(cosine)
+            sine=math.sin(angle)
+            x=width*cosine
+            shoulder_height=(.30*front+.25*rear)
+            center_drop=.10*front+.07*rear
+            if sine>=0:
+                # Low central bonnet with two distinct formed fender crowns.
+                # Two positive-curvature crests at x~+/-0.78 body half-width.
+                arch=math.exp(-((u-.78)/.155)**2)
+                blend=(1-u*u)**.73
+                edge=(high+low)*.5+.065
+                crown=high-center_drop
+                y=edge+(crown-edge)*blend+shoulder_height*arch
+                # Rear tail has nearly planar upper deck, without a bubble.
+                y-=rear*.075*max(0,1-u/.72)**2
             else:
-                side_level=(high+low)*.5+.055
-                bottom_curve=(1-u*u)**.80
-                y=side_level+(low-side_level)*bottom_curve
+                # Shallow underside, flat lower chine at both bumper ends.
+                edge=(high+low)*.5+.065
+                y=edge-(edge-low)*(max(0,1-u*u)**.83)
             points.append((x,y,z))
     faces=[]
     for k in range(segment_count):
         z_mid=-3.55+6.95*(k+.5)/segment_count
         for j in range(n):
             # Cockpit is genuinely open beneath the roof glazing.
-            if -1.56<z_mid<1.36 and 2<=j<=10:
+            if -1.56<z_mid<1.36 and 3<=j<=13:
                 continue
             a=k*n+j
             faces.append((a,k*n+(j+1)%n,(k+1)*n+(j+1)%n,(k+1)*n+j))
     faces.append(tuple(reversed(range(n))))
     faces.append(tuple(segment_count*n+j for j in range(n)))
-    shell=mesh('Shrike seamless flowing body',points,faces,body,0)
+    shell=mesh('Shrike automotive quad cage body',points,faces,body,0)
     for face in shell.data.polygons:
         face.use_smooth=True
+    # Material preview: neutral nonmetallic graphite with no blown-out whites.
+    body.node_tree.nodes['Principled BSDF'].inputs['Metallic'].default_value=.02
     # Form-only prototype: no trim, intakes, lights, hover rings or panel add-ons.
     # Unified greenhouse: long low windshield, swept side glass, and a molded
     # painted roof flowing continuously down into the raised rear haunches.
