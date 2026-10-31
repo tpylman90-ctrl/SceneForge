@@ -187,18 +187,51 @@ def build_shrike(body, accent, carbon, steel, rubber, glow, glass):
             k=i*9+j;ff.append((k,k+1,k+10,k+9))
     roof=mesh('vehicle_glass_shrike_panoramic_glazing',pp,ff,glass)
     for face in roof.data.polygons:face.use_smooth=True
-    # Glazed side leaves are integrated within the A and C sail.
+    # Full, curved, QUAD side glazing (no giant nonplanar n-gons).
+    # Every longitudinal row shares a roof-seam vertex with the main glass;
+    # the lower edge is tucked into the body's molded upper side shoulder.
+    # This eliminates black triangle gaps behind the cockpit in Godot.
     for side in (-1,1):
-        window=[(side*.52,1.18,1.33),(side*.72,1.42,.75),
-                (side*.78,1.56,-.24),(side*.73,1.45,-1.17),
-                (side*.62,1.26,-1.53),(side*.81,1.18,-.88),
-                (side*.84,1.12,.25)]
-        panel('vehicle_glass_shrike_side',window,glass)
-        # A and C pillars grow out of the actual painted fender shoulders.
-        pipe('Shrike flush A pillar',(side*.51,1.15,1.38),
-             (side*.73,1.51,.76),.028,carbon,10)
-        pipe('Shrike swept C pillar',(side*.76,1.53,-.95),
-             (side*.91,1.31,-1.64),.038,body,10)
+        side_verts=[];side_quads=[]
+        for z,w,base,high in canopy:
+            # Glass crown blends down to the joined roof/side transition.
+            crown_at_edge=base+(high-base)*max(0,1-.80*.80)**.63
+            for x,y in [
+                (side*(w+.27),base-.155),   # hidden beneath the body shoulder
+                (side*(w+.07),base-.025),   # side glass lower rim
+                (side*w,base),              # roof edge, same as roof band
+                (side*w*.80,crown_at_edge)]:
+                side_verts.append((x,y,z))
+        for i in range(len(canopy)-1):
+            for col in range(3):
+                q=i*4+col
+                side_quads.append((q,q+1,q+5,q+4))
+        glazing=mesh('vehicle_glass_shrike_wrap_side',side_verts,side_quads,glass)
+        for face in glazing.data.polygons:
+            face.use_smooth=True
+        # Narrow, body-colored formed glazing rails; no exposed roll cage.
+        for rail_u in [0,1]:
+            pp=[]
+            for z,w,base,high in canopy:
+                if rail_u==0:
+                    pp.extend([(side*(w+.27),base-.158,z),
+                               (side*(w+.22),base-.133,z)])
+                else:
+                    pp.extend([(side*w*.8,
+                                base+(high-base)*max(0,1-.8*.8)**.63+.004,z),
+                               (side*w*.86,
+                                base+(high-base)*max(0,1-.86*.86)**.63+.009,z)])
+            ff=[(2*i,2*i+1,2*i+3,2*i+2)
+                for i in range(len(canopy)-1)]
+            mesh('Shrike flush canopy perimeter rail',pp,ff,body)
+        # Substantial but flush A/C-pillar quarter panels conceal the ends
+        # of the windows and visually marry them to the silver monocoque.
+        panel('Shrike front body A-sail',[
+            (side*.80,1.06,1.48),(side*.91,1.05,1.25),
+            (side*.86,1.34,.92),(side*.70,1.48,.93)],body)
+        panel('Shrike integrated rear C-sail',[
+            (side*.75,1.40,-1.01),(side*.88,1.28,-1.30),
+            (side*1.19,1.18,-1.79),(side*.90,1.30,-1.58)],body)
     # Interior remains functional in the driving camera.
     box('Shrike integrated two-seat tub',(0,.81,-.23),(1.30,.12,2.24),carbon,.06)
     for side in [-1,1]:
