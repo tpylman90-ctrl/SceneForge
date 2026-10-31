@@ -13,13 +13,13 @@ def build_shrike(body,accent,carbon,steel,rubber,glow,glass):
     # Reference-led controlled cross-section loft. Each ring has independent
     # waist width, hood crown, shoulder height, sill and rear deck control.
     # Positive Z = nose; negative Z = tail. No applied fender attachments.
-    stations=[(-3.55,1.03,.51,1.42),(-3.35,1.12,.44,1.53),
-              (-3.03,1.23,.39,1.60),(-2.55,1.26,.36,1.65),
-              (-2.05,1.30,.34,1.66),(-1.30,1.32,.32,1.68),
-              (-.50,1.34,.30,1.54),(.40,1.35,.29,1.47),
-              (1.18,1.34,.28,1.36),(1.82,1.28,.28,1.16),
-              (2.40,1.29,.30,1.00),(2.83,1.24,.32,.89),
-              (3.15,1.10,.36,.77),(3.40,.89,.40,.68)]
+    stations=[(-3.55,1.18,.51,1.40),(-3.35,1.27,.44,1.50),
+              (-3.03,1.35,.39,1.60),(-2.55,1.38,.36,1.65),
+              (-2.05,1.38,.34,1.66),(-1.30,1.38,.32,1.68),
+              (-.50,1.41,.30,1.54),(.40,1.43,.29,1.47),
+              (1.18,1.43,.28,1.36),(1.82,1.43,.28,1.16),
+              (2.40,1.43,.30,1.00),(2.83,1.38,.32,.89),
+              (3.15,1.22,.36,.77),(3.40,1.08,.40,.68)]
     # Synapse-style cubic profile blending, parameterized by actual distance.
     # Unlike smoothstep, this retains a continuous nonzero tangent at each
     # station; flat spots in side reflections are no longer baked into the loft.
@@ -44,7 +44,7 @@ def build_shrike(body,accent,carbon,steel,rubber,glow,glass):
                     result.append(value)
                 return result
         return list(stations[0][1:] if z<stations[0][0] else stations[-1][1:])
-    # Automotive quad cage: 96 longitudinal rings and 32 matched peripheral
+    # Four-view orthographic reference: wide planform, defined fender shoulders,\n    # slim side elevation, squared rear termination.\n    # Automotive quad cage: 96 longitudinal rings and 32 matched peripheral
     # vertices. The body is one contiguous mesh, not overlapping trim panels.
     # Explicit three-rail shoulder profiles replace a radial oval crown.
     segment_count=96
@@ -60,29 +60,29 @@ def build_shrike(body,accent,carbon,steel,rubber,glow,glass):
         front=gauss(z,2.18,.89)
         rear=gauss(z,-2.48,1.10)
         mid=gauss(z,.00,1.35)
-        width=base_width+.24*front+.24*rear+.055*mid
+        width=base_width+.13*front+.15*rear+.025*mid
         for j in range(n):
             angle=math.tau*j/n
             cosine=math.cos(angle)
             u=abs(cosine)
             sine=math.sin(angle)
             # Rear-biased superellipse widens the tail into a squared stance.
-            exponent=.89-.31*rear-.15*front-.075*mid
+            exponent=.81-.29*rear-.09*front-.045*mid
             x=width*math.copysign(u**exponent,cosine)
             # Lower side undercut is part of the continuous body.
-            x*=1-.075*mid*math.exp(-((sine+.39)/.27)**2)
-            shoulder_height=(.49*front+.36*rear)
-            center_drop=.20*front+.12*rear
+            x*=1-.052*mid*math.exp(-((sine+.39)/.27)**2)
+            shoulder_height=(.43*front+.26*rear)
+            center_drop=.16*front+.095*rear
             if sine>=0:
                 # Low central bonnet with two distinct formed fender crowns.
                 # Two positive-curvature crests at x~+/-0.78 body half-width.
-                arch=math.exp(-((u-.85)/.145)**2)
+                arch=math.exp(-((u-.80)/.18)**2)
                 blend=(1-u*u)**.73
                 edge=(high+low)*.5+.065
                 crown=high-center_drop
                 y=edge+(crown-edge)*blend+shoulder_height*arch
                 # Rear tail has nearly planar upper deck, without a bubble.
-                y-=rear*.115*max(0,1-u/.78)**2
+                y-=rear*.09*max(0,1-u/.78)**2
             else:
                 # Shallow underside, flat lower chine at both bumper ends.
                 edge=(high+low)*.5+.065
