@@ -25,9 +25,9 @@ func part(parent: Node3D, name_text: String, point: Vector3, size: Vector3, mate
 func build() -> void:
 	name = "ShrikeCockpitInstruments"
 	var dark := finish("18232c", .18)
-	var panel_dark := finish("263640", .12)
-	var trim := finish("bc5b20", .5)
-	var teal := finish("4cd1e3")
+	var panel_dark := finish("210f37", .12)
+	var trim := finish("a2ed19", .35)
+	var teal := finish("90e51f")
 	teal.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 
 	# The old inherited display was around (0, 1.43, 1.62), forward
