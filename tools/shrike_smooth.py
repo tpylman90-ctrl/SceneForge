@@ -9,53 +9,71 @@ def build_shrike(body,accent,carbon,steel,rubber,glow,glass):
     bs.inputs['Base Color'].default_value=body.diffuse_color
     bs.inputs['Roughness'].default_value=.52
     bs.inputs['Coat Weight'].default_value=.08
-    # Continuous aerodynamic production-car shell.  Smooth oval loft, not an open deck.
-    # Broad, blunt sports-car nose; rear (-Z), front (+Z).
-    # First-order proportions only: keep this pass free of exposed aero appendages.
-    stations=[(-3.55,.75,.51,1.39),(-3.35,.94,.44,1.53),
-              (-3.03,1.10,.39,1.65),(-2.55,1.20,.36,1.72),
-              (-2.05,1.23,.34,1.74),(-1.30,1.24,.32,1.70),
-              (-.50,1.25,.30,1.54),(.40,1.25,.29,1.47),
-              (1.18,1.27,.28,1.36),(1.82,1.31,.28,1.16),
-              (2.40,1.32,.30,1.02),(2.83,1.27,.32,.90),
-              (3.15,1.16,.36,.78),(3.40,.92,.40,.69)]
-    segments=[]
-    for a,b in zip(stations,stations[1:]):
-        for i in range(5):
-            t=i/5
-            segments.append(tuple(a[k]*(1-t)+b[k]*t for k in range(4)))
-    segments.append(stations[-1])
-    n=20;points=[]
-    for z,w,low,high in segments:
+    # Reference-led controlled cross-section loft. Each ring has independent
+    # waist width, hood crown, shoulder height, sill and rear deck control.
+    # Positive Z = nose; negative Z = tail. No applied fender attachments.
+    stations=[(-3.55,.80,.51,1.39),(-3.35,.96,.44,1.53),
+              (-3.03,1.09,.39,1.60),(-2.55,1.20,.36,1.65),
+              (-2.05,1.22,.34,1.66),(-1.30,1.20,.32,1.68),
+              (-.50,1.18,.30,1.54),(.40,1.18,.29,1.47),
+              (1.18,1.23,.28,1.36),(1.82,1.28,.28,1.16),
+              (2.40,1.29,.30,1.00),(2.83,1.24,.32,.89),
+              (3.15,1.10,.36,.77),(3.40,.89,.40,.68)]
+    # Smoothstep interpolation avoids creases where longitudinal sections join.
+    def profile(z):
+        for k in range(len(stations)-1):
+            a,b=stations[k:k+2]
+            if a[0]<=z<=b[0]:
+                t=(z-a[0])/(b[0]-a[0])
+                t=t*t*(3-2*t)
+                return [a[i]*(1-t)+b[i]*t for i in range(1,4)]
+        return list(stations[-1][1:])
+    segment_count=84
+    n=24
+    points=[]
+    for k in range(segment_count+1):
+        z=-3.55+6.95*k/segment_count
+        w,low,high=profile(z)
+        front=math.exp(-((z-2.20)/.79)**2)
+        rear=math.exp(-((z+2.35)/.95)**2)
+        waist=math.exp(-((z-.05)/1.1)**2)
+        # Sidewalls and top have authored independent contours.
+        max_width=w+.17*front+.20*rear-.055*waist
         for j in range(n):
-            a=2*math.pi*j/n
-            # Pinched waist and confident rear haunch are part of the actual shell.
-            side=abs(math.cos(a))
-            waist=.075*math.exp(-((z-.05)/.85)**2)
-            haunch=.055*math.exp(-((z+2.25)/.75)**2)
-            front=math.exp(-((z-2.12)/.84)**2)
-            rear=math.exp(-((z+2.36)/.99)**2)
-            x=(w-waist+haunch+.15*front+.18*rear)*math.cos(a)
-            y=(low+high)/2+(high-low)*.5*math.sin(a)
-            # Raised paired front shoulders and rear wheel-arch haunches.
-            # Recessed central hood and trunk result from the outer-only lift.
-            outer=math.exp(-((abs(math.cos(a))-.75)/.18)**2)
-            upper=max(0.0,math.sin(a))**1.2
-            y+=outer*upper*(.29*front+.21*rear)
-            # Soften the crown into a broad nearly level fastback, not a round dome.
-            if z < -1.55 and math.sin(a)>.65:
-                y-=.075*(math.sin(a)-.65)/.35
+            angle=math.tau*j/n
+            u=abs(math.cos(angle))
+            sin_a=math.sin(angle)
+            x=max_width*math.cos(angle)
+            if sin_a>=0:
+                # Raised shoulders at 70-85% of half-width, with an
+                # unobstructed lower center hood / flat rear deck.
+                shoulder=math.exp(-((u-.77)/.17)**2)
+                top_curve=(1-u*u)**.55
+                central=high-.09*front-.075*rear
+                side_level=(high+low)*.5+.055
+                y=side_level+(central-side_level)*top_curve
+                y+=shoulder*(.27*front+.20*rear)*(sin_a**.65)
+                # Flatter trunk surface without an exaggerated rear hump.
+                y-=.035*rear*(1-u)**2
+            else:
+                side_level=(high+low)*.5+.055
+                bottom_curve=(1-u*u)**.80
+                y=side_level+(low-side_level)*bottom_curve
             points.append((x,y,z))
     faces=[]
-    for k in range(len(segments)-1):
+    for k in range(segment_count):
+        z_mid=-3.55+6.95*(k+.5)/segment_count
         for j in range(n):
-            # Remove roof over cockpit so glazing isn't buried beneath opaque bodywork.
-            mid=(segments[k][0]+segments[k+1][0])*.5
-            if -1.56 < mid < 1.36 and 2 <= j <= 8: continue
-            faces.append((k*n+j,k*n+(j+1)%n,(k+1)*n+(j+1)%n,(k+1)*n+j))
-    faces.extend([tuple(reversed(range(n))),tuple((len(segments)-1)*n+j for j in range(n))])
-    shell=mesh('Shrike seamless flowing body',points,faces,body,.009)
-    for face in shell.data.polygons:face.use_smooth=True
+            # Cockpit is genuinely open beneath the roof glazing.
+            if -1.56<z_mid<1.36 and 2<=j<=10:
+                continue
+            a=k*n+j
+            faces.append((a,k*n+(j+1)%n,(k+1)*n+(j+1)%n,(k+1)*n+j))
+    faces.append(tuple(reversed(range(n))))
+    faces.append(tuple(segment_count*n+j for j in range(n)))
+    shell=mesh('Shrike seamless flowing body',points,faces,body,0)
+    for face in shell.data.polygons:
+        face.use_smooth=True
     # Form-only prototype: no trim, intakes, lights, hover rings or panel add-ons.
     # Unified greenhouse: long low windshield, swept side glass, and a molded
     # painted roof flowing continuously down into the raised rear haunches.
