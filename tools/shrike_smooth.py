@@ -20,20 +20,24 @@ def build_shrike(body, accent, carbon, steel, rubber, glow, glass):
     # Controllable independent plan, sill, crown and edge rails. These profiles
     # intentionally hold width beside the canopy and a wide squared-off rear.
     # Columns: longitudinal Z, half-width, lower edge, hood/deck, side height.
+    # Blueprint cross-section stations: Z, half-width, lower sill,
+    # low central hood/deck, outer shoulder height.
+    # Front +Z: green fenders; center: cyan greenhouse; rear -Z:
+    # orange haunches around a separate recessed engine deck.
     sections = [
-        (-3.55, 1.25, .44, 1.25, .83),
-        (-3.37, 1.39, .40, 1.36, .86),
-        (-3.06, 1.48, .34, 1.49, .90),
-        (-2.58, 1.55, .31, 1.54, .93),
-        (-2.03, 1.52, .29, 1.53, .94),
-        (-1.39, 1.48, .29, 1.35, .98),
-        (-.65, 1.47, .28, 1.25, .99),
-        (.20, 1.48, .27, 1.21, .96),
-        (1.11, 1.51, .27, 1.18, .90),
-        (1.78, 1.54, .27, 1.07, .78),
-        (2.42, 1.58, .28, .94, .71),
-        (2.92, 1.52, .30, .80, .62),
-        (3.27, 1.42, .34, .67, .57),
+        (-3.55, 1.30, .40, 1.13, .81),
+        (-3.37, 1.43, .37, 1.19, .85),
+        (-3.06, 1.51, .33, 1.24, .89),
+        (-2.58, 1.56, .31, 1.30, .92),
+        (-2.03, 1.54, .29, 1.34, .97),
+        (-1.39, 1.51, .29, 1.30, .99),
+        (-.65, 1.52, .28, 1.24, .98),
+        (.20, 1.53, .27, 1.22, .96),
+        (1.11, 1.56, .27, 1.19, .92),
+        (1.78, 1.61, .27, 1.08, .80),
+        (2.42, 1.63, .28, .94, .72),
+        (2.92, 1.57, .30, .81, .63),
+        (3.27, 1.45, .35, .68, .57),
         (3.47, 1.28, .40, .62, .55)
     ]
     def lerp_profile(z):
@@ -55,19 +59,19 @@ def build_shrike(body, accent, carbon, steel, rubber, glow, glass):
     def gauss(z,mu,sigma):
         return math.exp(-((z-mu)/sigma)**2)
     def surface(z,t):
-        """Top skin at normalized lateral position -1..1."""
+        """Upper monocoque skin: recessed center, outboard fender, formed cheek."""
         w,bottom,crown,edge=lerp_profile(z)
         u=abs(t)
-        front=gauss(z,2.26,.97)
-        rear=gauss(z,-2.72,1.06)
-        # Three independent rails: center hood / strongly OUTWARD fender crest /
-        # formed downward outer cheek. Peaks sit around 76% of half track.
-        top_rail = crown + (.30*front+.145*rear)*gauss(u,.77,.145)
-        # Low recessed bonnet immediately inboard of the fender peaks.
-        top_rail -= (.11*front+.025*rear)*gauss(u,.36,.23)
-        # Smooth shoulder face flows down toward the vertical wheel-housing side.
-        fall=(max(0.0,(u-.81)/.19))**1.45
-        top_rail=(1-fall)*top_rail+fall*edge
+        front=gauss(z,2.28,.93)
+        rear=gauss(z,-2.57,1.03)
+        # Two true reference-defined outer fender volumes, not oval bubbles.
+        shoulder=(.255*front+.235*rear)*gauss(u,.79,.145)
+        channel=(.085*front+.065*rear)*gauss(u,.32,.21)
+        top_rail=crown+shoulder-channel
+        # A controlled sloping cheek outside the fender's sharp raised rail.
+        blend=max(0.0,min(1.0,(u-.84)/.16))
+        blend=blend*blend*(3-2*blend)
+        top_rail=(1-blend)*top_rail+blend*edge
         return (w*t,top_rail,z)
     def side_surface(z,y,side=1):
         w,low,high,edge=lerp_profile(z)
@@ -81,20 +85,24 @@ def build_shrike(body, accent, carbon, steel, rubber, glow, glass):
     # then back underneath. All longitudinal sections use matching quad rings.
     top_t=[1,.96,.90,.83,.77,.69,.56,.42,.28,.14,0,
            -.14,-.28,-.42,-.56,-.69,-.77,-.83,-.90,-.96,-1]
-    bottom_t=[-1,-.91,-.75,-.50,-.25,0,.25,.50,.75,.91,1]
+    # Structural sidewall / rocker / underfloor rails. The former tube
+    # had no explicit side body, so every view read like a balloon.
+    lower_rails=[(-1,.89),(-1,.72),(-.99,.54),(-.96,.31),
+                 (-.86,.06),(-.58,0),(-.29,0),(0,0),
+                 (.29,0),(.58,0),(.86,.06),(.96,.31),
+                 (.99,.54),(1,.72),(1,.89)]
     count=100
-    ring_size=len(top_t)+len(bottom_t)
+    ring_size=len(top_t)+len(lower_rails)
     verts=[]
     for i in range(count+1):
         z=sections[0][0]+(sections[-1][0]-sections[0][0])*i/count
         w,low,high,side_height=lerp_profile(z)
         for t in top_t:
             verts.append(surface(z,t))
-        for t in bottom_t:
-            # A tapered chine leads to a reasonably flat, shallow underfloor.
-            u=abs(t)
-            y=low+(side_height-low)*(u**3)
-            x=t*w*(1-.05*(1-u))
+        for t,level in lower_rails:
+            # Side beltline is a modeled volume, rather than a missing wall.
+            y=low+(side_height-low)*level
+            x=t*w*(1-.045*(1-abs(t)))
             verts.append((x,y,z))
     quads=[]
     for k in range(count):
@@ -173,10 +181,16 @@ def build_shrike(body, accent, carbon, steel, rubber, glow, glass):
 
     # Long, panoramic greenhouse. The outer root of every glass cross-section
     # nests into the side shoulders, while the roof rises out of the windscreen.
-    canopy=[(-1.60,.63,1.24,1.38),(-1.32,.72,1.26,1.55),
-            (-.90,.79,1.24,1.66),(-.35,.81,1.22,1.72),
-            (.30,.80,1.20,1.68),(.88,.70,1.15,1.52),
-            (1.34,.55,1.13,1.30),(1.51,.43,1.13,1.17)]
+    # Roof roots are sampled from the actual sculpted body (no fixed,
+    # arbitrary 1.24m glass base that floats above the hood).
+    canopy_shape=[(-1.67,.62,1.34),(-1.40,.73,1.53),
+                  (-.94,.79,1.65),(-.35,.81,1.72),
+                  (.27,.80,1.69),(.89,.72,1.55),
+                  (1.31,.57,1.33),(1.57,.43,1.17)]
+    canopy=[]
+    for z,w,high in canopy_shape:
+        base=surface(z,min(.99,w/lerp_profile(z)[0]))[1]+.018
+        canopy.append((z,w,base,max(base+.025,high)))
     pp=[];ff=[]
     for z,w,base,high in canopy:
         for t in [-1,-.8,-.55,-.28,0,.28,.55,.8,1]:
