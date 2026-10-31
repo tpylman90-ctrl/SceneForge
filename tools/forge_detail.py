@@ -49,21 +49,23 @@ def build_forge(body,accent,carbon,steel,rubber,glow,glass):
  for side in [-1,1]:
   # Integrated triangular front fender, traced from the user's green outline.
   # Broad aft chord, pointed leading tip and a relieved inner trailing edge.
-  outline=[(side*.78,.34,3.48),(side*1.65,.76,1.35),
-           (side*1.22,.91,.85),(side*.84,.78,1.45),(side*1.02,.58,2.18)]
-  ridge=(side*1.19,.88,1.58)
-  verts=outline+[ridge]+[(x,y-.10,z) for x,y,z in outline]
+  outline=[(side*.78,.36,3.48),(side*1.65,.98,1.35),
+           (side*1.22,1.07,.85),(side*.84,.98,1.45),(side*1.02,.76,2.18)]
+  ridge=(side*1.19,1.13,1.58)
+  underside=[(side*.78,.26,3.48),(side*1.52,.31,1.35),
+             (side*1.16,.34,.85),(side*.80,.30,1.45),(side*.97,.28,2.18)]
+  verts=outline+[ridge]+underside
   facets=[(i,(i+1)%5,5) for i in range(5)]
   facets.append((10,9,8,7,6))
   for i in range(5):facets.append((i,(i+1)%5,(i+1)%5+6,i+6))
-  fender=mesh('Forge_Triangular_Front_Fender',verts,facets,body,.008)
+  fender=mesh('Forge_Triangular_Front_Fender',verts,facets,body,.025)
   assert abs(outline[1][0])-abs(outline[3][0])>.7
   # Broad sculpted root: follow the actual evaluated hull at the inboard edge
   # and ease down into the triangular fender. It also overlaps the aft shoulder.
-  root_rows=[(.42,.60,1.02,.98),(.52,.59,1.13,.98),(.75,.57,1.25,.95),
-             (1.05,.53,1.40,.88),(1.35,.47,1.47,.82),
-             (1.65,.41,1.30,.75),(1.90,.35,1.15,.66),(2.10,.29,1.07,.60),
-             (2.20,.27,1.03,.56)]
+  root_rows=[(.42,.60,1.02,1.08),(.52,.59,1.13,1.10),(.75,.57,1.25,1.10),
+             (1.05,.53,1.40,1.08),(1.35,.47,1.47,1.05),
+             (1.65,.41,1.30,.97),(1.90,.35,1.15,.86),(2.10,.29,1.07,.80),
+             (2.20,.27,1.03,.75)]
   points=[];faces=[];width_steps=9
   for z,inner,outer,edge_y in root_rows:
    hit,loc,normal,index=hull_master.ray_cast(Vector((side*inner,-z,4)),Vector((0,0,-1)))
@@ -77,9 +79,25 @@ def build_forge(body,accent,carbon,steel,rubber,glow,glass):
   for r in range(len(root_rows)-1):
    for c in range(width_steps-1):
     a=r*width_steps+c;faces.append((a,a+1,a+width_steps+1,a+width_steps))
+  # Full-depth underside follows the belly, joining upper and lower hull.
+  top_count=len(points)
+  for z,inner,outer,edge_y in root_rows:
+   hit,loc,normal,index=hull_master.ray_cast(Vector((side*inner,-z,-1)),Vector((0,0,1)))
+   assert hit,'Fender underside must reach the belly'
+   belly_y=loc.z+.012
+   for i in range(width_steps):
+    t=i/(width_steps-1);ease=t*t*(3-2*t)
+    x=side*(inner+(outer-inner)*t)
+    points.append((x,belly_y+(.30-belly_y)*ease,z))
+  faces += [tuple(top_count+i for i in reversed(face)) for face in list(faces)]
+  for r in range(len(root_rows)-1):
+   for c in [0,width_steps-1]:
+    a=r*width_steps+c;b=a+width_steps
+    faces.append((a,b,b+top_count,a+top_count))
+  for r in [0,len(root_rows)-1]:
+   for c in range(width_steps-1):
+    a=r*width_steps+c;faces.append((a,a+1,a+1+top_count,a+top_count))
   root=mesh('Continuous fender to hull fillet',points,faces,body)
-  mod=root.modifiers.new('Structural fender root thickness','SOLIDIFY');mod.thickness=.10;mod.offset=-1
-  bpy.context.view_layer.objects.active=root;bpy.ops.object.modifier_apply(modifier=mod.name)
   for face in root.data.polygons:face.use_smooth=True
   # Swept rear nacelle: pointed forward shoulder, broad aft housing and
   # relieved trailing corners, following the orange plan-view outline.
@@ -94,7 +112,7 @@ def build_forge(body,accent,carbon,steel,rubber,glow,glass):
   for i in range(6):facets.append((i,(i+1)%6,(i+1)%6+7,i+7))
   mesh('Forge_Integrated_Rear_Nacelle',verts,facets,body,.025)
   # Sculpted oval nacelles: stepped armour lip, recessed field and radial vanes.
-  for z,y in [(1.8,.43),(-1.95,.61)]:
+  for z,y in [(1.8,.32),(-1.95,.61)]:
    x=side*(1.16 if z>0 else 1.40)
    points=[];faces=[];n=32
    for radius,height in [(.24,.12),(.32,.08),(.35,-.01),(.35,-.13),(.30,-.17),(.25,-.14),(.24,-.06)]:
@@ -175,6 +193,10 @@ def build_forge(body,accent,carbon,steel,rubber,glow,glass):
  for side in [-1,1]:
   assert any(side*hull_master.data.vertices[i].co.x>.70 and hull_master.data.vertices[i].co.y < -3.35 for i in seen),'Disconnected front fender tip'
   assert any(side*hull_master.data.vertices[i].co.x>1.80 and hull_master.data.vertices[i].co.y>2.65 for i in seen),'Disconnected rear nacelle'
+  upper=hull_master.ray_cast(Vector((side*1.18,-1.40,4)),Vector((0,0,-1)))
+  lower=hull_master.ray_cast(Vector((side*1.18,-1.40,-1)),Vector((0,0,1)))
+  assert upper[0] and lower[0] and upper[1].z-lower[1].z>.60,'Front flare must have full body depth'
+ print('SCENEFORGE_FORGE_VOLUMETRIC_FLARES_OK')
  print('SCENEFORGE_FORGE_CONNECTED_NACELLES_OK')
  print('SCENEFORGE_FORGE_CONNECTED_FENDERS_OK')
  print('SCENEFORGE_FORGE_MASTER_SURFACES_OK')
