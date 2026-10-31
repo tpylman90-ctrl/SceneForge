@@ -26,7 +26,7 @@ def build_forge(body,accent,carbon,steel,rubber,glow,glass):
    a=r*8+c;faces.append((a,a+1,a+9,a+8))
  for off in [0,(len(FORGE_STATIONS)-1)*8]:
   for cap in [(0,1,6,7),(1,2,5,6),(2,3,4,5)]:faces.append(tuple(off+i for i in cap))
- forge_surface('Forge_Master_Monocoque',pts,faces,body,thickness=.035)
+ hull_master=forge_surface('Forge_Master_Monocoque',pts,faces,body,thickness=.035)
  # Glass uses the hull's aperture stations and sill coordinates.
  pts=[];faces=[]
  for z,w,lo,hi,crown in FORGE_STATIONS[3:10]:
@@ -57,7 +57,7 @@ def build_forge(body,accent,carbon,steel,rubber,glow,glass):
   for off in [0,(len(rows)-1)*8]:
    for cap in [(0,1,2,3),(0,3,4,7),(4,5,6,7)]:faces.append(tuple(off+i for i in cap))
   forge_surface('Forge_Swept_Blade',pts,faces,body,mirror=False,thickness=.012)
-  # Independent triangular front fender, traced from the user's green outline.
+  # Integrated triangular front fender, traced from the user's green outline.
   # Broad aft chord, pointed leading tip and a relieved inner trailing edge.
   outline=[(side*.78,.34,3.48),(side*1.65,.76,1.35),
            (side*1.22,.91,.85),(side*.84,.78,1.45),(side*1.02,.58,2.18)]
@@ -68,6 +68,29 @@ def build_forge(body,accent,carbon,steel,rubber,glow,glass):
   for i in range(5):facets.append((i,(i+1)%5,(i+1)%5+6,i+6))
   fender=mesh('Forge_Triangular_Front_Fender',verts,facets,body,.008)
   assert abs(outline[1][0])-abs(outline[3][0])>.7
+  # Broad sculpted root: follow the actual evaluated hull at the inboard edge
+  # and ease down into the triangular fender. It also overlaps the aft shoulder.
+  root_rows=[(.42,.60,1.02,.98),(.52,.59,1.13,.98),(.75,.57,1.25,.95),
+             (1.05,.53,1.40,.88),(1.35,.47,1.47,.82),
+             (1.65,.41,1.30,.75),(1.90,.35,1.15,.66),(2.10,.29,1.07,.60),
+             (2.20,.27,1.03,.56)]
+  points=[];faces=[];width_steps=9
+  for z,inner,outer,edge_y in root_rows:
+   hit,loc,normal,index=hull_master.ray_cast(Vector((side*inner,-z,4)),Vector((0,0,-1)))
+   assert hit,'Fender root must reach the hull'
+   hull_y=loc.z-.012
+   for i in range(width_steps):
+    t=i/(width_steps-1);ease=t*t*(3-2*t)
+    x=side*(inner+(outer-inner)*t)
+    y=hull_y+(edge_y-hull_y)*ease
+    points.append((x,y,z))
+  for r in range(len(root_rows)-1):
+   for c in range(width_steps-1):
+    a=r*width_steps+c;faces.append((a,a+1,a+width_steps+1,a+width_steps))
+  root=mesh('Continuous fender to hull fillet',points,faces,body)
+  mod=root.modifiers.new('Structural fender root thickness','SOLIDIFY');mod.thickness=.10;mod.offset=-1
+  bpy.context.view_layer.objects.active=root;bpy.ops.object.modifier_apply(modifier=mod.name)
+  for face in root.data.polygons:face.use_smooth=True
   # A supported folded shoulder adds a strong swept crease to the main mass.
   outline=[(side*.84,1.34,-2.28),(side*1.59,1.39,-2.48),(side*1.43,1.25,-1.25),(side*.87,.91,.82)]
   ridge=(side*1.18,1.49,-1.68)
@@ -98,7 +121,7 @@ def build_forge(body,accent,carbon,steel,rubber,glow,glass):
      t=math.tau*i/n;pts.append((x+radius*math.cos(t),y+height,z+radius*1.75*math.sin(t)))
    for i in range(n):fs.append((i,(i+1)%n,(i+1)%n+n,i+n))
    mesh('Inset oval field emitter',pts,fs,glow)
-   for dz in [-.21,.21]:
+   for dz in ([-.21,.21] if z<0 else []):
     pipe('Pod recessed suspension',(side*.70,y+.21,z+dz),(x,y+.05,z+dz),.045,carbon,12)
    # Swept eyebrow, separated from the duct opening by a real air gap.
    if z<0:panel('Pod blade eyebrow',[(x-side*.32,y+.13,z-.50),(x+side*.32,y+.13,z-.36),(x+side*.36,y+.20,z+.15),(x+side*.10,y+.24,z+.69),(x-side*.27,y+.16,z+.34)],body)
@@ -118,4 +141,23 @@ def build_forge(body,accent,carbon,steel,rubber,glow,glass):
   before=set(bpy.context.scene.objects);x=(i-2)*.25
   box('Rear vector vane',(x,1.40,-2.46),(.20,.045,.46),body,.012)
   rig('Kestrel_Tail_%d'%i,since(before),(x,1.40,-2.23))
+ # Weld the overlapping structural volumes; no hidden disconnected root panels.
+ for prefix in ['Continuous fender to hull fillet','Forge_Triangular_Front_Fender']:
+  for part in [o for o in list(bpy.context.scene.objects) if o.name.startswith(prefix)]:
+   bpy.context.view_layer.objects.active=hull_master
+   mod=hull_master.modifiers.new('Union sculpted fender root','BOOLEAN')
+   mod.operation='UNION';mod.solver='EXACT';mod.object=part
+   bpy.ops.object.modifier_apply(modifier=mod.name)
+   bpy.data.objects.remove(part,do_unlink=True)
+ # Both tips must belong to the same connected mesh component as the hull.
+ adjacency=[[] for vertex in hull_master.data.vertices]
+ for edge in hull_master.data.edges:
+  a,b=edge.vertices;adjacency[a].append(b);adjacency[b].append(a)
+ seen={0};pending=[0]
+ while pending:
+  for index in adjacency[pending.pop()]:
+   if index not in seen:seen.add(index);pending.append(index)
+ for side in [-1,1]:
+  assert any(side*hull_master.data.vertices[i].co.x>.70 and hull_master.data.vertices[i].co.y < -3.35 for i in seen),'Disconnected front fender tip'
+ print('SCENEFORGE_FORGE_CONNECTED_FENDERS_OK')
  print('SCENEFORGE_FORGE_MASTER_SURFACES_OK')
