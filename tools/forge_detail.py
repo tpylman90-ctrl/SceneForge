@@ -105,12 +105,42 @@ def build_forge(body,accent,carbon,steel,rubber,glow,glass):
            (side*1.95,1.00,-2.95),(side*1.62,1.05,-2.73),
            (side*1.55,1.13,-3.10),(side*.64,1.26,-2.65)]
   ridge=(side*1.22,1.40,-1.85)
-  underside=[(side*.65,.90,-.55),(side*1.32,.74,-.20),(side*1.76,.72,-2.95),(side*1.48,.75,-2.73),(side*1.43,.81,-3.10),(side*.64,.94,-2.65)]
+  underside=[(side*.65,.43,-.55),(side*1.32,.32,-.20),(side*1.80,.34,-2.95),(side*1.52,.35,-2.73),(side*1.46,.38,-3.10),(side*.64,.50,-2.65)]
   verts=outline+[ridge]+underside
   facets=[(i,(i+1)%6,6) for i in range(6)]
   facets.append(tuple(reversed(range(7,13))))
   for i in range(6):facets.append((i,(i+1)%6,(i+1)%6+7,i+7))
-  mesh('Forge_Integrated_Rear_Nacelle',verts,facets,body,.025)
+  rear_nacelle=mesh('Forge_Integrated_Rear_Nacelle',verts,facets,body,.025)
+  # Full-depth rear root follows both skins of the original hull, blending
+  # the nacelle into the deck and belly rather than supporting it as a wing.
+  rear_rows=[(-.35,.55,1.12,1.03,.41),(-.55,.55,1.27,1.17,.42),
+             (-.90,.56,1.45,1.28,.43),(-1.35,.57,1.60,1.34,.44),
+             (-1.85,.59,1.67,1.34,.45),(-2.25,.59,1.65,1.30,.47),
+             (-2.55,.57,1.55,1.25,.49),(-2.66,.55,1.38,1.23,.50)]
+  points=[];faces=[];cols=9;rows_count=len(rear_rows)
+  for layer in [0,1]:
+   for z,inner,outer,top_edge,bottom_edge in rear_rows:
+    origin=Vector((side*inner,-z,4 if layer==0 else -1))
+    hit,loc,normal,index=hull_master.ray_cast(origin,Vector((0,0,-1 if layer==0 else 1)))
+    assert hit,'Rear nacelle root must reach the hull'
+    start=loc.z+(-.012 if layer==0 else .012)
+    edge_hit,edge_loc,edge_normal,edge_index=rear_nacelle.ray_cast(Vector((side*outer,-z,4 if layer==0 else -1)),Vector((0,0,-1 if layer==0 else 1)))
+    target=(edge_loc.z+(-.012 if layer==0 else .012)) if edge_hit else (top_edge if layer==0 else bottom_edge)
+    for i in range(cols):
+     t=i/(cols-1);ease=t*t*(3-2*t)
+     points.append((side*(inner+(outer-inner)*t),start+(target-start)*ease,z))
+  offset=cols*rows_count
+  for r in range(rows_count-1):
+   for c in range(cols-1):
+    a=r*cols+c;face=(a,a+1,a+cols+1,a+cols)
+    faces.append(face);faces.append(tuple(offset+i for i in reversed(face)))
+   for c in [0,cols-1]:
+    a=r*cols+c;b=a+cols;faces.append((a,b,b+offset,a+offset))
+  for r in [0,rows_count-1]:
+   for c in range(cols-1):
+    a=r*cols+c;faces.append((a,a+1,a+1+offset,a+offset))
+  rear_root=mesh('Forge_Continuous_Rear_Root',points,faces,body)
+  for face in rear_root.data.polygons:face.use_smooth=True
   # Sculpted oval nacelles: stepped armour lip, recessed field and radial vanes.
   for z,y in [(1.8,.32),(-1.95,.61)]:
    x=side*(1.16 if z>0 else 1.40)
@@ -167,7 +197,7 @@ def build_forge(body,accent,carbon,steel,rubber,glow,glass):
   box('Rear vector vane',(x,1.15,-2.70),(.15,.045,.38),body,.012)
   rig('Kestrel_Tail_%d'%i,since(before),(x,1.15,-2.51))
  # Weld the overlapping structural volumes; no hidden disconnected root panels.
- for prefix in ['Continuous fender to hull fillet','Forge_Triangular_Front_Fender','Forge_Integrated_Rear_Nacelle','Forge_Aft_Spine']:
+ for prefix in ['Continuous fender to hull fillet','Forge_Triangular_Front_Fender','Forge_Continuous_Rear_Root','Forge_Integrated_Rear_Nacelle','Forge_Aft_Spine']:
   for part in [o for o in list(bpy.context.scene.objects) if o.name.startswith(prefix)]:
    bpy.context.view_layer.objects.active=hull_master
    mod=hull_master.modifiers.new('Union sculpted fender root','BOOLEAN')
@@ -196,6 +226,10 @@ def build_forge(body,accent,carbon,steel,rubber,glow,glass):
   upper=hull_master.ray_cast(Vector((side*1.18,-1.40,4)),Vector((0,0,-1)))
   lower=hull_master.ray_cast(Vector((side*1.18,-1.40,-1)),Vector((0,0,1)))
   assert upper[0] and lower[0] and upper[1].z-lower[1].z>.60,'Front flare must have full body depth'
+  upper=hull_master.ray_cast(Vector((side*1.60,1.95,4)),Vector((0,0,-1)))
+  lower=hull_master.ray_cast(Vector((side*1.60,1.95,-1)),Vector((0,0,1)))
+  assert upper[0] and lower[0] and upper[1].z-lower[1].z>.70,'Rear flare must have full body depth'
+ print('SCENEFORGE_FORGE_REAR_DEPTH_OK')
  print('SCENEFORGE_FORGE_VOLUMETRIC_FLARES_OK')
  print('SCENEFORGE_FORGE_CONNECTED_NACELLES_OK')
  print('SCENEFORGE_FORGE_CONNECTED_FENDERS_OK')
