@@ -46,7 +46,7 @@ def build_forge(body,accent,carbon,steel,rubber,glow,glass):
   for a,b in zip(path,path[1:]):pipe('Flush canopy rollover bow',a,b,.022,accent,8)
   sill=[(side*.62*w,hi+.012,z) for z,w,lo,hi,crown in FORGE_STATIONS[3:10]]
   for a,b in zip(sill,sill[1:]):pipe('Canopy lower seal',a,b,.018,carbon,8)
- rows=[(-2.50,.70,1.22,1.18),(-2.42,.73,1.27,1.22),(-1.65,.77,1.52,1.30),(-.7,.78,1.30,1.13),(.6,.70,1.22,.91),(1.7,.58,1.04,.64),(2.7,.46,.70,.40),(3.35,.40,.45,.30),(3.42,.40,.43,.30)]
+ rows=[(-2.50,.70,1.22,1.18),(-2.42,.73,1.27,1.22),(-1.65,.77,1.52,1.30),(-.7,.78,1.30,1.13),(.55,.70,1.13,.91),(.60,.70,1.11,.90)]
  for side in [-1,1]:
   pts=[];faces=[]
   for z,inner,outer,y in rows:
@@ -57,6 +57,17 @@ def build_forge(body,accent,carbon,steel,rubber,glow,glass):
   for off in [0,(len(rows)-1)*8]:
    for cap in [(0,1,2,3),(0,3,4,7),(4,5,6,7)]:faces.append(tuple(off+i for i in cap))
   forge_surface('Forge_Swept_Blade',pts,faces,body,mirror=False,thickness=.012)
+  # Independent triangular front fender, traced from the user's green outline.
+  # Broad aft chord, pointed leading tip and a relieved inner trailing edge.
+  outline=[(side*.78,.34,3.48),(side*1.65,.76,1.35),
+           (side*1.22,.91,.85),(side*.84,.78,1.45),(side*1.02,.58,2.18)]
+  ridge=(side*1.19,.88,1.58)
+  verts=outline+[ridge]+[(x,y-.10,z) for x,y,z in outline]
+  facets=[(i,(i+1)%5,5) for i in range(5)]
+  facets.append((10,9,8,7,6))
+  for i in range(5):facets.append((i,(i+1)%5,(i+1)%5+6,i+6))
+  fender=mesh('Forge_Triangular_Front_Fender',verts,facets,body,.008)
+  assert abs(outline[1][0])-abs(outline[3][0])>.7
   # A supported folded shoulder adds a strong swept crease to the main mass.
   outline=[(side*.84,1.34,-2.28),(side*1.59,1.39,-2.48),(side*1.43,1.25,-1.25),(side*.87,.91,.82)]
   ridge=(side*1.18,1.49,-1.68)
@@ -66,7 +77,7 @@ def build_forge(body,accent,carbon,steel,rubber,glow,glass):
   mesh('Folded swept shoulder',verts,facets,body,.009)
   # Sculpted oval nacelles: stepped armour lip, recessed field and radial vanes.
   for z,y in [(1.8,.43),(-1.5,.61)]:
-   x=side*(.98 if z>0 else 1.29)
+   x=side*(1.16 if z>0 else 1.29)
    points=[];faces=[];n=32
    for radius,height in [(.24,.12),(.32,.08),(.35,-.01),(.35,-.13),(.30,-.17),(.25,-.14),(.24,-.06)]:
     for i in range(n):
@@ -90,7 +101,7 @@ def build_forge(body,accent,carbon,steel,rubber,glow,glass):
    for dz in [-.21,.21]:
     pipe('Pod recessed suspension',(side*.70,y+.21,z+dz),(x,y+.05,z+dz),.045,carbon,12)
    # Swept eyebrow, separated from the duct opening by a real air gap.
-   panel('Pod blade eyebrow',[(x-side*.32,y+.13,z-.50),(x+side*.32,y+.13,z-.36),(x+side*.36,y+.20,z+.15),(x+side*.10,y+.24,z+.69),(x-side*.27,y+.16,z+.34)],body)
+   if z<0:panel('Pod blade eyebrow',[(x-side*.32,y+.13,z-.50),(x+side*.32,y+.13,z-.36),(x+side*.36,y+.20,z+.15),(x+side*.10,y+.24,z+.69),(x-side*.27,y+.16,z+.34)],body)
   pipe('Rear drive housing',(side*.82,.93,-2.10),(side*.82,.93,-2.82),.32,steel,32)
   pipe('Rear drive recess',(side*.82,.93,-2.83),(side*.82,.93,-2.85),.25,carbon,32)
  pipe('Central drive housing',(0,1.05,-2.18),(0,1.05,-2.90),.24,carbon,32)
