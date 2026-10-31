@@ -200,9 +200,11 @@ def build_forge(body,accent,carbon,steel,rubber,glow,glass):
  # broad buried roots and tapered tips framing the three exhaust positions.
  def rear_accent(name,outline,ridge,side):
   count=len(outline)
-  points=outline+[ridge]+[(x-side*.025,y-.10,z+.015) for x,y,z in outline]
+  lower=[(x-side*.025,1.18 if name=='Canopy_Shoulder' else y-.10,z+.015) for x,y,z in outline]
+  lower_ridge=(ridge[0]-side*.025,1.18 if name=='Canopy_Shoulder' else ridge[1]-.10,ridge[2]+.015)
+  points=outline+[ridge]+lower+[lower_ridge]
   faces=[(i,(i+1)%count,count) for i in range(count)]
-  faces.append(tuple(reversed(range(count+1,2*count+1))))
+  for i in range(count):faces.append((i+count+1,2*count+1,(i+1)%count+count+1))
   for i in range(count):faces.append((i,(i+1)%count,(i+1)%count+count+1,i+count+1))
   return mesh('Forge_Rear_Accent_'+name,points,faces,body,.014)
  for side in [-1,1]:
@@ -212,9 +214,36 @@ def build_forge(body,accent,carbon,steel,rubber,glow,glass):
                (side*.94,1.97,-2.95),(side*.62,1.27,-2.65)],(side*.70,1.49,-2.16),side)
   rear_accent('Lower_Exhaust_Chine',[(side*1.47,.52,-1.84),(side*1.83,.49,-2.28),
                (side*2.02,.36,-3.15),(side*1.53,.40,-2.90)],(side*1.76,.53,-2.62),side)
+  # Rear canopy buttress: fitted to the actual glass crown and flared out
+  # into the nacelle shoulders rather than sitting as a separate roof wing.
+  inner=[]
+  for x,z in [(side*.28,-.88),(side*.43,-.80)]:
+   hit,loc,normal,index=canopy.ray_cast(Vector((x,-z,4)),Vector((0,0,-1)))
+   assert hit,'Canopy shoulder must meet the glass'
+   inner.append((x,loc.z+.012,z))
+  rear_accent('Canopy_Shoulder',inner+[(side*.85,1.61,-1.10),
+              (side*1.25,1.39,-1.75),(side*.78,1.28,-2.05),
+              (side*.30,1.33,-1.28)],(side*.62,1.74,-1.15),side)
+  path=[inner[1],(side*.65,1.74,-1.16),(side*1.18,1.43,-1.66)]
+  for a,b in zip(path,path[1:]):pipe('Canopy shoulder flush trim',a,b,.013,accent,8)
   # Fine metal leading edges and restrained light channels articulate the new fins.
   pipe('Raised fin alloy leading edge',(side*.78,1.30,-1.74),(side*.94,1.97,-2.95),.018,accent,8)
   pipe('Rear flare light channel',(side*1.62,1.36,-1.98),(side*2.05,1.64,-3.02),.013,glow,8)
+ # Continuous crown collar closes the gap between the paired buttresses.
+ points=[];faces=[];cols=13
+ for z in [-.91,-1.02,-1.16,-1.30]:
+  for i in range(cols):
+   x=-.39+.78*i/(cols-1)
+   hit,loc,normal,index=canopy.ray_cast(Vector((x,-z,4)),Vector((0,0,-1)))
+   assert hit,'Rear crown collar must sit on the canopy'
+   points.append((x,loc.z+.014,z))
+ for row in range(3):
+  for i in range(cols-1):
+   a=row*cols+i;faces.append((a,a+1,a+cols+1,a+cols))
+ collar=mesh('Rear canopy crown collar',points,faces,body)
+ mod=collar.modifiers.new('Crown collar thickness','SOLIDIFY');mod.thickness=.045;mod.offset=-1
+ bpy.context.view_layer.objects.active=collar;bpy.ops.object.modifier_apply(modifier=mod.name)
+ for face in collar.data.polygons:face.use_smooth=True
  # Weld the overlapping structural volumes; no hidden disconnected root panels.
  for prefix in ['Continuous fender to hull fillet','Forge_Triangular_Front_Fender','Forge_Continuous_Rear_Root','Forge_Integrated_Rear_Nacelle','Forge_Aft_Spine','Forge_Rear_Accent_']:
   for part in [o for o in list(bpy.context.scene.objects) if o.name.startswith(prefix)]:
@@ -322,6 +351,8 @@ def build_forge(body,accent,carbon,steel,rubber,glow,glass):
   assert upper[0] and lower[0] and upper[1].z-lower[1].z>.70,'Rear flare must have full body depth'
   assert any(side*hull_master.data.vertices[i].co.x>2.0 and hull_master.data.vertices[i].co.z>1.55 for i in seen),'Disconnected rear swept accent'
   assert any(.80<side*hull_master.data.vertices[i].co.x<1.10 and hull_master.data.vertices[i].co.z>1.85 for i in seen),'Disconnected rear raised fin'
+  assert any(.50<side*hull_master.data.vertices[i].co.x<.80 and hull_master.data.vertices[i].co.z>1.65 and .95<hull_master.data.vertices[i].co.y<1.3 for i in seen),'Disconnected canopy shoulder'
+ print('SCENEFORGE_FORGE_CANOPY_SHOULDER_OK')
  print('SCENEFORGE_FORGE_REAR_ACCENTS_OK')
  print('SCENEFORGE_FORGE_REAR_DEPTH_OK')
  print('SCENEFORGE_FORGE_VOLUMETRIC_FLARES_OK')
