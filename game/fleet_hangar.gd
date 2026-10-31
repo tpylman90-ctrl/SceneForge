@@ -105,6 +105,8 @@ func _ready() -> void:
 		button.pressed.connect(action.bind(label))
 		row.add_child(button)
 	spawn_craft()
+	if "--fleet-clay" in OS.get_cmdline_user_args() or "--fleet-wire" in OS.get_cmdline_user_args():
+		apply_diagnostic_materials()
 	update_camera()
 	if "--fleet-nose" in OS.get_cmdline_user_args():
 		orbit=0.0
@@ -152,6 +154,60 @@ func spawn_craft() -> void:
 	title.text=definition.display_name
 	info.text=Fleet.NOTES[selected]+"\nCRUISE %d KM/H / Drag to orbit · pinch or scroll to zoom"%int(definition.max_forward_speed*3.6)
 	get_tree().set_meta("sceneforge_craft",selected)
+
+func apply_diagnostic_materials() -> void:
+	# Diagnostic overrides are viewer-only: they do not change the exported GLB.
+	# Inspect the actual imported geometry rather than its overbright PBR finish.
+	var wire_mode := "--fleet-wire" in OS.get_cmdline_user_args()
+	var shell_mat := StandardMaterial3D.new()
+	shell_mat.albedo_color=Color(.17,.25,.32) if not wire_mode else Color(.22,.30,.36)
+	shell_mat.roughness=.94
+	shell_mat.metallic=0.0
+	shell_mat.vertex_color_use_as_albedo=false
+	var wire_mat := StandardMaterial3D.new()
+	wire_mat.shading_mode=BaseMaterial3D.SHADING_MODE_UNSHADED
+	wire_mat.albedo_color=Color(.95,.73,.27)
+	wire_mat.no_depth_test=false
+	for node in visual.find_children("*","MeshInstance3D",true,false):
+		var name_lower := str(node.name).to_lower()
+		if name_lower.contains("glass") or name_lower.contains("cockpit") or name_lower.contains("seat"):
+			continue
+		if not name_lower.contains("shrike"):
+			continue
+		node.material_override=shell_mat
+		if wire_mode and name_lower.contains("body"):
+			add_topology_lines(node,wire_mat)
+	info.text += "\nDIAGNOSTIC " + ("WIRE / CLAY" if wire_mode else "MATTE CLAY")
+
+func add_topology_lines(body_mesh: MeshInstance3D, wire_material: Material) -> void:
+	# Traverse the imported triangle indices, emit only unique edges.
+	# Geometry uses exactly the GLB mesh vertices, with no artistic approximation.
+	var lines := ImmediateMesh.new()
+	lines.surface_begin(Mesh.PRIMITIVE_LINES,wire_material)
+	for surface in range(body_mesh.mesh.get_surface_count()):
+		var arrays := body_mesh.mesh.surface_get_arrays(surface)
+		var verts: PackedVector3Array=arrays[Mesh.ARRAY_VERTEX]
+		var indices: PackedInt32Array=arrays[Mesh.ARRAY_INDEX]
+		var seen := {}
+		for i in range(0,indices.size()-2,3):
+			var a: int=indices[i]
+			var b: int=indices[i+1]
+			var c: int=indices[i+2]
+			for pair in [[a,b],[b,c],[c,a]]:
+				var low: int=mini(pair[0],pair[1])
+				var high: int=maxi(pair[0],pair[1])
+				var key := str(low)+":"+str(high)
+				if seen.has(key):
+					continue
+				seen[key]=true
+				lines.surface_add_vertex(verts[low]*1.002)
+				lines.surface_add_vertex(verts[high]*1.002)
+	lines.surface_end()
+	var overlay := MeshInstance3D.new()
+	overlay.name="ShrikeTopologyLines"
+	overlay.mesh=lines
+	overlay.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	body_mesh.add_child(overlay)
 
 func select_craft(index: int) -> void:
 	if busy:return
@@ -233,6 +289,8 @@ func _process(_delta: float) -> void:
 			var suffix := ""
 			for view in ["front","rear","tail","cockpit","side","top","under","nose","zoomed-rear"]:
 				if "--fleet-"+view in OS.get_cmdline_user_args():suffix="-"+view
+			if "--fleet-wire" in OS.get_cmdline_user_args():suffix+="-wire"
+			elif "--fleet-clay" in OS.get_cmdline_user_args():suffix+="-clay"
 			get_viewport().get_texture().get_image().save_png(OS.get_environment("GITHUB_WORKSPACE")+"/build/Fleet-"+Fleet.IDS[selected]+suffix+".png")
 			visual.stop_audio()
 			await get_tree().create_timer(.15).timeout
