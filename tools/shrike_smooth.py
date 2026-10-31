@@ -15,9 +15,9 @@ def build_shrike(body,accent,carbon,steel,rubber,glow,glass):
     # Positive Z = nose; negative Z = tail. No applied fender attachments.
     stations=[(-3.55,1.03,.51,1.42),(-3.35,1.12,.44,1.53),
               (-3.03,1.23,.39,1.60),(-2.55,1.26,.36,1.65),
-              (-2.05,1.25,.34,1.66),(-1.30,1.20,.32,1.68),
-              (-.50,1.18,.30,1.54),(.40,1.18,.29,1.47),
-              (1.18,1.23,.28,1.36),(1.82,1.28,.28,1.16),
+              (-2.05,1.30,.34,1.66),(-1.30,1.32,.32,1.68),
+              (-.50,1.34,.30,1.54),(.40,1.35,.29,1.47),
+              (1.18,1.34,.28,1.36),(1.82,1.28,.28,1.16),
               (2.40,1.29,.30,1.00),(2.83,1.24,.32,.89),
               (3.15,1.10,.36,.77),(3.40,.89,.40,.68)]
     # Synapse-style cubic profile blending, parameterized by actual distance.
@@ -59,24 +59,24 @@ def build_shrike(body,accent,carbon,steel,rubber,glow,glass):
         # transition gradually into a flat tail rather than a rounded capsule.
         front=gauss(z,2.18,.89)
         rear=gauss(z,-2.48,1.10)
-        mid=gauss(z,.00,1.18)
-        width=base_width+.19*front+.24*rear-.09*mid
+        mid=gauss(z,.00,1.35)
+        width=base_width+.24*front+.24*rear+.055*mid
         for j in range(n):
             angle=math.tau*j/n
             cosine=math.cos(angle)
             u=abs(cosine)
             sine=math.sin(angle)
             # Rear-biased superellipse widens the tail into a squared stance.
-            exponent=.90-.31*rear-.07*front
+            exponent=.89-.31*rear-.15*front-.075*mid
             x=width*math.copysign(u**exponent,cosine)
             # Lower side undercut is part of the continuous body.
-            x*=1-.13*mid*math.exp(-((sine+.39)/.27)**2)
-            shoulder_height=(.53*front+.36*rear)
+            x*=1-.075*mid*math.exp(-((sine+.39)/.27)**2)
+            shoulder_height=(.49*front+.36*rear)
             center_drop=.20*front+.12*rear
             if sine>=0:
                 # Low central bonnet with two distinct formed fender crowns.
                 # Two positive-curvature crests at x~+/-0.78 body half-width.
-                arch=math.exp(-((u-.78)/.145)**2)
+                arch=math.exp(-((u-.85)/.145)**2)
                 blend=(1-u*u)**.73
                 edge=(high+low)*.5+.065
                 crown=high-center_drop
