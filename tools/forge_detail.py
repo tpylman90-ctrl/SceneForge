@@ -46,17 +46,7 @@ def build_forge(body,accent,carbon,steel,rubber,glow,glass):
   for a,b in zip(path,path[1:]):pipe('Flush canopy rollover bow',a,b,.022,accent,8)
   sill=[(side*.62*w,hi+.012,z) for z,w,lo,hi,crown in FORGE_STATIONS[3:10]]
   for a,b in zip(sill,sill[1:]):pipe('Canopy lower seal',a,b,.018,carbon,8)
- rows=[(-2.50,.70,1.22,1.18),(-2.42,.73,1.27,1.22),(-1.65,.77,1.52,1.30),(-.7,.78,1.30,1.13),(.55,.70,1.13,.91),(.60,.70,1.11,.90)]
  for side in [-1,1]:
-  pts=[];faces=[]
-  for z,inner,outer,y in rows:
-   for x,h in [(inner,y-.06),(inner+.035,y+.015),(inner+(outer-inner)*.65,y+.14),(outer-.025,y+.05),(outer,y-.08),(outer-.03,y-.15),(inner+.03,y-.15),(inner,y-.12)]:pts.append((side*x,h,z))
-  for r in range(len(rows)-1):
-   for c in range(8):
-    a=r*8+c;b=r*8+(c+1)%8;faces.append((a,b,b+8,a+8))
-  for off in [0,(len(rows)-1)*8]:
-   for cap in [(0,1,2,3),(0,3,4,7),(4,5,6,7)]:faces.append(tuple(off+i for i in cap))
-  forge_surface('Forge_Swept_Blade',pts,faces,body,mirror=False,thickness=.012)
   # Integrated triangular front fender, traced from the user's green outline.
   # Broad aft chord, pointed leading tip and a relieved inner trailing edge.
   outline=[(side*.78,.34,3.48),(side*1.65,.76,1.35),
@@ -91,16 +81,21 @@ def build_forge(body,accent,carbon,steel,rubber,glow,glass):
   mod=root.modifiers.new('Structural fender root thickness','SOLIDIFY');mod.thickness=.10;mod.offset=-1
   bpy.context.view_layer.objects.active=root;bpy.ops.object.modifier_apply(modifier=mod.name)
   for face in root.data.polygons:face.use_smooth=True
-  # A supported folded shoulder adds a strong swept crease to the main mass.
-  outline=[(side*.84,1.34,-2.28),(side*1.59,1.39,-2.48),(side*1.43,1.25,-1.25),(side*.87,.91,.82)]
-  ridge=(side*1.18,1.49,-1.68)
-  verts=outline+[ridge]+[(x,y-.065,z) for x,y,z in outline]
-  facets=[(0,1,4),(1,2,4),(2,3,4),(3,0,4),(5,8,7,6)]
-  for i in range(4):facets.append((i,(i+1)%4,(i+1)%4+5,i+5))
-  mesh('Folded swept shoulder',verts,facets,body,.009)
+  # Swept rear nacelle: pointed forward shoulder, broad aft housing and
+  # relieved trailing corners, following the orange plan-view outline.
+  outline=[(side*.65,1.25,-.55),(side*1.43,.96,-.20),
+           (side*1.95,1.00,-2.95),(side*1.62,1.05,-2.73),
+           (side*1.55,1.13,-3.10),(side*.64,1.26,-2.65)]
+  ridge=(side*1.22,1.40,-1.85)
+  underside=[(side*.65,.90,-.55),(side*1.32,.74,-.20),(side*1.76,.72,-2.95),(side*1.48,.75,-2.73),(side*1.43,.81,-3.10),(side*.64,.94,-2.65)]
+  verts=outline+[ridge]+underside
+  facets=[(i,(i+1)%6,6) for i in range(6)]
+  facets.append(tuple(reversed(range(7,13))))
+  for i in range(6):facets.append((i,(i+1)%6,(i+1)%6+7,i+7))
+  mesh('Forge_Integrated_Rear_Nacelle',verts,facets,body,.025)
   # Sculpted oval nacelles: stepped armour lip, recessed field and radial vanes.
-  for z,y in [(1.8,.43),(-1.5,.61)]:
-   x=side*(1.16 if z>0 else 1.29)
+  for z,y in [(1.8,.43),(-1.95,.61)]:
+   x=side*(1.16 if z>0 else 1.40)
    points=[];faces=[];n=32
    for radius,height in [(.24,.12),(.32,.08),(.35,-.01),(.35,-.13),(.30,-.17),(.25,-.14),(.24,-.06)]:
     for i in range(n):
@@ -123,10 +118,22 @@ def build_forge(body,accent,carbon,steel,rubber,glow,glass):
    mesh('Inset oval field emitter',pts,fs,glow)
    for dz in ([-.21,.21] if z<0 else []):
     pipe('Pod recessed suspension',(side*.70,y+.21,z+dz),(x,y+.05,z+dz),.045,carbon,12)
-   # Swept eyebrow, separated from the duct opening by a real air gap.
-   if z<0:panel('Pod blade eyebrow',[(x-side*.32,y+.13,z-.50),(x+side*.32,y+.13,z-.36),(x+side*.36,y+.20,z+.15),(x+side*.10,y+.24,z+.69),(x-side*.27,y+.16,z+.34)],body)
-  pipe('Rear drive housing',(side*.82,.93,-2.10),(side*.82,.93,-2.82),.32,steel,32)
-  pipe('Rear drive recess',(side*.82,.93,-2.83),(side*.82,.93,-2.85),.25,carbon,32)
+  # Recessed annular exhaust liner is open at the rear, inside the nacelle.
+  points=[];faces=[];n=32
+  for z,r in [(-2.53,.23),(-3.08,.30),(-3.13,.30),(-3.13,.265),(-2.56,.20)]:
+   for i in range(n):
+    t=math.tau*i/n;points.append((side*1.20+r*math.cos(t),.98+r*math.sin(t),z))
+  for row in range(4):
+   for i in range(n):
+    a=row*n+i;b=row*n+(i+1)%n;faces.append((a,b,b+n,a+n))
+  liner=mesh('Nacelle recessed exhaust liner',points,faces,steel)
+  for f in liner.data.polygons:f.use_smooth=True
+  pipe('Exhaust dark throat',(side*1.20,.98,-2.54),(side*1.20,.98,-2.56),.20,carbon,32)
+  pipe('Exhaust inset field',(side*1.20,.98,-2.57),(side*1.20,.98,-2.59),.15,glow,32)
+ # Tapered aft spine follows the red outline behind the cockpit.
+ spine=[(-.52,1.38,-1.12),(.52,1.38,-1.12),(.17,1.19,-3.12),(-.17,1.19,-3.12)]
+ vertices=spine+[(x,y-.24,z) for x,y,z in spine]
+ mesh('Forge_Aft_Spine',vertices,[(0,1,2,3),(7,6,5,4),(0,4,5,1),(1,5,6,2),(2,6,7,3),(3,7,4,0)],body,.012)
  pipe('Central drive housing',(0,1.05,-2.18),(0,1.05,-2.90),.24,carbon,32)
  box('Cockpit floor',(0,.70,.1),(.94,.08,2.20),carbon,.025)
  box('Bucket cushion',(0,.91,-.30),(.50,.16,.68),rubber,.05)
@@ -138,17 +145,25 @@ def build_forge(body,accent,carbon,steel,rubber,glow,glass):
  for obj in since(before):obj.location += v((0,0,-.28))
  rig('Kestrel_Yoke',since(before),(0,1.25,1.08))
  for i in range(5):
-  before=set(bpy.context.scene.objects);x=(i-2)*.25
-  box('Rear vector vane',(x,1.40,-2.46),(.20,.045,.46),body,.012)
-  rig('Kestrel_Tail_%d'%i,since(before),(x,1.40,-2.23))
+  before=set(bpy.context.scene.objects);x=(i-2)*.18
+  box('Rear vector vane',(x,1.15,-2.70),(.15,.045,.38),body,.012)
+  rig('Kestrel_Tail_%d'%i,since(before),(x,1.15,-2.51))
  # Weld the overlapping structural volumes; no hidden disconnected root panels.
- for prefix in ['Continuous fender to hull fillet','Forge_Triangular_Front_Fender']:
+ for prefix in ['Continuous fender to hull fillet','Forge_Triangular_Front_Fender','Forge_Integrated_Rear_Nacelle','Forge_Aft_Spine']:
   for part in [o for o in list(bpy.context.scene.objects) if o.name.startswith(prefix)]:
    bpy.context.view_layer.objects.active=hull_master
    mod=hull_master.modifiers.new('Union sculpted fender root','BOOLEAN')
    mod.operation='UNION';mod.solver='EXACT';mod.object=part
    bpy.ops.object.modifier_apply(modifier=mod.name)
    bpy.data.objects.remove(part,do_unlink=True)
+ # Bore real exhaust openings after the body volumes have been joined.
+ for side in [-1,1]:
+  cutter=pipe('Temporary exhaust bore',(side*1.20,.98,-2.52),(side*1.20,.98,-3.5),.31,steel,48)
+  bpy.context.view_layer.objects.active=hull_master
+  mod=hull_master.modifiers.new('Recessed nacelle exhaust aperture','BOOLEAN')
+  mod.operation='DIFFERENCE';mod.solver='EXACT';mod.object=cutter
+  bpy.ops.object.modifier_apply(modifier=mod.name)
+  bpy.data.objects.remove(cutter,do_unlink=True)
  # Both tips must belong to the same connected mesh component as the hull.
  adjacency=[[] for vertex in hull_master.data.vertices]
  for edge in hull_master.data.edges:
@@ -159,5 +174,7 @@ def build_forge(body,accent,carbon,steel,rubber,glow,glass):
    if index not in seen:seen.add(index);pending.append(index)
  for side in [-1,1]:
   assert any(side*hull_master.data.vertices[i].co.x>.70 and hull_master.data.vertices[i].co.y < -3.35 for i in seen),'Disconnected front fender tip'
+  assert any(side*hull_master.data.vertices[i].co.x>1.80 and hull_master.data.vertices[i].co.y>2.65 for i in seen),'Disconnected rear nacelle'
+ print('SCENEFORGE_FORGE_CONNECTED_NACELLES_OK')
  print('SCENEFORGE_FORGE_CONNECTED_FENDERS_OK')
  print('SCENEFORGE_FORGE_MASTER_SURFACES_OK')
