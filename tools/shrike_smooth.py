@@ -71,9 +71,12 @@ def build_shrike(body, accent, carbon, steel, rubber, glow, glass):
         return (w*t,top_rail,z)
     def side_surface(z,y,side=1):
         w,low,high,edge=lerp_profile(z)
-        # Broad continuous side walls with a shaped lower concave rocker.
+        # Fit inset channels to the sloping upper shoulder instead of
+        # positioning every detail on an imaginary vertical outer wall.
+        upper=max(0.0,min(1.0,(y-edge)/max(.10,high-edge)))
+        shoulder_setback=.18*w*upper**1.25
         undercut=.13*gauss(z,-.1,1.62)*gauss(y,.53,.20)
-        return (side*(w-undercut),y,z)
+        return (side*(w-shoulder_setback-undercut),y,z)
     # Polygon rails run from right sill, across the upper hood to left sill,
     # then back underneath. All longitudinal sections use matching quad rings.
     top_t=[1,.96,.90,.83,.77,.69,.56,.42,.28,.14,0,
