@@ -6,16 +6,32 @@ source of the proportions; no third-party mesh, texture or paid assets.
 The principal shell uses continuous quad strips across authored hard-surface
 rails, not the previous elliptical tube or bolt-on fender plates.
 """
-def build_shrike(body, accent, carbon, steel, rubber, glow, glass):
+def build_shrike(body, accent, carbon, steel, rubber, glow, glass, purple):
     import math
 
-    # Medium-silver finish avoids the previously clipped pure-white body.
-    body.diffuse_color = (.29, .34, .39, 1)
+    # Shrike livery: satin silver body, neon-lime architectural features,
+    # deep-purple accent recesses. Independent from Kestrel's orange.
+    body.diffuse_color = (.31, .34, .38, 1)
     shader = body.node_tree.nodes['Principled BSDF']
     shader.inputs['Base Color'].default_value = body.diffuse_color
     shader.inputs['Metallic'].default_value = .24
     shader.inputs['Roughness'].default_value = .44
-    shader.inputs['Coat Weight'].default_value = .18
+    shader.inputs['Coat Weight'].default_value = .24
+    # Make actual Blender export materials match the color-approved concept.
+    lime=(.57,.91,.022,1)
+    accent.diffuse_color=lime
+    accent_shader=accent.node_tree.nodes['Principled BSDF']
+    accent_shader.inputs['Base Color'].default_value=lime
+    accent_shader.inputs['Metallic'].default_value=.32
+    accent_shader.inputs['Roughness'].default_value=.30
+    midnight=(.105,.021,.185,1)
+    purple.diffuse_color=midnight
+    purple_shader=purple.node_tree.nodes['Principled BSDF']
+    purple_shader.inputs['Base Color'].default_value=midnight
+    purple_shader.inputs['Roughness'].default_value=.33
+    glass.diffuse_color=(.012,.023,.044,1)
+    glass.node_tree.nodes['Principled BSDF'].inputs['Base Color'].default_value=glass.diffuse_color
+    glass.node_tree.nodes['Principled BSDF'].inputs['Roughness'].default_value=.20
 
     # Controllable independent plan, sill, crown and edge rails. These profiles
     # intentionally hold width beside the canopy and a wide squared-off rear.
@@ -65,7 +81,7 @@ def build_shrike(body, accent, carbon, steel, rubber, glow, glass):
         front=gauss(z,2.28,.93)
         rear=gauss(z,-2.57,1.03)
         # Two true reference-defined outer fender volumes, not oval bubbles.
-        shoulder=(.255*front+.235*rear)*gauss(u,.79,.145)
+        shoulder=(.305*front+.24*rear)*gauss(u,.79,.145)
         channel=(.085*front+.065*rear)*gauss(u,.32,.21)
         top_rail=crown+shoulder-channel
         # A controlled sloping cheek outside the fender's sharp raised rail.
@@ -221,73 +237,93 @@ def build_shrike(body, accent, carbon, steel, rubber, glow, glass):
             i=2*k;faces.append((i,i+1,i+3,i+2))
         return mesh(name,pp,faces,material)
 
-    # Long, panoramic greenhouse. The outer root of every glass cross-section
-    # nests into the side shoulders, while the roof rises out of the windscreen.
-    # Roof roots are sampled from the actual sculpted body (no fixed,
-    # arbitrary 1.24m glass base that floats above the hood).
-    canopy_shape=[(-1.67,.62,1.34),(-1.40,.73,1.53),
-                  (-.94,.79,1.65),(-.35,.81,1.72),
-                  (.27,.80,1.69),(.89,.72,1.55),
-                  (1.31,.57,1.33),(1.57,.43,1.17)]
+    # UNIFIED GREENHOUSE. The previous independent roof panels, side n-gons,
+    # body-colored sail triangles and separated roof rails produced visible
+    # glass gaps, prongs and floating white shards. This single parameterized
+    # canopy uses one row of design stations shared by windshield, roof,
+    # left/right glass and lower perimeter trim.
+    # Front +Z; rear -Z. Roof is low and elongated in side elevation.
+    canopy_shape=[
+        (-1.66,.62,1.34),(-1.37,.70,1.51),
+        (-.96,.77,1.61),(-.48,.79,1.68),
+        (.22,.77,1.66),(.76,.71,1.54),
+        (1.18,.59,1.35),(1.53,.44,1.18)]
     canopy=[]
     for z,w,high in canopy_shape:
-        base=surface(z,min(.99,w/lerp_profile(z)[0]))[1]+.018
-        canopy.append((z,w,base,max(base+.025,high)))
-    pp=[];ff=[]
+        shell_at_root=surface(z,min(.97,w/lerp_profile(z)[0]))[1]
+        base=shell_at_root+.018
+        canopy.append((z,w,base,max(high,base+.022)))
+    def greenhouse_height(base,high,u):
+        return base+(high-base)*max(0,1-u*u)**.70
+    # Curved greenhouse crown extends continuously to side seams.
+    roof_cols=[-1,-.86,-.65,-.38,0,.38,.65,.86,1]
+    roof_vertices=[]
     for z,w,base,high in canopy:
-        for t in [-1,-.8,-.55,-.28,0,.28,.55,.8,1]:
-            roof=base+(high-base)*max(0,1-t*t)**.63
-            pp.append((w*t,roof,z))
-    for i in range(len(canopy)-1):
-        for j in range(8):
-            k=i*9+j;ff.append((k,k+1,k+10,k+9))
-    roof=mesh('vehicle_glass_shrike_panoramic_glazing',pp,ff,glass)
-    for face in roof.data.polygons:face.use_smooth=True
-    # Full, curved, QUAD side glazing (no giant nonplanar n-gons).
-    # Every longitudinal row shares a roof-seam vertex with the main glass;
-    # the lower edge is tucked into the body's molded upper side shoulder.
-    # This eliminates black triangle gaps behind the cockpit in Godot.
+        for u in roof_cols:
+            roof_vertices.append((w*u,greenhouse_height(base,high,u),z))
+    roof_faces=[]
+    for r in range(len(canopy)-1):
+        for c in range(len(roof_cols)-1):
+            a=r*len(roof_cols)+c
+            roof_faces.append((a,a+1,a+len(roof_cols)+1,a+len(roof_cols)))
+    canopy_glass=mesh('vehicle_glass_shrike_one_piece_canopy',
+                      roof_vertices,roof_faces,glass)
+    for p in canopy_glass.data.polygons: p.use_smooth=True
+
+    # Two contiguous side windows, stitched to the canopy crown. Each station
+    # has an *exactly shared* roof-edge coordinate and a body-sampled sill.
     for side in (-1,1):
-        side_verts=[];side_quads=[]
+        side_vertices=[]
         for z,w,base,high in canopy:
-            # Glass crown blends down to the joined roof/side transition.
-            crown_at_edge=base+(high-base)*max(0,1-.80*.80)**.63
-            for x,y in [
-                (side*(w+.27),base-.155),   # hidden beneath the body shoulder
-                (side*(w+.07),base-.025),   # side glass lower rim
-                (side*w,base),              # roof edge, same as roof band
-                (side*w*.80,crown_at_edge)]:
-                side_verts.append((x,y,z))
-        for i in range(len(canopy)-1):
+            full_width=lerp_profile(z)[0]
+            side_root_u=min(.96,(w+.20)/full_width)
+            sill=surface(z,side*side_root_u)
+            side_vertices.extend([
+                (sill[0],sill[1]-.020,z),     # buried glass lip
+                (side*(w+.075),base-.026,z),
+                (side*w,base,z),              # exact roof glass edge
+                (side*w*.86,greenhouse_height(base,high,.86),z)])
+        side_quads=[]
+        for row in range(len(canopy)-1):
             for col in range(3):
-                q=i*4+col
-                side_quads.append((q,q+1,q+5,q+4))
-        glazing=mesh('vehicle_glass_shrike_wrap_side',side_verts,side_quads,glass)
-        for face in glazing.data.polygons:
-            face.use_smooth=True
-        # Narrow, body-colored formed glazing rails; no exposed roll cage.
-        for rail_u in [0,1]:
-            pp=[]
-            for z,w,base,high in canopy:
-                if rail_u==0:
-                    pp.extend([(side*(w+.27),base-.158,z),
-                               (side*(w+.22),base-.133,z)])
-                else:
-                    pp.extend([(side*w*.8,
-                                base+(high-base)*max(0,1-.8*.8)**.63+.004,z),
-                               (side*w*.86,
-                                base+(high-base)*max(0,1-.86*.86)**.63+.009,z)])
-            ff=[(2*i,2*i+1,2*i+3,2*i+2)
-                for i in range(len(canopy)-1)]
-            mesh('Shrike flush canopy perimeter rail',pp,ff,body)
-        # Substantial but flush A/C-pillar quarter panels conceal the ends
-        # of the windows and visually marry them to the silver monocoque.
-        panel('Shrike front body A-sail',[
-            (side*.80,1.06,1.48),(side*.91,1.05,1.25),
-            (side*.86,1.34,.92),(side*.70,1.48,.93)],body)
-        panel('Shrike integrated rear C-sail',[
-            (side*.75,1.40,-1.01),(side*.88,1.28,-1.30),
-            (side*1.19,1.18,-1.79),(side*.90,1.30,-1.58)],body)
+                a=row*4+col
+                side_quads.append((a,a+1,a+5,a+4))
+        window=mesh('vehicle_glass_shrike_flush_side',
+                    side_vertices,side_quads,glass)
+        for p in window.data.polygons: p.use_smooth=True
+
+        # Narrow, flush gasket at the actual sill. No raised add-on A-pillar.
+        rubber_vertices=[]
+        for z,w,base,high in canopy:
+            unit=min(.97,(w+.20)/lerp_profile(z)[0])
+            x,y,_=surface(z,side*unit)
+            rubber_vertices.extend([
+                (x+side*.008,y+.004,z),
+                (x-side*.032,y+.007,z)])
+        gasket_faces=[(2*j,2*j+1,2*j+3,2*j+2)
+                      for j in range(len(canopy)-1)]
+        mesh('Shrike integrated glass base weather seal',
+             rubber_vertices,gasket_faces,rubber)
+
+        # One narrow, integrated C-pillar slopes rearward into the molded
+        # haunch rather than projecting into the air as a triangulated flag.
+        root_z=-1.63
+        tail_z=-2.23
+        root_w=canopy[0][1]
+        root_y=canopy[0][3]-.035
+        shoulder_x=lerp_profile(tail_z)[0]*.73
+        shoulder_y=surface(tail_z,side*.73)[1]
+        pillar_points=[
+            (side*root_w*.92,root_y,root_z),
+            (side*root_w*.75,root_y-.015,root_z),
+            (side*shoulder_x*.78,shoulder_y+.014,tail_z),
+            (side*shoulder_x,shoulder_y+.003,tail_z)]
+        pillar=mesh('Shrike molded rear sail',
+                    pillar_points,[(0,1,2,3)],body)
+        for p in pillar.data.polygons:p.use_smooth=True
+
+    # The windshield is the FRONT section of this continuous canopy.
+    # No detached roof cap, separate windshield panel or external HUD pieces.
     # Interior remains functional in the driving camera.
     box('Shrike integrated two-seat tub',(0,.81,-.23),(1.30,.12,2.24),carbon,.06)
     for side in [-1,1]:
@@ -304,10 +340,10 @@ def build_shrike(body, accent, carbon, steel, rubber, glow, glass):
     rig('Kestrel_Yoke',since(before),(0,1.26,.88))
 
     # Reference's dark bonnet recess between two forged, OUTWARD flared fenders.
-    skin_patch('Shrike central black bonnet',
+    skin_patch('Shrike deep purple central bonnet',
                [(z,[-w,-w*.50,0,w*.50,w]) for z,w in
-                [(1.59,.40),(1.85,.40),(2.25,.38),(2.72,.35),
-                 (3.07,.31),(3.29,.25)]],carbon,.021)
+                [(1.61,.39),(1.88,.39),(2.27,.37),(2.69,.33),
+                 (3.05,.28),(3.26,.23)]],purple,.014)
     for side in (-1,1):
         # Flush headlamp pocket and luminous blade follow the outer brow.
         skin_patch('Shrike inset narrow headlight',[
@@ -319,23 +355,23 @@ def build_shrike(body, accent, carbon, steel, rubber, glow, glass):
             .020,glow)
         # Orange front corners and dark side-facing intakes are fitted
         # flush to the widened fender body, never floating as exterior fins.
-        skin_patch('Shrike orange front fender inlay',[
-            (2.86,[side*.87,side*.98]),(3.08,[side*.84,side*.99]),
-            (3.28,[side*.86,side*.99])],accent,.024)
+        skin_patch('Shrike formed lime outer brow',[
+            (2.57,[side*.79,side*.85]),(2.82,[side*.80,side*.87]),
+            (3.04,[side*.77,side*.84]),(3.27,[side*.73,side*.78])],accent,.019)
         side_plate('Shrike front side induction recess',side,
                    [(3.18,.59),(2.87,.78),(2.62,.89),(2.72,.64)],
                    carbon)
         # Long inset C-channel with a deliberate upward sweep at the rear.
         path=[(1.94,.63),(1.12,.60),(.33,.64),(-.35,.82),
               (-.98,1.14),(-1.51,1.41),(-1.83,1.50)]
-        side_stroke('Shrike recessed C-channel',side,path,.30,carbon)
-        side_stroke('Shrike orange C-channel core',side,path,.22,accent)
+        side_stroke('Shrike deep purple C-channel recess',side,path,.30,purple)
+        side_stroke('Shrike lime C-channel core',side,path,.21,accent)
         side_plate('Shrike aft swept extractor',side,
                    [(-2.16,1.29),(-2.80,1.27),(-3.18,1.04),
                     (-2.62,1.03)],carbon)
-        side_stroke('Shrike extractor lip',side,
+        side_stroke('Shrike purple extractor lip',side,
                     [(-2.18,1.32),(-2.80,1.29),(-3.17,1.07)],
-                    .039,accent)
+                    .039,purple)
         # Low-profile magnetics beneath the enclosed outer haunch.
         for z,x in [(2.02,1.07),(-2.48,1.14)]:
             ring('Shrike embedded repulsor field',(side*x,.25,z),
@@ -367,13 +403,13 @@ def build_shrike(body, accent, carbon, steel, rubber, glow, glass):
     # Magenta engine-deck blueprint: an elongated black engine bay centered
     # between the two substantial orange rear fenders, ending just behind
     # the canopy rather than starting only at the tail bumper.
-    skin_patch('Shrike recessed engine deck black insert',[
+    skin_patch('Shrike purple engine deck recess',[
         (-3.36,[-.39,-.23,0,.23,.39]),
         (-3.13,[-.39,-.23,0,.23,.39]),
         (-2.85,[-.41,-.24,0,.24,.41]),
         (-2.50,[-.41,-.24,0,.24,.41]),
         (-2.12,[-.40,-.22,0,.22,.40]),
-        (-1.82,[-.37,-.20,0,.20,.37])],carbon,.012)
+        (-1.82,[-.37,-.20,0,.20,.37])],purple,.012)
     # Dedicated sculpted twin engine scoops rather than a flat painted box.
     for side in (-1,1):
         skin_patch('Shrike recessed aft engine induction',[
