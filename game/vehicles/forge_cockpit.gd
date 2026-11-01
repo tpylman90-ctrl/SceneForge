@@ -1,9 +1,9 @@
 extends Node3D
 
 # FORGE owns its cockpit geometry so other craft updates cannot move its instruments.
-func finish(color: String, metal: float=0.0, roughness: float=.45) -> StandardMaterial3D:
+func finish(color: Variant, metal: float=0.0, roughness: float=.45) -> StandardMaterial3D:
 	var m := StandardMaterial3D.new()
-	m.albedo_color=Color(color)
+	m.albedo_color=color if color is Color else Color(str(color))
 	m.metallic=metal
 	m.roughness=roughness
 	return m
