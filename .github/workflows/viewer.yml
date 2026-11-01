@@ -77,6 +77,7 @@ jobs:
           set -euo pipefail
           views=(front rear side top cockpit)
           if [ "$PREVIEW_CRAFT" = 2 ]; then views=(hero rear-quarter front rear side top cockpit); fi
+          if [ "$PREVIEW_CRAFT" = 5 ]; then views=(hero rear-quarter front rear side top cockpit); fi
           if [ "$PREVIEW_CRAFT" = 6 ]; then views=(front rear side top under zoomed-rear); fi
           for view in "${views[@]}"; do
             args="--fleet-$view"
@@ -94,6 +95,12 @@ jobs:
               done
             done
           fi
+          if [ "$PREVIEW_CRAFT" = 5 ]; then
+            for view in hero rear-quarter; do
+              timeout 120 xvfb-run -a godot --audio-driver Dummy --path game --rendering-method gl_compatibility --resolution 1280x720 res://fleet_hangar.tscn -- --capture --craft-5 --fleet-$view --fleet-clean 2>&1 | tee build/viewer-$view-clean.log
+              test -s "build/Fleet-forge-$view-clean.png"
+            done
+          fi
           if grep -E 'SCRIPT ERROR:|ERROR:' build/viewer-*.log; then exit 1; fi
           if [ "$PREVIEW_CRAFT" = 2 ]; then
             grep -q SCENEFORGE_SHRIKE_HUD_IN_COCKPIT_OK build/viewer-cockpit.log
@@ -101,6 +108,7 @@ jobs:
           name=piledriver
           if [ "$PREVIEW_CRAFT" = 0 ]; then name=kestrel; fi
           if [ "$PREVIEW_CRAFT" = 2 ]; then name=shrike; fi
+          if [ "$PREVIEW_CRAFT" = 5 ]; then name=forge; fi
           if [ "$PREVIEW_CRAFT" = 5 ]; then name=forge; fi
           if [ "$PREVIEW_CRAFT" = 6 ]; then name=synapse; fi
           for view in "${views[@]}"; do test -s build/Fleet-$name-$view.png; done
