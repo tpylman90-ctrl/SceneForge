@@ -293,7 +293,10 @@ func build_exhaust() -> void:
 	exhaust.multimesh = instances
 	exhaust.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(exhaust)
-	build_repulsor_footprints()
+	# Forge's magnetic hardware is fully buried in the monocoque; do not draw
+	# the generic floating footprint halos beneath its body.
+	if chassis.chassis_id != "forge":
+		build_repulsor_footprints()
 
 func set_cockpit(enabled: bool) -> void:
 	for entry in glass:
