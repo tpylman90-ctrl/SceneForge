@@ -100,6 +100,8 @@ jobs:
               timeout 120 xvfb-run -a godot --audio-driver Dummy --path game --rendering-method gl_compatibility --resolution 1280x720 res://fleet_hangar.tscn -- --capture --craft-5 --fleet-$view --fleet-clean 2>&1 | tee build/viewer-$view-clean.log
               test -s "build/Fleet-forge-$view-clean.png"
             done
+            timeout 120 xvfb-run -a godot --audio-driver Dummy --path game --rendering-method gl_compatibility --resolution 1280x720 res://fleet_hangar.tscn -- --capture --craft-5 --fleet-cockpit --fleet-clean 2>&1 | tee build/viewer-cockpit-clean.log
+            test -s build/Fleet-forge-cockpit-clean.png
           fi
           if grep -E 'SCRIPT ERROR:|ERROR:' build/viewer-*.log; then exit 1; fi
           if [ "$PREVIEW_CRAFT" = 2 ]; then

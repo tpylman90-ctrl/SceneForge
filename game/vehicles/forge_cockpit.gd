@@ -1,11 +1,11 @@
 extends Node3D
 
 # FORGE owns its cockpit geometry so other craft updates cannot move its instruments.
-func finish(color: String, metal: float=0.0) -> StandardMaterial3D:
+func finish(color: String, metal: float=0.0, roughness: float=.45) -> StandardMaterial3D:
 	var m := StandardMaterial3D.new()
 	m.albedo_color=Color(color)
 	m.metallic=metal
-	m.roughness=.45
+	m.roughness=roughness
 	return m
 
 func part(parent: Node3D, point: Vector3, size: Vector3, material: Material) -> MeshInstance3D:
@@ -16,6 +16,92 @@ func part(parent: Node3D, point: Vector3, size: Vector3, material: Material) -> 
 	node.position=point
 	node.material_override=material
 	parent.add_child(node)
+	return node
+
+func canopy_surface_height(x: float, z: float) -> float:
+	# Follow the same lofted canopy section used by the Blender body asset.
+	var t := clampf((z-.45)/.60,0.0,1.0)
+	var width := lerpf(.82,.76,t)
+	var sill := lerpf(1.16,1.05,t)
+	var crown := lerpf(1.80,1.48,t)
+	var u := clampf(absf(x)/(.62*width),0.0,1.0)
+	return sill+.012+(crown-sill)*pow(maxf(0.0,cos(u*PI*.5)),.48)
+
+func cockpit_local(point: Vector3) -> Vector3:
+	var fit := Transform3D(Basis.from_scale(Vector3(.66,1.0,.75)),Vector3(0,-.03,-.08))
+	return fit.affine_inverse()*point
+
+func hud_point(x: float, z: float, inset: float) -> Vector3:
+	return cockpit_local(Vector3(x,canopy_surface_height(x,z)-inset,z))
+
+func hud_mesh() -> ArrayMesh:
+	var surface := SurfaceTool.new()
+	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var columns := 25
+	var rows := 7
+	for row in range(rows):
+		var v := float(row)/float(rows-1)
+		for column in range(columns):
+			var u := float(column)/float(columns-1)
+			var x := lerpf(-.285,.285,u)
+			var z := lerpf(.57,.82,v)
+			surface.set_uv(Vector2(u,1.0-v))
+			surface.add_vertex(hud_point(x,z,.060))
+	for row in range(rows-1):
+		for column in range(columns-1):
+			var a := row*columns+column
+			var b := a+1
+			var c := a+columns
+			var d := c+1
+			for index in [a,c,b,b,c,d]:surface.add_index(index)
+	surface.generate_normals()
+	return surface.commit()
+
+func hud_line(surface: SurfaceTool, a: Vector2, b: Vector2, inset: float) -> void:
+	surface.add_vertex(hud_point(a.x,a.y,inset))
+	surface.add_vertex(hud_point(b.x,b.y,inset))
+
+func hud_traces(color: Color, amber: bool=false) -> MeshInstance3D:
+	var surface := SurfaceTool.new()
+	surface.begin(Mesh.PRIMITIVE_LINES)
+	# Curved visor boundary with stepped corner brackets.
+	for i in range(24):
+		var x0 := lerpf(-.285,.285,float(i)/24.0)
+		var x1 := lerpf(-.285,.285,float(i+1)/24.0)
+		hud_line(surface,Vector2(x0,.585),Vector2(x1,.585),.048)
+		hud_line(surface,Vector2(x0,.805),Vector2(x1,.805),.048)
+	for side in [-1.0,1.0]:
+		hud_line(surface,Vector2(side*.285,.585),Vector2(side*.285,.805),.048)
+		for z in [.60,.79]:
+			hud_line(surface,Vector2(side*.285,z),Vector2(side*.235,z),.045)
+	# Compact targeting reticle and two range ticks centered on the pilot's sightline.
+	if not amber:
+		for i in range(32):
+			var a0 := TAU*float(i)/32.0
+			var a1 := TAU*float(i+1)/32.0
+			hud_line(surface,Vector2(.040*cos(a0),.69+.018*sin(a0)),Vector2(.040*cos(a1),.69+.018*sin(a1)),.043)
+		hud_line(surface,Vector2(-.070,.69),Vector2(-.050,.69),.043)
+		hud_line(surface,Vector2(.050,.69),Vector2(.070,.69),.043)
+		hud_line(surface,Vector2(0,.655),Vector2(0,.675),.043)
+		hud_line(surface,Vector2(0,.705),Vector2(0,.725),.043)
+		for i in range(7):
+			var z := .615+float(i)*.027
+			hud_line(surface,Vector2(-.247,z),Vector2(-.229,z),.043)
+			hud_line(surface,Vector2(.229,z),Vector2(.247,z),.043)
+	else:
+		# Amber brackets echo the craft's exterior accent without tinting the data.
+		for side in [-1.0,1.0]:
+			hud_line(surface,Vector2(side*.205,.625),Vector2(side*.178,.646),.041)
+			hud_line(surface,Vector2(side*.178,.646),Vector2(side*.158,.646),.041)
+	var node := MeshInstance3D.new()
+	node.mesh=surface.commit()
+	var material := finish(color,.05,.28)
+	material.shading_mode=BaseMaterial3D.SHADING_MODE_UNSHADED
+	material.emission_enabled=true
+	material.emission=Color(color)
+	material.emission_energy_multiplier=1.25 if not amber else .85
+	node.material_override=material
+	node.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	return node
 
 # Continuous rounded fascia, sweeping into both cockpit side consoles.
@@ -75,13 +161,24 @@ func build() -> void:
 		part(yoke_detail,Vector3(side*.24,1.32,1.07),Vector3(.065,.025,.055),brass)
 	var hologram := MeshInstance3D.new()
 	hologram.name="HolographicDisplay"
-	var holo_quad := QuadMesh.new()
-	holo_quad.size=Vector2(.28,.09)
-	hologram.mesh=holo_quad
-	hologram.position=Vector3(.23,1.62,.44)
-	hologram.rotation.y=PI
+	hologram.mesh=hud_mesh()
 	hologram.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(hologram)
+	add_child(hud_traces("62e5ed"))
+	add_child(hud_traces("f3a14c",true))
+	# Projector hardware is buried in the sculpted fascia; only the glass HUD is exposed.
+	part(self,Vector3(0,1.365,.69),Vector3(.30,.055,.16),dark)
+	var projector := finish("243742",.72,.30)
+	part(self,Vector3(0,1.395,.68),Vector3(.22,.018,.095),projector)
+	for side in [-1.0,1.0]:
+		part(self,Vector3(side*.40,1.31,.70),Vector3(.11,.075,.26),projector)
+		for index in range(3):
+			var led := finish("55dce8" if index!=2 else "e69a45",.0,.25)
+			led.shading_mode=BaseMaterial3D.SHADING_MODE_UNSHADED
+			led.emission_enabled=true
+			led.emission=Color("49d9e6" if index!=2 else "e69a45")
+			led.emission_energy_multiplier=.8
+			part(self,Vector3(side*(.37+index*.028),1.36,.78-index*.045),Vector3(.012,.009,.11),led)
 	for side in [-1.0,1.0]:
 		part(self,Vector3(.23+side*.10,1.37,.58),Vector3(.09,.05,.12),dark)
 		var lens := finish("50d9e8")

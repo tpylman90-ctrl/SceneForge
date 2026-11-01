@@ -1,7 +1,7 @@
 """Original SceneForge fleet. Author in Godot metres (+Z forward); export via Blender.
 Reference images guide silhouette/color only; no third-party mesh or texture bytes.
 """
-import bpy, math, json, struct, os
+import bpy, math, json, struct, os, array
 from pathlib import Path
 from mathutils import Vector
 
@@ -16,6 +16,38 @@ def mat(name,color,metal=.5,rough=.4,glow=0):
  p.inputs['Metallic'].default_value=metal;p.inputs['Roughness'].default_value=rough
  if glow:p.inputs['Emission Color'].default_value=(*color,1);p.inputs['Emission Strength'].default_value=glow
  return m
+def forge_texture(material,kind,base,repeat=1.0,size=128):
+ # Small deterministic, tileable image maps export as standard GLTF textures.
+ image=bpy.data.images.new('Forge '+kind+' texture',width=size,height=size,alpha=False,float_buffer=False)
+ image.colorspace_settings.name='sRGB'
+ pixels=array.array('f')
+ for y in range(size):
+  for x in range(size):
+   h=((x*73856093)^(y*19349663)^((x*y+17)*83492791))&255
+   noise=(h/255.0-.5)
+   if kind=='carbon weave':
+    lane=((x//4)+(y//4))%2
+    edge=min(x%4,3-x%4,y%4,3-y%4)
+    sheen=(.83 if edge==0 else 1.0)+noise*.035
+    factor=(.54 if lane else .86)*sheen
+   elif kind=='brushed alloy':
+    brush=.92+.055*math.sin(y*math.tau/4)+.025*math.sin(y*math.tau/17)
+    factor=brush+noise*.018
+   else:
+    grain=.975+.018*math.sin(x*math.tau/11)*math.sin(y*math.tau/13)
+    factor=grain+noise*.035
+   pixels.extend((max(0,min(1,base[0]*factor)),max(0,min(1,base[1]*factor)),max(0,min(1,base[2]*factor)),1.0))
+ image.pixels.foreach_set(pixels);image.pack()
+ nodes=material.node_tree.nodes;links=material.node_tree.links
+ shader=nodes.get('Principled BSDF')
+ shader.inputs['Base Color'].default_value=(1,1,1,1)
+ uv=nodes.new('ShaderNodeTexCoord');uv.location=(-700,80)
+ mapping=nodes.new('ShaderNodeMapping');mapping.location=(-500,80)
+ mapping.inputs['Scale'].default_value=(repeat,repeat,1)
+ texture=nodes.new('ShaderNodeTexImage');texture.image=image;texture.extension='REPEAT';texture.location=(-280,80)
+ links.new(uv.outputs['UV'],mapping.inputs['Vector']);links.new(mapping.outputs['Vector'],texture.inputs['Vector'])
+ links.new(texture.outputs['Color'],shader.inputs['Base Color'])
+ return image
 def mesh(name,points,faces,material,bevel=0):
  data=bpy.data.meshes.new(name);data.from_pydata([v(p) for p in points],[],faces);data.update()
  obj=bpy.data.objects.new(name,data);bpy.context.collection.objects.link(obj);data.materials.append(material)
@@ -84,6 +116,18 @@ for ident,color,accent_color,light_color,description in SPECS:
  carbon=mat(ident+'_carbon',(.025,.032,.04),.45,.5);steel=mat(ident+'_alloy',(.22,.28,.31),.8,.3)
  rubber=mat(ident+'_padding',(.02,.025,.03),0,.8);glow=mat(ident+'_glow',light_color,.1,.3,2)
  glass=mat('vehicle_glass_'+ident,(.025,.065,.095),.25,.15)
+ if ident=='forge':
+  forge_texture(body,'fine graphite paint',color,2.0)
+  forge_texture(carbon,'carbon weave',(.025,.032,.04),3.0)
+  forge_texture(steel,'brushed alloy',(.22,.28,.31),1.4)
+  body_shader=body.node_tree.nodes.get('Principled BSDF')
+  body_shader.inputs['Metallic'].default_value=.72
+  body_shader.inputs['Roughness'].default_value=.29
+  body_shader.inputs['Coat Weight'].default_value=.52
+  body_shader.inputs['Coat Roughness'].default_value=.18
+  carbon_shader=carbon.node_tree.nodes.get('Principled BSDF')
+  carbon_shader.inputs['Metallic'].default_value=.32
+  carbon_shader.inputs['Roughness'].default_value=.40
  if ident=='forge':
   build_forge(body,accent,carbon,steel,rubber,glow,glass)
  elif ident=='piledriver':

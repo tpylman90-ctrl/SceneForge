@@ -79,7 +79,7 @@ func configure(definition: Resource) -> void:
 		var holo: StandardMaterial3D=screen.duplicate()
 		holo.transparency=BaseMaterial3D.TRANSPARENCY_ALPHA
 		holo.blend_mode=BaseMaterial3D.BLEND_MODE_ADD
-		holo.albedo_color=Color(1,.55,.16,.55) if chassis.chassis_id=="forge" else Color(.35,.9,1,.55)
+		holo.albedo_color=Color(.72,.96,1,.82) if chassis.chassis_id=="forge" else Color(.35,.9,1,.55)
 		holo.cull_mode=BaseMaterial3D.CULL_DISABLED
 		hologram.material_override=holo
 	for node in find_children("*","MeshInstance3D",true,false):
