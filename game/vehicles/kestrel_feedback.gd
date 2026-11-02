@@ -18,12 +18,14 @@ var visual_roll := 0.0
 var visual_pitch := 0.0
 var motion_clock := 0.0
 var last_drive := 0.0
+var showroom_upload := false
 
 func configure(definition: Resource) -> void:
 	chassis = definition
 	if chassis.chassis_id=="synapse":
 		configure_synapse(definition)
 		return
+	showroom_upload=chassis.chassis_id=="shrike" and chassis.visual_scene.ends_with("/showroom/shrike_uploaded.glb")
 	var source: Node3D = load(chassis.visual_scene).instantiate()
 	telemetry.craft_name=chassis.display_name
 	add_child(source)
@@ -40,6 +42,13 @@ func configure(definition: Resource) -> void:
 		assert(tail != null,"Missing vectoring tail vane")
 		tails.append(tail)
 		tail_rest.append(tail.transform)
+	if showroom_upload:
+		# Exterior inspection only. The uploaded Tripo-derived car is already
+		# textured, including its opaque window area; adding our procedural
+		# Shrike cockpit, tinted-glass override, and hover rings would obscure it.
+		# No driver camera or racing physics depend on this showroom path.
+		print("SCENEFORGE_SHRIKE_UPLOADED_SHOWROOM_OK")
+		return
 	var details: Node3D
 	if chassis.chassis_id=="kestrel":
 		details=preload("res://vehicles/kestrel_cockpit.gd").new()
@@ -309,6 +318,9 @@ func set_cockpit(enabled: bool) -> void:
 	display_clock = 1.0
 
 func update_feedback(delta: float, signed_speed: float, drive: float, steering: float, acceleration: float, slip: float, cockpit: bool, boosting: bool = false, charge: float = 100.0, flight_pitch: float = 0.0) -> void:
+	if showroom_upload:
+		# Garage-only model: do not animate synthetic Kestrel exhaust or HUD.
+		return
 	if chassis.chassis_id=="synapse":
 		last_drive=drive
 		motion_clock+=delta
