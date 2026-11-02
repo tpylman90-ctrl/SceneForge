@@ -184,7 +184,7 @@ func _ready() -> void:
 	feedback.name = "ChassisVisual"
 	car.add_child(feedback)
 	feedback.configure(chassis)
-	hover_rings=car.get_node("RepulsorFootprints")
+	hover_rings=car.get_node_or_null("RepulsorFootprints")
 	camera = Camera3D.new()
 	camera.current = true
 	camera.fov = 74
@@ -773,8 +773,9 @@ func reset_car() -> void:
 	jump_landings=0
 	jump_recoveries=0
 	peak_height=0
-	hover_rings.visible=true
-	hover_rings.rotation=Vector3.ZERO
+	if hover_rings!=null:
+		hover_rings.visible=true
+		hover_rings.rotation=Vector3.ZERO
 	var tangent := flat(route[1]-route[0]).normalized()
 	heading = atan2(tangent.x,tangent.z)
 	car.rotation = Vector3(0,heading,0)
@@ -941,8 +942,9 @@ func update_jump(delta: float, surface_height: float) -> float:
 			recover_jump()
 	else:
 		car.position.y=surface_height
-	hover_rings.visible=not airborne
-	hover_rings.rotation.x=ramp_pitch if not airborne else 0.0
+	if hover_rings!=null:
+		hover_rings.visible=not airborne
+		hover_rings.rotation.x=ramp_pitch if not airborne else 0.0
 	return -clampf(vertical_speed*0.012,-0.085,0.085) if airborne else ramp_pitch
 
 func recover_jump() -> void:
@@ -1040,7 +1042,8 @@ func _physics_process(delta: float) -> void:
 	var road_right := Vector3(road_forward.z,0,-road_forward.x)
 	var bank := bank_slope(route_index)
 	var surface_pitch := update_jump(delta,center.y+offset.dot(road_right)*bank)
-	hover_rings.rotation.z=atan(bank) if not airborne else 0.0
+	if hover_rings!=null:
+		hover_rings.rotation.z=atan(bank) if not airborne else 0.0
 	car.rotation = Vector3(0,heading,0)
 	var side := Vector3(forward.z,0,-forward.x)
 	var slip := clampf(absf(travel_velocity.dot(side))/maxf(absf(speed),1),0,1)
