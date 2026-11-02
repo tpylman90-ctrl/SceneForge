@@ -105,6 +105,10 @@ jobs:
             build/asset-report.json
             build/fleet-report.json
           key: foundry-blender-4.5.3-${{ hashFiles('tools/build_neon_foundry.py', 'tools/kestrel_detail.py', 'tools/build_fleet.py', 'tools/piledriver_detail.py', 'tools/forge_detail.py', 'tools/shrike_smooth.py') }}
+      - name: Install optional Shrike showroom model
+        # The source GLB is never fed into Blender's procedural exporter.
+        # This affects only Fleet and Foundry, not driving / physics.
+        run: python tools/install_showroom_shrike.py
       - name: Import and smoke test
         shell: bash
         run: |
