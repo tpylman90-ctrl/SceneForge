@@ -4,7 +4,12 @@ const IDS := ["kestrel","piledriver","shrike","mantis","aurora","forge","synapse
 const NAMES := ["KESTREL","PYLDRIVER","SHRIKE","MANTIS","AURORA","FORGE","SYNAPSE","TREMOR"]
 const NOTES := ["Balanced raptor / slate and burnt orange", "Armored racer / purple and brass", "Wide-body interceptor / silver, lime and deep purple", "Stable utility racer / olive green", "Fast swept speedster / blue and copper", "Precision racer / graphite and amber", "AI racer / active four-point hover array and ion propulsion", "Armored heavy interceptor / reinforced drives and exposed reactor"]
 
-static func definition(index: int) -> Resource:
+# Garage/showroom override deliberately leaves the racing asset untouched.
+# If the user-supplied GLB has not been installed, the original Shrike remains
+# available; no broken missing-asset reference is ever introduced.
+const SHRIKE_SHOWROOM_SCENE := "res://assets/showroom/shrike_uploaded.glb"
+
+static func definition(index: int, presentation_only: bool = false) -> Resource:
 	index=clampi(index,0,IDS.size()-1)
 	var craft: Resource=preload("res://vehicles/kestrel.tres").duplicate(true)
 	craft.chassis_id=IDS[index]
@@ -12,6 +17,8 @@ static func definition(index: int) -> Resource:
 	if index==0:craft.footprint_stretch=1.7
 	if index>0:
 		craft.visual_scene="res://assets/fleet/"+IDS[index]+".glb"
+		if index==2 and presentation_only and ResourceLoader.exists(SHRIKE_SHOWROOM_SCENE):
+			craft.visual_scene=SHRIKE_SHOWROOM_SCENE
 		craft.mount_points=craft.mount_points.duplicate(true)
 		craft.mount_points["repulsor_fl"]=Vector3(1,.58,2.1)
 		craft.mount_points["repulsor_fr"]=Vector3(-1,.58,2.1)
