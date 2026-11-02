@@ -81,7 +81,14 @@ func check() -> void:
 		assert(hangar.selected==index and not hangar.busy)
 		assert(hangar.visual.chassis.chassis_id==Fleet.IDS[index])
 		hangar.action("COCKPIT")
-		assert(hangar.cockpit)
+		if index==2 and hangar.visual.showroom_upload:
+			# The user-uploaded Tripo texture bakes opaque glass into its shell.
+			# Only exterior Fleet / garage inspection is enabled for this pass.
+			assert(not hangar.cockpit)
+			assert(hangar.visual.get_node_or_null("ComponentMounts")!=null)
+			print("FLEET_SHRIKE_UPLOADED_EXTERIOR_OK")
+		else:
+			assert(hangar.cockpit)
 		hangar.action("FRONT")
 		assert(not hangar.cockpit)
 	print("FLEET_SELECTION_OK")
