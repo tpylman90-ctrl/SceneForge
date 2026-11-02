@@ -166,7 +166,7 @@ func spawn_craft() -> void:
 	add_child(craft)
 	visual=preload("res://vehicles/kestrel_feedback.gd").new()
 	craft.add_child(visual)
-	var definition: Resource=Fleet.definition(selected)
+	var definition: Resource=Fleet.definition(selected,true)
 	visual.configure(definition)
 	visual.set_cockpit(cockpit)
 	visual.update_feedback(1.0,0,0,0,0,0,cockpit)
@@ -242,6 +242,9 @@ func select_craft(index: int) -> void:
 
 func action(label: String) -> void:
 	if busy:return
+	if label=="COCKPIT" and selected==2 and visual.showroom_upload:
+		info.text=Fleet.NOTES[selected]+"\nUploaded showroom model: canopy/interior editing is a separate pass."
+		return
 	if label=="DRIVE" or label=="FOUNDRY":
 		busy=true
 		visual.stop_audio()
