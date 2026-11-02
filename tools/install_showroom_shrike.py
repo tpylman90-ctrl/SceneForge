@@ -7,7 +7,7 @@ Usage:
     python tools/install_showroom_shrike.py
     python tools/install_showroom_shrike.py --required
 
-Expected source: showroom_sources/shrike_uploaded.glb
+Expected source: showroom_sources/shrike_uploaded.glb OR\n                 showroom_sources/Shrike_MK_I_Android_LOD_ready.glb
 Game destination: game/assets/showroom/shrike_uploaded.glb
 """
 import argparse
@@ -18,7 +18,9 @@ import struct
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-SRC = ROOT / "showroom_sources" / "shrike_uploaded.glb"
+SRC_DIR = ROOT / "showroom_sources"
+CANDIDATES = (SRC_DIR / "shrike_uploaded.glb",
+              SRC_DIR / "Shrike_MK_I_Android_LOD_ready.glb")
 DST = ROOT / "game" / "assets" / "showroom" / "shrike_uploaded.glb"
 REQUIRED = {"Kestrel_Hull", "Kestrel_Yoke"} | {
     f"Kestrel_Tail_{i}" for i in range(5)
@@ -61,15 +63,16 @@ def main() -> None:
     parser.add_argument("--required", action="store_true",
                         help="fail if the user GLB was not supplied")
     args = parser.parse_args()
-    if not SRC.is_file():
+    source = next((p for p in CANDIDATES if p.is_file()), None)
+    if source is None:
         if args.required:
-            raise SystemExit(f"Missing source GLB: {SRC}")
+            raise SystemExit(f"Missing source GLB; expected one of: {CANDIDATES}")
         print("SCENEFORGE_SHRIKE_SHOWROOM_NOT_INSTALLED: using procedural fallback")
         return
-    report = check_glb(SRC)
+    report = check_glb(source)
     DST.parent.mkdir(parents=True, exist_ok=True)
     tmp = DST.with_suffix(".glb.tmp")
-    shutil.copyfile(SRC, tmp)
+    shutil.copyfile(source, tmp)
     tmp.replace(DST)
     print("SCENEFORGE_SHRIKE_SHOWROOM_INSTALLED", json.dumps(report))
 
