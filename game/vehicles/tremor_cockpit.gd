@@ -39,9 +39,10 @@ func build() -> void:
 	screen.mesh=quad
 	screen.position=Vector3(0,1.495,.345)
 	screen.rotation=Vector3(-.19,PI,0)
-	screen.material_override=mat("ffffff",0.0,true)
-	screen.material_override.albedo_texture=load("res://assets/cockpit-instruments.svg")
-	screen.material_override.cull_mode=BaseMaterial3D.CULL_DISABLED
+	var instrument_mat: StandardMaterial3D=mat("ffffff",0.0,true)
+	instrument_mat.albedo_texture=load("res://assets/cockpit-instruments.svg")
+	instrument_mat.cull_mode=BaseMaterial3D.CULL_DISABLED
+	screen.material_override=instrument_mat
 	screen.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(screen)
 	for side in [-1.0,1.0]:
