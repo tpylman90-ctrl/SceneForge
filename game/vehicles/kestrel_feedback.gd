@@ -43,6 +43,9 @@ func configure(definition: Resource) -> void:
 		tails.append(tail)
 		tail_rest.append(tail.transform)
 	if showroom_upload:
+		# Keep the same eight garage component markers without installing
+		# Kestrel's synthetic cockpit, repulsor rings, HUD or exhaust.
+		build_component_mounts()
 		# Exterior inspection only. The uploaded Tripo-derived car is already
 		# textured, including its opaque window area; adding our procedural
 		# Shrike cockpit, tinted-glass override, and hover rings would obscure it.
