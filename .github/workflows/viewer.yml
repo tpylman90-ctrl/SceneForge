@@ -130,6 +130,10 @@ jobs:
           if [ "$PREVIEW_CRAFT" = 2 ]; then
             if [ "$SHOWROOM_SHRIKE_GLTF" = true ]; then
               grep -q SCENEFORGE_SHRIKE_UPLOADED_SHOWROOM_OK build/viewer-hero.log
+              # Distinct real Foundry scene, not another Fleet showroom angle.
+              timeout 120 xvfb-run -a godot --audio-driver Dummy --path game --rendering-method gl_compatibility --resolution 1280x720 -- --capture --craft-2 2>&1 | tee build/viewer-foundry-shrike.log
+              test -s build/Foundry-shrike.png
+              grep -q SCENEFORGE_SHRIKE_UPLOADED_SHOWROOM_OK build/viewer-foundry-shrike.log
             else
               grep -q SCENEFORGE_SHRIKE_HUD_IN_COCKPIT_OK build/viewer-cockpit.log
             fi
@@ -165,6 +169,7 @@ jobs:
           name: Vehicle-viewer
           path: |
             build/Fleet-*.png
+            build/Foundry-shrike.png
             build/SelectedCraft.glb
             build/fleet-report.json
             build/viewer-*.log
@@ -201,6 +206,9 @@ jobs:
               test -s "build/Fleet-tremor-$view-wire.png"
             done
           fi
+          if [ "$name" = shrike ] && [ "$SHOWROOM_SHRIKE_GLTF" = true ]; then
+            test -s build/Foundry-shrike.png
+          fi
           if [ "$name" = shrike ]; then
             for view in hero rear-quarter; do
               test -s "build/Fleet-shrike-$view.png"
@@ -210,7 +218,9 @@ jobs:
               for view in front side top; do test -s "build/Fleet-shrike-$view-$diagnostic.png"; done
             done
           fi
-          gh release create "$tag" build/Fleet-*.png build/SelectedCraft.glb build/fleet-report.json build/VIEWER.txt \
+          release_assets=(build/Fleet-*.png build/SelectedCraft.glb build/fleet-report.json build/VIEWER.txt)
+          if [ -s build/Foundry-shrike.png ]; then release_assets+=(build/Foundry-shrike.png); fi
+          gh release create "$tag" "${release_assets[@]}" \
             --target "$GITHUB_SHA" --prerelease \
             --title "Viewer $name — $short_sha" \
             --notes "Verified preview from commit $GITHUB_SHA. No Android package."
@@ -219,5 +229,5 @@ jobs:
           if ! gh release view viewer-latest >/dev/null 2>&1; then
             gh release create viewer-latest --prerelease --title "Vehicle viewer — latest preview" --notes "Vehicle previews and GLB only."
           fi
-          gh release upload viewer-latest build/Fleet-*.png build/SelectedCraft.glb build/fleet-report.json build/VIEWER.txt --clobber
+          gh release upload viewer-latest "${release_assets[@]}" --clobber
           gh release edit viewer-latest --notes "Viewer preview commit $GITHUB_SHA. Immutable preview: $tag"
