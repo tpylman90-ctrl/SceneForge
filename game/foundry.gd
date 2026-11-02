@@ -57,7 +57,7 @@ func _ready() -> void:
 	for index in range(Fleet.IDS.size()):
 		if "--craft-%d"%index in OS.get_cmdline_user_args():selected_craft=index
 	get_tree().set_meta("sceneforge_craft",selected_craft)
-	chassis=Fleet.definition(selected_craft)
+	chassis=Fleet.definition(selected_craft,true)
 	var scenery: Node3D = load("res://assets/neon_foundry.glb").instantiate()
 	add_child(scenery)
 	# The scenery GLB also contains the original Kestrel. Remove its complete
@@ -474,6 +474,9 @@ func inspection_preset(which: String) -> void:
 		orbit_radius = 4.5
 
 func set_seat_view(enabled: bool) -> void:
+	if enabled and lot_feedback!=null and lot_feedback.showroom_upload:
+		help_label.text="Shrike uploaded showroom model: driver-seat view awaits glass separation"
+		return
 	seat_mode = enabled
 	if lot_feedback!=null:lot_feedback.set_cockpit(enabled)
 	camera.fov = 78.0 if enabled else 70.0
