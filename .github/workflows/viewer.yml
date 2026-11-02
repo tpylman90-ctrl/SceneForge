@@ -12,7 +12,7 @@ env:
   PREVIEW_CRAFT: "${{ contains(github.event.head_commit.message, '[kestrel]') && '0' || (contains(github.event.head_commit.message, '[piledriver]') && '1' || (contains(github.event.head_commit.message, '[synapse]') && '6' || (contains(github.event.head_commit.message, '[forge]') && '5' || (contains(github.event.head_commit.message, '[tremor]') && '7' || '2')))) }}"
 jobs:
   preview:
-    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[viewer]')
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[viewer]') || contains(toJSON(github.event.commits), 'showroom_sources/shrike_uploaded.glb')
     runs-on: ubuntu-24.04
     timeout-minutes: 25
     steps:
