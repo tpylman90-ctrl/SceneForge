@@ -57,6 +57,10 @@ func configure(definition: Resource) -> void:
 		details=preload("res://vehicles/shrike_cockpit.gd").new()
 		add_child(details)
 		details.build()
+	elif chassis.chassis_id=="tremor":
+		details=preload("res://vehicles/tremor_cockpit.gd").new()
+		add_child(details)
+		details.build()
 	else:
 		var factory := preload("res://foundry.gd").new()
 		factory.build_cockpit_details()
@@ -88,10 +92,10 @@ func configure(definition: Resource) -> void:
 			if mat is StandardMaterial3D and node != display:
 				mat.vertex_color_use_as_albedo = true
 				if "vehicle_glass" in node.name:
-					if chassis.chassis_id in ["kestrel","piledriver","forge","shrike"]:
+					if chassis.chassis_id in ["kestrel","piledriver","forge","shrike","tremor"]:
 						mat=mat.duplicate()
 						mat.transparency=BaseMaterial3D.TRANSPARENCY_ALPHA
-						mat.albedo_color=Color(.018,.026,.047,.70 if chassis.chassis_id=="shrike" else .36)
+						mat.albedo_color=Color(.032,.055,.075,.54) if chassis.chassis_id=="tremor" else Color(.018,.026,.047,.70 if chassis.chassis_id=="shrike" else .36)
 						mat.metallic=.09 if chassis.chassis_id=="shrike" else .15
 						mat.cull_mode=BaseMaterial3D.CULL_DISABLED
 						node.set_surface_override_material(surface,mat)
@@ -349,6 +353,10 @@ func update_feedback(delta: float, signed_speed: float, drive: float, steering: 
 			# Old Kestrel positions floated ABOVE the canopy as five white dots.
 			base=Vector3((i-2)*.24,.73,-3.57)
 			exhaust.visible=drive>.04 or absf(signed_speed)>4.0 or boosting
+		if chassis.chassis_id=="tremor":
+			# Rear vectors never pierce the cabin. Only show active plumes.
+			base=Vector3((i-2)*.23,1.04,-3.49)
+			exhaust.visible=drive>.06 or absf(signed_speed)>5.0 or boosting
 		var length := 0.10+drive*0.58+absf(signed_speed)/32*0.20+(0.35 if boosting else 0.0)
 		var nozzle_motion := tails[i].transform*tail_rest[i].affine_inverse()
 		var axis := nozzle_motion.basis*Basis(Vector3.RIGHT,PI/2)*Basis.from_scale(Vector3(1,length,1))
