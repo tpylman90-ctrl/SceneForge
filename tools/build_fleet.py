@@ -96,6 +96,7 @@ exec((ROOT/'tools/piledriver_detail.py').read_text())
 
 exec((ROOT/'tools/forge_detail.py').read_text())
 exec((ROOT/'tools/shrike_smooth.py').read_text())
+exec((ROOT/'tools/tremor_body.py').read_text())
 
 exec((ROOT/'tools/synapse_body.py').read_text(),globals())
 
@@ -105,7 +106,8 @@ SPECS=[
  ('shrike',(.44,.48,.52),(.61,.94,.045),(.20,.94,.96),'Wide-body interceptor / satin silver, electric lime and deep purple'),
  ('mantis',(.18,.27,.12),(.38,.46,.25),(.44,1.0,.42),'Fork-nose utility racer / olive'),
  ('aurora',(.025,.09,.26),(.65,.28,.12),(.12,.48,1.0),'Low swept speedster / midnight blue and copper'),
- ('synapse',(.012,.016,.052),(.18,.12,.52),(.28,.16,1.0),'Precision AI racer / integrated ion drive and indigo composite')]
+ ('synapse',(.012,.016,.052),(.18,.12,.52),(.28,.16,1.0),'Precision AI racer / integrated ion drive and indigo composite'),
+ ('tremor',(.135,.145,.165),(.50,.155,.205),(.14,.71,1.0),'Armored heavy interceptor / exposed powertrain and reinforced magnetic drives')]
 selected=os.environ.get('SCENEFORGE_ONLY_CRAFT','').strip().lower()
 assert not selected or selected in {spec[0] for spec in SPECS}, 'Unknown SCENEFORGE_ONLY_CRAFT'
 for ident,color,accent_color,light_color,description in SPECS:
@@ -134,6 +136,8 @@ for ident,color,accent_color,light_color,description in SPECS:
   build_piledriver(body,accent,carbon,steel,rubber,glow,glass)
  elif ident=='shrike':
   build_shrike(body,accent,carbon,steel,rubber,glow,glass,purple)
+ elif ident=='tremor':
+  build_tremor(body,accent,steel,rubber,glow,glass,purple)
  elif ident=='synapse':
   body.node_tree.nodes['Principled BSDF'].inputs['Coat Weight'].default_value=.68
   body.node_tree.nodes['Principled BSDF'].inputs['Coat Roughness'].default_value=.2
