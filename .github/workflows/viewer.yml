@@ -72,6 +72,14 @@ jobs:
               grep -q "SCENEFORGE_TREMOR_REFERENCE_GEOMETRY_OK" build/viewer-blender.log
             fi
           fi
+          # An uploaded Shrike master is installed AFTER generated assets/cache.
+          # It overrides garage/fleet display only; racing still uses the old GLB.
+          python tools/install_showroom_shrike.py | tee build/showroom-install.log
+          if test -s game/assets/showroom/shrike_uploaded.glb; then
+            echo "SHOWROOM_SHRIKE_GLTF=true" >> "$GITHUB_ENV"
+          else
+            echo "SHOWROOM_SHRIKE_GLTF=false" >> "$GITHUB_ENV"
+          fi
           godot --headless --path game --editor --import --quit 2>&1 | tee build/viewer-import.log
           if grep -E 'SCRIPT ERROR:|ERROR:' build/viewer-import.log; then exit 1; fi
       - name: Render selected vehicle viewer
@@ -120,7 +128,11 @@ jobs:
           fi
           if grep -E 'SCRIPT ERROR:|ERROR:' build/viewer-*.log; then exit 1; fi
           if [ "$PREVIEW_CRAFT" = 2 ]; then
-            grep -q SCENEFORGE_SHRIKE_HUD_IN_COCKPIT_OK build/viewer-cockpit.log
+            if [ "$SHOWROOM_SHRIKE_GLTF" = true ]; then
+              grep -q SCENEFORGE_SHRIKE_UPLOADED_SHOWROOM_OK build/viewer-hero.log
+            else
+              grep -q SCENEFORGE_SHRIKE_HUD_IN_COCKPIT_OK build/viewer-cockpit.log
+            fi
           fi
           if [ "$PREVIEW_CRAFT" = 7 ]; then
             grep -q SCENEFORGE_TREMOR_COCKPIT_MOUNT_OK build/viewer-cockpit.log
@@ -133,14 +145,20 @@ jobs:
           if [ "$PREVIEW_CRAFT" = 6 ]; then name=synapse; fi
           if [ "$PREVIEW_CRAFT" = 7 ]; then name=tremor; fi
           for view in "${views[@]}"; do test -s build/Fleet-$name-$view.png; done
-          if [ "$name" = kestrel ]; then cp game/assets/neon_foundry.glb build/SelectedCraft.glb; else cp game/assets/fleet/$name.glb build/SelectedCraft.glb; fi
+          if [ "$name" = shrike ] && [ "$SHOWROOM_SHRIKE_GLTF" = true ]; then
+            cp game/assets/showroom/shrike_uploaded.glb build/SelectedCraft.glb
+          elif [ "$name" = kestrel ]; then
+            cp game/assets/neon_foundry.glb build/SelectedCraft.glb
+          else
+            cp game/assets/fleet/$name.glb build/SelectedCraft.glb
+          fi
           if [ "$PREVIEW_CRAFT" = 0 ]; then
             timeout 120 xvfb-run -a godot --audio-driver Dummy --path game --rendering-method gl_compatibility --resolution 1280x720 -- --door-motion-smoke 2>&1 | tee build/viewer-door-test.log
             grep SCENEFORGE_DOOR_MOTION_OK build/viewer-door-test.log
             timeout 120 godot --headless --path game --script res://tests/fleet_test.gd 2>&1 | tee build/viewer-fleet-test.log
             grep FLEET_OK build/viewer-fleet-test.log
           fi
-          printf 'Viewer preview only\nCommit: %s\nNo Android package was built.\n' "$GITHUB_SHA" > build/VIEWER.txt
+          printf 'Viewer preview only\nCommit: %s\nShrike uploaded garage model installed: %s\nNo Android package was built.\n' "$GITHUB_SHA" "$SHOWROOM_SHRIKE_GLTF" > build/VIEWER.txt
       - uses: actions/upload-artifact@v4
         if: always()
         with:
