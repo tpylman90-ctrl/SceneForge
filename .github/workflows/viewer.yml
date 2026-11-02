@@ -6,10 +6,10 @@ on:
 permissions:
   contents: write
 concurrency:
-  group: vehicle-viewer-${{ contains(github.event.head_commit.message, '[kestrel]') && 'kestrel' || (contains(github.event.head_commit.message, '[piledriver]') && 'piledriver' || (contains(github.event.head_commit.message, '[synapse]') && 'synapse' || (contains(github.event.head_commit.message, '[forge]') && 'forge' || 'shrike'))) }}
+  group: vehicle-viewer-${{ contains(github.event.head_commit.message, '[kestrel]') && 'kestrel' || (contains(github.event.head_commit.message, '[piledriver]') && 'piledriver' || (contains(github.event.head_commit.message, '[synapse]') && 'synapse' || (contains(github.event.head_commit.message, '[forge]') && 'forge' || (contains(github.event.head_commit.message, '[tremor]') && 'tremor' || 'shrike')))) }}
   cancel-in-progress: true
 env:
-  PREVIEW_CRAFT: "${{ contains(github.event.head_commit.message, '[kestrel]') && '0' || (contains(github.event.head_commit.message, '[piledriver]') && '1' || (contains(github.event.head_commit.message, '[synapse]') && '6' || (contains(github.event.head_commit.message, '[forge]') && '5' || '2'))) }}"
+  PREVIEW_CRAFT: "${{ contains(github.event.head_commit.message, '[kestrel]') && '0' || (contains(github.event.head_commit.message, '[piledriver]') && '1' || (contains(github.event.head_commit.message, '[synapse]') && '6' || (contains(github.event.head_commit.message, '[forge]') && '5' || (contains(github.event.head_commit.message, '[tremor]') && '7' || '2')))) }}"
 jobs:
   preview:
     if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[viewer]')
@@ -56,6 +56,7 @@ jobs:
             2) craft=shrike ;;
             5) craft=forge ;;
             6) craft=synapse ;;
+            7) craft=tremor ;;
             *) echo "Unsupported preview craft: $PREVIEW_CRAFT"; exit 1 ;;
           esac
           if [ "$craft" = kestrel ]; then
@@ -66,6 +67,9 @@ jobs:
             grep -q "SCENEFORGE_FLEET_ASSET_OK $craft" build/viewer-blender.log
             if [ "$craft" = shrike ]; then
               grep -q "SCENEFORGE_SHRIKE_REFERENCE_BODY_OK" build/viewer-blender.log
+            fi
+            if [ "$craft" = tremor ]; then
+              grep -q "SCENEFORGE_TREMOR_REFERENCE_GEOMETRY_OK" build/viewer-blender.log
             fi
           fi
           godot --headless --path game --editor --import --quit 2>&1 | tee build/viewer-import.log
@@ -79,6 +83,7 @@ jobs:
           if [ "$PREVIEW_CRAFT" = 2 ]; then views=(hero rear-quarter front rear side top cockpit); fi
           if [ "$PREVIEW_CRAFT" = 5 ]; then views=(hero rear-quarter front rear side top cockpit); fi
           if [ "$PREVIEW_CRAFT" = 6 ]; then views=(front rear side top under zoomed-rear); fi
+          if [ "$PREVIEW_CRAFT" = 7 ]; then views=(hero rear-quarter front rear side top cockpit); fi
           for view in "${views[@]}"; do
             args="--fleet-$view"
             timeout 120 xvfb-run -a godot --audio-driver Dummy --path game --rendering-method gl_compatibility --resolution 1280x720 res://fleet_hangar.tscn -- --capture --craft-$PREVIEW_CRAFT $args 2>&1 | tee build/viewer-$view.log
@@ -103,9 +108,22 @@ jobs:
             timeout 120 xvfb-run -a godot --audio-driver Dummy --path game --rendering-method gl_compatibility --resolution 1280x720 res://fleet_hangar.tscn -- --capture --craft-5 --fleet-cockpit --fleet-clean 2>&1 | tee build/viewer-cockpit-clean.log
             test -s build/Fleet-forge-cockpit-clean.png
           fi
+          if [ "$PREVIEW_CRAFT" = 7 ]; then
+            for view in hero rear-quarter; do
+              timeout 120 xvfb-run -a godot --audio-driver Dummy --path game --rendering-method gl_compatibility --resolution 1280x720 res://fleet_hangar.tscn -- --capture --craft-7 --fleet-$view --fleet-clean 2>&1 | tee build/viewer-$view-clean.log
+              test -s "build/Fleet-tremor-$view-clean.png"
+            done
+            for view in front side top; do
+              timeout 120 xvfb-run -a godot --audio-driver Dummy --path game --rendering-method gl_compatibility --resolution 1280x720 res://fleet_hangar.tscn -- --capture --craft-7 --fleet-$view --fleet-wire 2>&1 | tee build/viewer-$view-wire.log
+              test -s "build/Fleet-tremor-$view-wire.png"
+            done
+          fi
           if grep -E 'SCRIPT ERROR:|ERROR:' build/viewer-*.log; then exit 1; fi
           if [ "$PREVIEW_CRAFT" = 2 ]; then
             grep -q SCENEFORGE_SHRIKE_HUD_IN_COCKPIT_OK build/viewer-cockpit.log
+          fi
+          if [ "$PREVIEW_CRAFT" = 7 ]; then
+            grep -q SCENEFORGE_TREMOR_COCKPIT_MOUNT_OK build/viewer-cockpit.log
           fi
           name=piledriver
           if [ "$PREVIEW_CRAFT" = 0 ]; then name=kestrel; fi
@@ -113,6 +131,7 @@ jobs:
           if [ "$PREVIEW_CRAFT" = 5 ]; then name=forge; fi
           if [ "$PREVIEW_CRAFT" = 5 ]; then name=forge; fi
           if [ "$PREVIEW_CRAFT" = 6 ]; then name=synapse; fi
+          if [ "$PREVIEW_CRAFT" = 7 ]; then name=tremor; fi
           for view in "${views[@]}"; do test -s build/Fleet-$name-$view.png; done
           if [ "$name" = kestrel ]; then cp game/assets/neon_foundry.glb build/SelectedCraft.glb; else cp game/assets/fleet/$name.glb build/SelectedCraft.glb; fi
           if [ "$PREVIEW_CRAFT" = 0 ]; then
@@ -150,11 +169,20 @@ jobs:
             2) name=shrike ;;
             5) name=forge ;;
             6) name=synapse ;;
+            7) name=tremor ;;
           esac
           for view in front rear side top; do
             test -s "build/Fleet-$name-$view.png"
           done
           if [ "$name" != synapse ]; then test -s "build/Fleet-$name-cockpit.png"; fi
+          if [ "$name" = tremor ]; then
+            for view in hero rear-quarter; do
+              test -s "build/Fleet-tremor-$view-clean.png"
+            done
+            for view in front side top; do
+              test -s "build/Fleet-tremor-$view-wire.png"
+            done
+          fi
           if [ "$name" = shrike ]; then
             for view in hero rear-quarter; do
               test -s "build/Fleet-shrike-$view.png"
