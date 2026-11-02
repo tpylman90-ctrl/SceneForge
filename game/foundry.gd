@@ -459,6 +459,9 @@ func set_inspection(enabled: bool) -> void:
 		camera.rotation = Vector3(pitch, 0, 0)
 
 func inspection_preset(which: String) -> void:
+	if which=="cockpit" and lot_feedback!=null and lot_feedback.showroom_upload:
+		help_label.text="Uploaded Shrike is exterior-only until canopy glass is separated."
+		return
 	cancel_comparison()
 	set_inspection(true)
 	cockpit_locked = which == "cockpit"
