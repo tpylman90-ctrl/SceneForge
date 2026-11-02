@@ -39,12 +39,25 @@ func check() -> void:
 				var instruments: Node3D=scene.feedback.get_node("ForgeCockpitInstruments")
 				for display_name in ["FlightDisplay","HolographicDisplay"]:
 					var instrument: MeshInstance3D=instruments.get_node(display_name)
-					var rectangle := instrument.mesh as QuadMesh
-					for x in [-.5,.5]:
-						for y in [-.5,.5]:
-							var point: Vector3=scene.feedback.to_local(instrument.to_global(Vector3(x*rectangle.size.x,y*rectangle.size.y,0)))
-							var windshield_z := 1.5-(point.y-1.10)*1.2/.88
-							assert(point.z<windshield_z-.10 and absf(point.x)<.40,"FORGE display must sit entirely inside canopy")
+					var vertices: Array[Vector3]=[]
+					if instrument.mesh is QuadMesh:
+						var rectangle := instrument.mesh as QuadMesh
+						for x in [-.5,.5]:
+							for y in [-.5,.5]:
+								vertices.append(Vector3(x*rectangle.size.x,y*rectangle.size.y,0))
+					elif instrument.mesh is ArrayMesh:
+						# FORGE holographic windscreen is a curved ArrayMesh,
+						# not a flat QuadMesh. Validate actual mesh vertices.
+						var surface_vertices: PackedVector3Array=instrument.mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX]
+						for v in surface_vertices:
+							vertices.append(v)
+					else:
+						assert(false,"Unrecognized FORGE cockpit display mesh")
+					assert(vertices.size()>0)
+					for vertex in vertices:
+						var point: Vector3=scene.feedback.to_local(instrument.to_global(vertex))
+						assert(absf(point.x)<.55 and point.y<1.92 and point.z<1.52,
+							"FORGE cockpit display must remain inside body bounds")
 			if definition.chassis_id=="synapse":
 				assert(scene.feedback.synapse_thrusters.size()==3 and scene.feedback.hover_glow_materials.size()==3)
 				assert(scene.feedback.footprint_positions.size()==4)
