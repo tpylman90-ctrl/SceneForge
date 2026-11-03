@@ -25,6 +25,9 @@ func configure(definition: Resource) -> void:
 	if chassis.chassis_id=="synapse":
 		configure_synapse(definition)
 		return
+	if chassis.chassis_id=="aerolith":
+		configure_aerolith(definition)
+		return
 	showroom_upload=chassis.chassis_id=="shrike" and chassis.visual_scene.ends_with("/showroom/shrike_uploaded.glb")
 	var source: Node3D = load(chassis.visual_scene).instantiate()
 	telemetry.craft_name=chassis.display_name
@@ -46,6 +49,9 @@ func configure(definition: Resource) -> void:
 		# Keep the same eight garage component markers without installing
 		# Kestrel's synthetic cockpit, repulsor rings, HUD or exhaust.
 		build_component_mounts()
+		build_audio()
+		# Exterior presentation and playable third-person racing use the
+		# imported original shell. Do not attach the old Shrike cockpit HUD.
 		# Exterior inspection only. The uploaded Tripo-derived car is already
 		# textured, including its opaque window area; adding our procedural
 		# Shrike cockpit, tinted-glass override, and hover rings would obscure it.
@@ -119,6 +125,66 @@ func configure(definition: Resource) -> void:
 	build_component_mounts()
 	build_exhaust()
 	build_audio()
+
+# AEROLITH is a completely original Blender craft from Assetwright.
+# Unlike the legacy vehicle exporters, its mesh has no "Kestrel_*" rig.
+# Preserve the complete node hierarchy and use its real thruster locations.
+func configure_aerolith(definition: Resource) -> void:
+	var body: Node3D=load(definition.visual_scene).instantiate()
+	body.name="Aerolith_Original_Body"
+	add_child(body)
+	telemetry.craft_name=definition.display_name
+	setup_aerolith_glass(body)
+	build_component_mounts()
+	build_repulsor_footprints()
+	build_aerolith_thrusters()
+	build_audio()
+	print("SCENEFORGE_AEROLITH_DRIVE_MODEL_OK")
+
+func setup_aerolith_glass(body: Node3D) -> void:
+	for node in body.find_children("*","MeshInstance3D",true,false):
+		var label: String=str(node.name).to_lower()
+		if not (label.contains("visor") or label.contains("side glazing")):
+			continue
+		for surface in range(node.mesh.get_surface_count()):
+			var source: Material=node.get_active_material(surface)
+			if not source is StandardMaterial3D:
+				continue
+			var outside: StandardMaterial3D=source.duplicate()
+			outside.transparency=BaseMaterial3D.TRANSPARENCY_ALPHA
+			outside.albedo_color=Color(.035,.12,.18,.59)
+			outside.cull_mode=BaseMaterial3D.CULL_DISABLED
+			outside.metallic=.16
+			var inside: StandardMaterial3D=outside.duplicate()
+			inside.albedo_color=Color(.04,.10,.15,.10)
+			inside.metallic=0.0
+			node.set_surface_override_material(surface,outside)
+			glass.append({"mesh":node,"surface":surface,
+				"outside":outside,"inside":inside})
+
+func build_aerolith_thrusters() -> void:
+	var material: StandardMaterial3D=glow()
+	material.albedo_color=Color(.19,.76,1.0,.55)
+	material.emission_enabled=true
+	material.emission=Color(.08,.50,.94)
+	material.emission_energy_multiplier=1.5
+	hover_glow_materials.append(material)
+	for x in [-1.06,1.06]:
+		var plume:=MeshInstance3D.new()
+		plume.name="Aerolith_VectorPlume"
+		var cone:=CylinderMesh.new()
+		cone.top_radius=.035
+		cone.bottom_radius=.25
+		cone.height=1.0
+		cone.radial_segments=20
+		plume.mesh=cone
+		plume.material_override=material
+		plume.rotation.x=-PI/2
+		plume.position=Vector3(x,.89,-4.05)
+		plume.visible=false
+		plume.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		add_child(plume)
+		synapse_thrusters.append(plume)
 
 func configure_synapse(definition: Resource) -> void:
 	var body: Node3D=load(definition.visual_scene).instantiate()
@@ -322,7 +388,46 @@ func set_cockpit(enabled: bool) -> void:
 
 func update_feedback(delta: float, signed_speed: float, drive: float, steering: float, acceleration: float, slip: float, cockpit: bool, boosting: bool = false, charge: float = 100.0, flight_pitch: float = 0.0) -> void:
 	if showroom_upload:
-		# Garage-only model: do not animate synthetic Kestrel exhaust or HUD.
+		# This is the actual user-approved 164K-triangle Shrike.
+		# It can race with third-person controls; the painted-in glass
+		# requires a different cockpit camera design in a later pass.
+		last_drive=drive
+		motion_clock+=delta
+		var fraction:=clampf(absf(signed_speed)/chassis.max_forward_speed,0.0,1.0)
+		visual_roll=lerpf(visual_roll,steering*.07*fraction,1-exp(-delta*6.0))
+		visual_pitch=lerpf(visual_pitch,flight_pitch+clampf(acceleration*.001,-.022,.018),1-exp(-delta*5.0))
+		rotation=Vector3(visual_pitch,0,visual_roll)
+		position.y=sin(motion_clock*3.0)*.012*fraction
+		if sound!=null:
+			sound.pitch_scale=.86+fraction*.47+drive*.10
+			sound.volume_db=-80 if muted else -28+fraction*6+drive*4
+		display_clock+=delta
+		if display_clock>=.35:
+			display_clock=0.0
+			telemetry.update(signed_speed,drive,steering,slip,boosting,charge)
+		return
+	if chassis.chassis_id=="aerolith":
+		last_drive=drive
+		motion_clock+=delta
+		var fraction:=clampf(absf(signed_speed)/chassis.max_forward_speed,0.0,1.0)
+		visual_roll=lerpf(visual_roll,steering*.10*fraction,1-exp(-delta*7.0))
+		visual_pitch=lerpf(visual_pitch,flight_pitch+clampf(acceleration*.0015,-.028,.023),1-exp(-delta*5.0))
+		rotation=Vector3(visual_pitch,0,visual_roll)
+		position.y=sin(motion_clock*3.25)*.017*fraction
+		var plume_len:=.15+drive*.60+fraction*.22+(.25 if boosting else 0.0)
+		for plume in synapse_thrusters:
+			plume.visible=drive>.04 or boosting
+			plume.scale=Vector3(1.0,plume_len,1.0)
+			plume.position.z=-3.94-plume_len*.51
+		for material in hover_glow_materials:
+			material.emission_energy_multiplier=1.1+drive*.8+fraction*.6
+		if sound!=null:
+			sound.pitch_scale=.83+fraction*.55+drive*.10
+			sound.volume_db=-80 if muted else -27+fraction*5+drive*5
+		display_clock+=delta
+		if display_clock>= (.1 if cockpit else .5):
+			display_clock=0.0
+			telemetry.update(signed_speed,drive,steering,slip,boosting,charge)
 		return
 	if chassis.chassis_id=="synapse":
 		last_drive=drive
