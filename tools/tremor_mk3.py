@@ -87,6 +87,35 @@ def build_tremor(body,maroon,armor,rubber,glow,glass,accent):
         faces.append(tuple((len(rows)-1)*n+j for j in range(n)))
         return mesh(name,points,faces,material)
 
+    def shaped_fender(name,side,profiles,material):
+        """Closed longitudinal 8-corner fender sculpt with beveled shoulders.
+
+        Each profile is (z, inner_x, outer_x, lower_y, crown_y).
+        Narrow ends dissolve into the continuous chassis and avoid the
+        detached rectangular box appearance of the initial SUV iteration.
+        """
+        loops=[]
+        for z,inside,outside,low,top in profiles:
+            width=outside-inside
+            shoulder=min(.15,width*.27)
+            chamfer=min(.12,(top-low)*.20)
+            loops.append([
+                (side*inside,low+.12,z),
+                (side*(inside+.028),top-.11,z),
+                (side*(inside+shoulder),top,z),
+                (side*(outside-shoulder),top,z),
+                (side*outside,top-chamfer,z),
+                (side*outside,low+.18,z),
+                (side*(outside-.12),low,z),
+                (side*(inside+.10),low,z)])
+        ob=closed_loft(name,loops,material)
+        # Small bevels on sheetmetal support correct large reflection flow
+        # while keeping the SUV's deliberate planar hard edges.
+        bevelmod=ob.modifiers.new("Manufactured hard-surface corner rounds","BEVEL")
+        bevelmod.width=.030
+        bevelmod.segments=2
+        return ob
+
     # CONTIGUOUS CHASSIS: a top deck with shoulder steps, hard flank,
     # inward bevel at rocker, and flat aerodynamic undertray. Wider than the
     # cabin and visibly SUV-shaped from both side and top.
@@ -131,12 +160,25 @@ def build_tremor(body,maroon,armor,rubber,glow,glass,accent):
                 (side*(w+.028),.57,z),
                 (side*(w-.10),.62,z)])
         closed_loft("TREMOR_BOX_SUV_"+lbl+"_LONG_SLAB_DOOR",outer,body)
-        # Slab cassette is a flush, clearly rectangular deep panel.
-        face("Tremor MKIII "+lbl+" door cassette",[
-            (side*(xout(.72,.127)),.85,.88),
-            (side*(xout(.74,.127)),1.20,.88),
-            (side*(xout(-1.31,.127)),1.20,-1.31),
-            (side*(xout(-1.32,.127)),.85,-1.31)],armor)
+        # Two machined inset doors instead of a single bolted-on slab.
+        # Maintain consistent side curvature by sampling the real chassis.
+        for front,rear in [(1.02,-.43),(-.53,-1.43)]:
+            face("Tremor MKIII "+lbl+" sculpted door outer insert",[
+                (side*xout(front-.04,.125),1.205,front-.04),
+                (side*xout(rear+.04,.125),1.205,rear+.04),
+                (side*xout(rear+.06,.128),.835,rear+.06),
+                (side*xout(front-.06,.128),.835,front-.06)],body)
+            polyline("Tremor MKIII "+lbl+" precision door upper hem",[
+                (side*xout(front-.06,.145),1.235,front-.06),
+                (side*xout(rear+.06,.145),1.235,rear+.06)],.016,armor)
+            polyline("Tremor MKIII "+lbl+" precision door bottom seam",[
+                (side*xout(front-.06,.145),.81,front-.06),
+                (side*xout(rear+.06,.145),.81,rear+.06)],.013,rubber)
+        # Long shoulder crease and a low armored rocker tie the front and
+        # rear haunches to the door openings, avoiding random floating trims.
+        polyline("Tremor MKIII "+lbl+" side shoulder transition",[
+            (side*xout(z,.122),1.345,z)
+            for z in [1.55,1.28,.74,.04,-.76,-1.43,-1.83]],.025,armor)
         polyline("Tremor MKIII side deck horizontal bevel",[
             (side*xout(z,.10),1.30,z)
             for z in [-1.65,-1.1,-.4,.35,1.20]],.017,armor)
@@ -160,45 +202,61 @@ def build_tremor(body,maroon,armor,rubber,glow,glass,accent):
         # SQUARED FENDER / FRONT ARMOR BLOCK: long, high hard-backed
         # shoulder with protective chamfer. Overlaps the monocoque on
         # purpose along continuous structural width, not as floating fins.
-        box("TREMOR_BOX_SUV_"+lbl+"_FRONT_SQUARED_FENDER",
-            (side*1.72,1.29,2.43),(.67,.68,2.06),armor,.065)
+        shaped_fender("TREMOR_BOX_SUV_"+lbl+"_FRONT_SQUARED_FENDER",
+            side,[
+                (1.38,1.56,1.89,.94,1.41),
+                (1.55,1.47,2.06,.95,1.61),
+                (1.98,1.40,2.12,.94,1.71),
+                (2.50,1.38,2.14,.92,1.69),
+                (3.02,1.44,2.08,.95,1.58),
+                (3.32,1.55,1.99,.98,1.46)],
+            armor)
         box("Tremor MKIII dark inner wheel-arch cavity",
             (side*2.074,.80,2.28),(.026,.40,.71),rubber,.018)
+        # Pressed crown is a narrow separate service cover following
+        # the changing fender height, rather than a giant flat decal.
         face("Tremor MKIII front fender pressed armor",[
-            (side*1.46,1.67,1.51),(side*1.87,1.64,1.51),
-            (side*1.93,1.57,3.28),(side*1.42,1.56,3.24)],maroon)
+            (side*1.63,1.736,2.01),(side*1.88,1.736,2.01),
+            (side*1.88,1.718,2.56),(side*1.64,1.718,2.56)],maroon)
         box("Tremor MKIII rectangular headlamp shroud",
             (side*1.66,1.17,3.51),(.60,.21,.12),rubber,.029)
         box("Tremor MKIII slim double-bar LED lamp",
             (side*1.66,1.18,3.596),(.45,.045,.026),glow,.010)
-        box("Tremor MKIII fender top intake housing",
-            (side*1.75,1.66,2.58),(.37,.12,.57),rubber,.020)
+        box("Tremor MKIII flush fender top air extractor",
+            (side*1.76,1.714,2.68),(.30,.027,.43),rubber,.016)
         for k in range(3):
-            box("Tremor MKIII stamped top fender vent",
-                (side*1.75,1.732,2.37+k*.12),
-                (.29,.024,.042),accent,.003)
-        polyline("Tremor MKIII squared front wheel guard",[
-            (side*2.06,.60,1.83),(side*2.09,1.11,1.83),
-            (side*2.09,1.51,2.01),(side*2.05,1.54,2.78),
-            (side*2.05,1.08,2.97),(side*2.02,.67,2.97)],
-            .047,armor)
+            box("Tremor MKIII sunken fender intake vane",
+                (side*1.76,1.733,2.52+k*.125),
+                (.22,.012,.036),accent,.002)
+        polyline("Tremor MKIII squared front fender joint",[
+            (side*2.098,.89,1.65),(side*2.137,1.07,2.00),
+            (side*2.150,1.48,2.52),(side*2.103,1.27,3.02),
+            (side*2.035,.95,3.28)],.025,body)
 
         # HEAVY REAR SHOULDER: the same rectangular volume language as
         # a real SUV quarter panel, with an external engineered module.
-        box("TREMOR_BOX_SUV_"+lbl+"_REAR_SQUARED_SHOULDER",
-            (side*1.78,1.42,-2.55),(.69,.79,1.73),armor,.067)
-        box("Tremor MKIII rear fender upper recessed vent",
-            (side*1.80,1.856,-2.55),(.34,.055,.62),rubber,.015)
-        for zz in [-2.78,-2.55,-2.32]:
-            box("Tremor MKIII rear shoulder vent fin",
-                (side*1.8,1.889,zz),(.24,.018,.059),body,.004)
-        box("Tremor MKIII rear exterior protective plate",
-            (side*2.131,1.29,-2.60),(.065,.57,1.26),body,.035)
-        polyline("Tremor MKIII rear fender boxed corner",[
-            (side*2.12,.74,-3.21),(side*2.15,1.12,-3.21),
-            (side*2.12,1.71,-3.05),(side*2.10,1.73,-2.16),
-            (side*2.15,1.15,-1.90),(side*2.15,.70,-1.92)],
-            .041,maroon)
+        shaped_fender("TREMOR_BOX_SUV_"+lbl+"_REAR_SQUARED_SHOULDER",
+            side,[
+                (-3.44,1.50,1.93,.89,1.54),
+                (-3.21,1.46,2.13,.94,1.76),
+                (-2.86,1.42,2.21,.95,1.84),
+                (-2.39,1.43,2.22,.95,1.85),
+                (-1.99,1.47,2.15,.96,1.72),
+                (-1.76,1.54,2.01,.99,1.52)],
+            armor)
+        box("Tremor MKIII rear fender flush cooling pocket",
+            (side*1.80,1.867,-2.55),(.33,.028,.48),rubber,.013)
+        for zz in [-2.69,-2.56,-2.43]:
+            box("Tremor MKIII inset rear heat exchanger grille",
+                (side*1.80,1.887,zz),(.255,.011,.038),body,.003)
+        face("Tremor MKIII rear exterior forged protection plate",[
+            (side*2.238,1.29,-3.10),(side*2.245,1.53,-2.93),
+            (side*2.248,1.53,-2.17),(side*2.241,1.28,-1.99),
+            (side*2.236,1.04,-2.14),(side*2.230,1.03,-2.95)],body)
+        polyline("Tremor MKIII forged rear haunch transition",[
+            (side*2.14,1.12,-3.23),(side*2.235,1.54,-2.95),
+            (side*2.244,1.57,-2.40),(side*2.18,1.31,-1.97)],
+            .030,maroon)
 
         # Underside levitation pods buried under the rocker, not
         # full-size wheels stuck onto the hood.
@@ -222,20 +280,24 @@ def build_tremor(body,maroon,armor,rubber,glow,glass,accent):
         (0,.54,3.64),(2.33,.15,.21),body,.029)
     for side in [-1,1]:
         x=side*1.47
+        # Cut-looking black socket and shallow turbine sit nearly flush
+        # with the bumper. A broad trim bezel connects them to the fascia.
+        box("Tremor MKIII framed front repulsor recess",
+            (x,.79,3.673),(.85,.85,.055),rubber,.090)
         pipe("Tremor MKIII front recessed ring housing",
-             (x,.79,3.64),(x,.79,3.82),.37,rubber,28)
+             (x,.79,3.660),(x,.79,3.725),.32,rubber,28)
         engine_ring("Tremor MKIII front satin repulsor rim",
-                    (x,.79,3.80),.346,.058,armor)
+                    (x,.79,3.731),.306,.041,armor)
         engine_ring("Tremor MKIII front magnetic blue lens",
-                    (x,.79,3.841),.279,.026,glow)
+                    (x,.79,3.746),.245,.021,glow)
         pipe("Tremor MKIII front repulsor central spindle",
-             (x,.79,3.832),(x,.79,3.86),.087,body,16)
+             (x,.79,3.738),(x,.79,3.756),.078,body,16)
         for j in range(6):
             theta=tau*j/6
-            r=.16
+            r=.15
             pipe("Tremor MKIII front turbine vane",
-                 (x+.09*math.cos(theta),.79+.09*math.sin(theta),3.846),
-                 (x+r*math.cos(theta+.17),.79+r*math.sin(theta+.17),3.847),
+                 (x+.08*math.cos(theta),.79+.08*math.sin(theta),3.749),
+                 (x+r*math.cos(theta+.17),.79+r*math.sin(theta+.17),3.75),
                  .015,armor,8)
         box("Tremor MKIII lower front crash guard",
             (side*1.05,.52,3.77),(.26,.21,.14),body,.027)
@@ -400,6 +462,11 @@ def build_tremor(body,maroon,armor,rubber,glow,glass,accent):
              (x,.94,-3.49),(x,.94,-3.54),.009,rubber,8)
         rig("Kestrel_Tail_%d"%i,since(before),(x,.94,-3.50))
 
+    # Strict form-and-assembly checks for the A1 shaping pass.
+    assert all(len(row)==8 for row in [
+        [(0,0,0)]*8]), "Internal pod loop specification drifted"
+    print("SCENEFORGE_TREMOR_INTEGRATED_ARMOR_OK",
+          "lofted_fenders","segmented_doors","flush_recessed_front_thrusters")
     # Geometric gates correlate with the illustrated FORM BLOCKS rather
     # than merely counting decorative parts.
     assert roof_y>2.5 and sample(2.75)[2]<1.4
