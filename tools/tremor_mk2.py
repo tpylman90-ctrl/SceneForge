@@ -113,8 +113,9 @@ def build_tremor(body,maroon,armor,rubber,glow,glass,accent):
         # instead of a pasted rectangular box intersecting the body.
         vertices=[]
         for z,t1,t2,zlo,zhi in pairs:
-            w=sample(z)[0]
-            vertices.extend([(w*t1,zlo,z),(w*t2,zhi,z)])
+            # t1/t2 are absolute X positions measured against each
+            # local station; never multiply by body width a second time.
+            vertices.extend([(t1,zlo,z),(t2,zhi,z)])
         faces=[(2*i,2*i+1,2*i+3,2*i+2) for i in range(len(pairs)-1)]
         ob=mesh(name,vertices,faces,mat)
         for p in ob.data.polygons:p.use_smooth=True
