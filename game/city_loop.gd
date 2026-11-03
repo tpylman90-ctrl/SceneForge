@@ -82,7 +82,7 @@ var wall_normal := Vector3.ZERO
 var wall_recoil := Vector3.ZERO
 var wall_hits := 0
 const TRACK_NAMES := ["NEON CROSS","SKYWAY","VIPER RIFT","IRON HARBOR","CRIMSON SERPENT","RED MESA CIRCUIT","DEVIL'S GATE"]
-const TRACK_INFO := ["MEDIUM / Figure-eight crossing jump", "EASY / Elevated oval and forgiving jump", "HARD / S-bends, banked turns and extended leap", "MEDIUM / Dockside straights, technical chicanes and harbor leap", Crimson.ROUTE_INFO[0], Crimson.ROUTE_INFO[1], Crimson.ROUTE_INFO[2]]
+const TRACK_INFO := ["MEDIUM / Figure-eight crossing jump", "EASY / Elevated oval and forgiving jump", "HARD / S-bends, banked turns and extended leap", "MEDIUM / Dockside straights, technical chicanes and harbor leap", "MEDIUM / Long flowing single-stage canyon sprint", "EASY / Wide mesa loop and sweeping horseshoe turns", "HARD / Tight red-rock gates, crests and ridge chicanes"]
 
 func route_position(index: int) -> Vector3:
 	if track_id>=Crimson.FIRST_ID:
