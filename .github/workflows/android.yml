@@ -186,13 +186,13 @@ jobs:
           test -s build/NeonCross-jump.png
           timeout 120 xvfb-run -a godot --audio-driver Dummy --path game --rendering-method gl_compatibility --resolution 1280x720 res://city_loop.tscn -- --capture --track-jump --track-cockpit 2>&1 | tee build/loop-jump-cockpit-render.log
           test -s build/NeonCross-jump-cockpit.png
-          for circuit in 1 2; do
+          for circuit in 1 2 3; do
             timeout 120 xvfb-run -a godot --audio-driver Dummy --path game --rendering-method gl_compatibility --resolution 1280x720 res://city_loop.tscn -- --capture --track-overview --circuit-$circuit 2>&1 | tee build/loop-circuit-$circuit-overview-render.log
             timeout 120 xvfb-run -a godot --audio-driver Dummy --path game --rendering-method gl_compatibility --resolution 1280x720 res://city_loop.tscn -- --capture --track-cockpit --track-action --circuit-$circuit 2>&1 | tee build/loop-circuit-$circuit-cockpit-render.log
             timeout 120 xvfb-run -a godot --audio-driver Dummy --path game --rendering-method gl_compatibility --resolution 1280x720 res://city_loop.tscn -- --capture --track-jump --circuit-$circuit 2>&1 | tee build/loop-circuit-$circuit-jump-render.log
           done
           timeout 120 xvfb-run -a godot --audio-driver Dummy --path game --rendering-method gl_compatibility --resolution 1280x720 res://city_loop.tscn -- --capture --track-menu 2>&1 | tee build/loop-menu-render.log
-          for name in Skyway ViperRift; do
+          for name in Skyway ViperRift IronHarbor; do
             test -s build/$name-overview.png
             test -s build/$name-cockpit.png
             test -s build/$name-jump.png
