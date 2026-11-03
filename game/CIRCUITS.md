@@ -11,12 +11,17 @@ Use TRACKS in the driving view. Selecting a circuit starts a fresh attempt; RESU
 - Neon Cross (medium): original figure-eight with elevated crossing jump.
 - Skyway (easy): broad oval, elevated 2 m above the city ground, launch ramp and wide landing. No crossing traffic branch.
 - Viper Rift (hard): S-bends, mild banked road cross-sections, a 3 m crest, longer crossing leap with stronger magnetic launch assist.
+- Iron Harbor (medium; first environment pass): new inset-oval harbor route, shipping-container stacks, dock cranes, industrial towers and the established launch/landing mechanic. This is a playable layout prototype; port scenery and racing-line polish still need phone review.
 
-All use the same Kestrel, controls, boost and reverse rules. This is a time-trial prototype with barrier containment; no traffic opponents or wall-driving physics. Road banking affects mesh height, vehicle support height, cockpit roll and repulsor footprint roll. Flight remains ballistic with reduced steering.
+All use the same fleet selection, controls, boost and reverse rules. This is a time-trial prototype with barrier containment; no traffic opponents or wall-driving physics. Road banking affects mesh height, vehicle support height, cockpit roll and repulsor footprint roll. Flight remains ballistic with reduced steering.
+
+## Race weekend (first implementation)
+
+The EVENT menu now offers FREE DRIVE, TIME TRIAL (3-2-1 countdown and personal-best lap timing), and 3-LAP CHALLENGE (solo standing start, three lap splits, local event record, results and replay). This is not wheel-to-wheel racing yet: CPU rivals, career and credits remain on the roadmap. The new game/tests/race_event_test.gd exercises the race lifecycle and is required by CI.
 
 ## Validation
 
-game/tests/circuits_test.gd drives every layout at 30/60/120 simulation Hz, tests approach speeds 8/32/42 m/s, checks one successful launch/landing per lap without recovery, and exercises actual menu-triggered scene replacement. Existing figure-eight, controls, boost, cockpit and reverse checks remain.
+game/tests/circuits_test.gd drives all four layouts at 30/60/120 simulation Hz, tests approach speeds 8/32/42 m/s, checks one successful launch/landing per lap without recovery, and exercises actual menu-triggered scene replacement. Existing figure-eight, controls, boost, cockpit and reverse checks remain.
 
 CI publishes Skyway/ViperRift overview, cockpit and airborne renders plus Circuit-select.png. CI software-render FPS does not predict Android performance.
 
