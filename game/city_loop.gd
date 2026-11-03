@@ -2,6 +2,7 @@ extends Node3D
 
 const Fleet = preload("res://vehicles/fleet_catalog.gd")
 const Parts = preload("res://vehicles/performance_parts.gd")
+const Crimson = preload("res://tracks/crimson_divide.gd")
 
 # A bounded first driving prototype: one closed city loop, no external assets.
 const COUNT := 192
@@ -80,10 +81,13 @@ var wall_cooldown := 0.0
 var wall_normal := Vector3.ZERO
 var wall_recoil := Vector3.ZERO
 var wall_hits := 0
-const TRACK_NAMES := ["NEON CROSS","SKYWAY","VIPER RIFT","IRON HARBOR"]
-const TRACK_INFO := ["MEDIUM / Figure-eight crossing jump", "EASY / Elevated oval and forgiving jump", "HARD / S-bends, banked turns and extended leap", "MEDIUM / Dockside straights, technical chicanes and harbor leap"]
+const TRACK_NAMES := ["NEON CROSS","SKYWAY","VIPER RIFT","IRON HARBOR","CRIMSON SERPENT","RED MESA CIRCUIT","DEVIL'S GATE"]
+const TRACK_INFO := ["MEDIUM / Figure-eight crossing jump", "EASY / Elevated oval and forgiving jump", "HARD / S-bends, banked turns and extended leap", "MEDIUM / Dockside straights, technical chicanes and harbor leap", Crimson.ROUTE_INFO[0], Crimson.ROUTE_INFO[1], Crimson.ROUTE_INFO[2]]
 
 func route_position(index: int) -> Vector3:
+	if track_id>=Crimson.FIRST_ID:
+		var point: Vector2=Crimson.point(track_id,index,COUNT)
+		return Vector3(point.x,deck_height(index),point.y)
 	var a := TAU*index/COUNT
 	var z := 32*sin(2*a)
 	if track_id==1:
@@ -97,12 +101,28 @@ func route_position(index: int) -> Vector3:
 	return Vector3(80*cos(a),deck_height(index),z)
 
 func bank_slope(index: int) -> float:
+	if track_id>=Crimson.FIRST_ID:
+		return Crimson.bank(track_id,index,COUNT)
 	if track_id!=2 or index>=26 and index<=70 or index>=132 and index<=156:
 		return 0.0
 	return -0.10*sin(TAU*index/COUNT*2)
 
 func track_name() -> String:
 	return TRACK_NAMES[track_id]
+
+func challenge_laps() -> int:
+	return 1 if track_id==4 else RACE_LAPS
+
+func region_name(index: int) -> String:
+	if track_id>=Crimson.FIRST_ID:
+		return Crimson.sector(track_id,index,COUNT)
+	return DISTRICTS[int(index)/(COUNT/4)]
+
+func jump_start_index() -> int:
+	return JUMP_START
+
+func jump_end_index() -> int:
+	return 48 if track_id>=Crimson.FIRST_ID else JUMP_END
 
 func load_best() -> void:
 	var records := ConfigFile.new()
@@ -175,7 +195,8 @@ func finish_solo_race() -> void:
 		race_best_total=total
 		save_race_best()
 	var credits_earned: int=Parts.award_race(total,personal_best)
-	var report := "%s  /  %s\n3-LAP SOLO CHALLENGE COMPLETE\nTOTAL  %.2f s\n" % [track_name(),chassis.display_name,total]
+	var race_title: String="SPRINT STAGE COMPLETE" if track_id==4 else "3-LAP SOLO CHALLENGE COMPLETE"
+	var report := "%s  /  %s\n%s\nTOTAL  %.2f s\n" % [track_name(),chassis.display_name,race_title,total]
 	for i in range(race_splits.size()):
 		report+="LAP %d   %.2f s\n" % [i+1,race_splits[i]]
 	report+=("NEW EVENT RECORD" if personal_best else "EVENT BEST  %.2f s" % race_best_total)
@@ -185,7 +206,7 @@ func finish_solo_race() -> void:
 	results_info.text=report
 	countdown_label.hide()
 	results_panel.show()
-	hud.text=track_name()+" / FINISHED\nTOTAL %.2f s  /  %d LAPS" % [total,RACE_LAPS]
+	hud.text=track_name()+" / FINISHED\nTOTAL %.2f s  /  %d STAGE(S)" % [total,challenge_laps()]
 
 func advance_countdown(delta: float) -> bool:
 	if race_countdown>0.0:
@@ -255,10 +276,18 @@ func _ready() -> void:
 	var environment := WorldEnvironment.new()
 	var settings := Environment.new()
 	settings.background_mode = Environment.BG_SKY
-	var panorama := PanoramaSkyMaterial.new()
-	panorama.panorama=load("res://assets/twilight_sky.jpg")
 	var sky := Sky.new()
-	sky.sky_material=panorama
+	if track_id>=Crimson.FIRST_ID:
+		var desert_sky := ProceduralSkyMaterial.new()
+		desert_sky.sky_top_color=Color("55718b")
+		desert_sky.sky_horizon_color=Color("de9774")
+		desert_sky.ground_horizon_color=Color("b77a59")
+		desert_sky.ground_bottom_color=Color("473b3d")
+		sky.sky_material=desert_sky
+	else:
+		var panorama := PanoramaSkyMaterial.new()
+		panorama.panorama=load("res://assets/twilight_sky.jpg")
+		sky.sky_material=panorama
 	settings.sky=sky
 	settings.background_color = Color("172c42")
 	settings.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
@@ -266,15 +295,15 @@ func _ready() -> void:
 	settings.ambient_light_energy = 0.8
 	settings.tonemap_mode = Environment.TONE_MAPPER_FILMIC
 	settings.fog_enabled = true
-	settings.fog_light_color = Color("273c50")
-	settings.fog_density = 0.002
+	settings.fog_light_color = Color("be8368") if track_id>=Crimson.FIRST_ID else Color("273c50")
+	settings.fog_density = 0.0014 if track_id>=Crimson.FIRST_ID else 0.002
 	settings.fog_sky_affect = 0.0
 	environment.environment = settings
 	add_child(environment)
 	var sun := DirectionalLight3D.new()
 	sun.rotation_degrees = Vector3(-38, -28, 0)
-	sun.light_color = Color("b8d6ef")
-	sun.light_energy = 1.0
+	sun.light_color = Color("ffd3a5") if track_id>=Crimson.FIRST_ID else Color("b8d6ef")
+	sun.light_energy = 1.12 if track_id>=Crimson.FIRST_ID else 1.0
 	sun.shadow_enabled = true
 	sun.directional_shadow_max_distance = 70
 	sun.shadow_bias = 0.15
@@ -292,7 +321,7 @@ func _ready() -> void:
 	camera = Camera3D.new()
 	camera.current = true
 	camera.fov = 74
-	camera.far = 300
+	camera.far = 500 if track_id>=Crimson.FIRST_ID else 300
 	camera.near = 0.03
 	add_child(camera)
 	get_viewport().scaling_3d_scale = 0.85
@@ -342,29 +371,39 @@ func flat(value: Vector3) -> Vector3:
 	return Vector3(value.x,0,value.z)
 
 func deck_height(index: int) -> float:
-	var base := 2.0 if track_id==1 else 0.0
+	var base: float=Crimson.ground_height(track_id,index,COUNT) if track_id>=Crimson.FIRST_ID else (2.0 if track_id==1 else 0.0)
 	if track_id==2 and index>=96 and index<=128:
 		base=3.0*pow(sin(PI*float(index-96)/32.0),2)
-	if index>=28 and index<=JUMP_START:
-		var t := float(index-28)/(JUMP_START-28)
+	var first: int=jump_start_index()
+	var last: int=jump_end_index()
+	var ramp_begin: int=first-16
+	var ramp_finish: int=last+16
+	if index>=ramp_begin and index<=first:
+		var t: float=float(index-ramp_begin)/float(first-ramp_begin)
 		return base+smoothstep(0.0,1.0,t)*RAMP_HEIGHT
-	if index>JUMP_START and index<JUMP_END:
+	if index>first and index<last:
 		return base+RAMP_HEIGHT
-	if index>=JUMP_END and index<=68:
-		var t := float(index-JUMP_END)/(68-JUMP_END)
-		return base+(1-smoothstep(0.0,1.0,t))*RAMP_HEIGHT
+	if index>=last and index<=ramp_finish:
+		var t: float=float(index-last)/float(ramp_finish-last)
+		return base+(1.0-smoothstep(0.0,1.0,t))*RAMP_HEIGHT
 	return base
 
 func is_jump_gap(index: int) -> bool:
-	return index>=JUMP_START and index<JUMP_END
+	return index>=jump_start_index() and index<jump_end_index()
 
 func road_half_width(index: int) -> float:
+	if track_id>=Crimson.FIRST_ID:
+		var natural: float=Crimson.half_width(track_id,index)
+		var finish: int=jump_end_index()
+		return natural+2.5*(1.0-clampf(float(index-finish)/10.0,0.0,1.0)) if index>=finish and index<finish+10 else natural
 	return 8.0+3.0*(1-clampf(float(index-JUMP_END)/12,0,1)) if index>=JUMP_END and index<64 else 8.0
 
 func outward_at(index: int) -> Vector3:
 	var p := route[index]
 	var forward := flat(route[(index+1)%COUNT]-p).normalized()
 	var normal := Vector3(forward.z,0,-forward.x)
+	if track_id>=Crimson.FIRST_ID:
+		return normal if normal.dot(flat(p))>=0.0 else -normal
 	var center := Vector3(43 if p.x>0 else -43,0,0)
 	return normal if (p+normal*14).distance_squared_to(center)>(p-normal*14).distance_squared_to(center) else -normal
 
@@ -411,6 +450,9 @@ func outer_building_position(index: int) -> Vector3:
 	return Vector3(104*cos(angle),0,66*sin(angle))
 
 func build_city() -> void:
+	if track_id>=Crimson.FIRST_ID:
+		build_crimson_circuit()
+		return
 	var asphalt := road_material()
 	var concrete := material("475b66")
 	var dark := material("192932")
@@ -882,11 +924,14 @@ func build_ui() -> void:
 	track_menu.color=Color(0.025,0.055,0.085,0.98)
 	track_menu.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	layer.add_child(track_menu)
+	var menu_scroll := ScrollContainer.new()
+	menu_scroll.position=Vector2(85,65)
+	menu_scroll.size=Vector2(1120,605)
+	track_menu.add_child(menu_scroll)
 	var choices := VBoxContainer.new()
-	choices.position=Vector2(90,100)
-	choices.size=Vector2(1100,500)
-	choices.add_theme_constant_override("separation",20)
-	track_menu.add_child(choices)
+	choices.custom_minimum_size=Vector2(1065,0)
+	choices.add_theme_constant_override("separation",9)
+	menu_scroll.add_child(choices)
 	var title := Label.new()
 	title.text=chassis.display_name+" / CHOOSE YOUR CIRCUIT"
 	title.add_theme_font_size_override("font_size",30)
@@ -894,13 +939,13 @@ func build_ui() -> void:
 	for index in range(TRACK_NAMES.size()):
 		var choice := Button.new()
 		choice.text=TRACK_NAMES[index]+"  /  "+TRACK_INFO[index]
-		choice.custom_minimum_size=Vector2(1000,90)
+		choice.custom_minimum_size=Vector2(1040,67)
 		choice.add_theme_font_size_override("font_size",24)
 		choice.pressed.connect(choose_track.bind(index))
 		choices.add_child(choice)
 	var resume := Button.new()
 	resume.text="RESUME / "+track_name()
-	resume.custom_minimum_size=Vector2(1000,70)
+	resume.custom_minimum_size=Vector2(1040,63)
 	resume.pressed.connect(resume_track)
 	choices.add_child(resume)
 	track_menu.hide()
@@ -926,7 +971,7 @@ func build_ui() -> void:
 	for option in [
 		{"name":"FREE DRIVE", "detail":"Explore the selected circuit without a countdown", "mode":MODE_FREE},
 		{"name":"TIME TRIAL", "detail":"Standing start / timed laps / personal bests", "mode":MODE_TIME_TRIAL},
-		{"name":"3-LAP CHALLENGE", "detail":"Standing start / three laps / event classification", "mode":MODE_SOLO_RACE}
+		{"name":"SPRINT STAGE" if track_id==4 else "3-LAP CHALLENGE", "detail":"Standing start / one long canyon stage" if track_id==4 else "Standing start / three laps / event classification", "mode":MODE_SOLO_RACE}
 	]:
 		var button := Button.new()
 		button.text=option["name"]+"   /   "+option["detail"]
@@ -1087,7 +1132,7 @@ func track_progress(index: int) -> void:
 		lap+=1
 		lap_time=0
 		checkpoint=0
-		if race_mode==MODE_SOLO_RACE and race_splits.size()>=RACE_LAPS:
+		if race_mode==MODE_SOLO_RACE and race_splits.size()>=challenge_laps():
 			finish_solo_race()
 
 func _notification(what: int) -> void:
@@ -1156,7 +1201,7 @@ func update_jump(delta: float, surface_height: float) -> float:
 		airborne=true
 		air_time=0
 		vertical_speed=8.0 if track_id==2 else 6.5
-		car.position.y=maxf(car.position.y,deck_height(JUMP_START))
+		car.position.y=maxf(car.position.y,deck_height(jump_start_index()))
 		var route_forward := flat(q-p).normalized()
 		if travel_velocity.dot(route_forward)>0.2 and speed>0:
 			speed=maxf(speed,34.0 if track_id==2 else 30.0)
@@ -1307,8 +1352,8 @@ func _physics_process(delta: float) -> void:
 	update_camera(delta)
 	boost_button.text = "%s / %03d%%" % ["BOOST" if not boost_locked else "RECHARGING",int(boost_energy)]
 	if not race_finished:
-		var event_name := "FREE DRIVE" if race_mode==MODE_FREE else ("TIME TRIAL" if race_mode==MODE_TIME_TRIAL else "3-LAP CHALLENGE")
-		hud.text = track_name()+" / "+event_name+" / LAP %d\n%s %03d KM/H  ·  %.1f s\nBEST %s  ·  %d FPS\n%s" % [lap,"R" if speed < -0.05 else "D",int(absf(speed)*3.6),lap_time,"—" if best==0 else "%.1f s"%best,Engine.get_frames_per_second(),("AIRBORNE / %.1f s"%air_time) if airborne else DISTRICTS[int(nearest["index"])/(COUNT/4)]]
+		var event_name := "FREE DRIVE" if race_mode==MODE_FREE else ("TIME TRIAL" if race_mode==MODE_TIME_TRIAL else ("SPRINT STAGE" if track_id==4 else "3-LAP CHALLENGE"))
+		hud.text = track_name()+" / "+event_name+" / LAP %d\n%s %03d KM/H  ·  %.1f s\nBEST %s  ·  %d FPS\n%s" % [lap,"R" if speed < -0.05 else "D",int(absf(speed)*3.6),lap_time,"—" if best==0 else "%.1f s"%best,Engine.get_frames_per_second(),("AIRBORNE / %.1f s"%air_time) if airborne else region_name(int(nearest["index"]))]
 
 func resolve_wall(center: Vector3, limit: float) -> void:
 	var offset := flat(car.position-center)
@@ -1359,7 +1404,7 @@ func _process(_delta: float) -> void:
 			if "--track-overview" in OS.get_cmdline_user_args():
 				file="NeonLoop-overview.png"
 			if track_id>0:
-				var circuit_prefix: String = ["NeonLoop","Skyway","ViperRift","IronHarbor"][track_id]
+				var circuit_prefix: String = ["NeonLoop","Skyway","ViperRift","IronHarbor","CrimsonSerpent","RedMesa","DevilsGate"][track_id]
 				file=circuit_prefix+("-overview.png" if "--track-overview" in OS.get_cmdline_user_args() else ("-jump.png" if "--track-jump" in OS.get_cmdline_user_args() else "-cockpit.png"))
 			if "--track-menu" in OS.get_cmdline_user_args():
 				file="Circuit-select.png"
