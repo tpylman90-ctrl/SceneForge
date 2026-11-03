@@ -96,9 +96,9 @@ exec((ROOT/'tools/piledriver_detail.py').read_text())
 
 exec((ROOT/'tools/forge_detail.py').read_text())
 exec((ROOT/'tools/shrike_smooth.py').read_text())
-# MK I geometry remains available in Git history; MK II is the new original
-# production candidate, reviewed in isolation through the viewer workflow.
-exec((ROOT/'tools/tremor_mk2.py').read_text())
+# MK III models the annotated BOX-SUV volumes rather than MK II's teardrop.
+# MK II remains in source for a complete fallback/visual comparison.
+exec((ROOT/'tools/tremor_mk3.py').read_text())
 
 exec((ROOT/'tools/synapse_body.py').read_text(),globals())
 
@@ -229,6 +229,18 @@ for ident,color,accent_color,light_color,description in SPECS:
    pipe('Nozzle liner',(x,1.65,-2.28),(x,1.65,-2.35),.095,glow,16)
    panel('Tail feather',[(x-.14,1.68,-1.8),(x+.14,1.68,-1.8),(x+.18,1.75,-2.6),(x-.18,1.75,-2.6)],accent)
    rig('Kestrel_Tail_%d'%i,since(before),(x,1.65,-1.8))
+ # Check real authored geometry blocks BEFORE joining by PBR material.
+ if ident=='tremor':
+  names={o.name for o in bpy.context.scene.objects if o.type=='MESH'}
+  for label in ['TREMOR_BOX_SUV_CONTIGUOUS_CHASSIS','TREMOR_BOX_SUV_FLAT_TALL_ROOF',
+                'TREMOR_BOX_SUV_WIDE_FLAT_BUMPER','TREMOR_BOX_SUV_port_LONG_SLAB_DOOR',
+                'TREMOR_BOX_SUV_starboard_LONG_SLAB_DOOR',
+                'TREMOR_BOX_SUV_port_FRONT_SQUARED_FENDER',
+                'TREMOR_BOX_SUV_starboard_REAR_SQUARED_SHOULDER']:
+   assert label in names, 'Tremor SUV block missing: '+label
+  roof=bpy.data.objects['TREMOR_BOX_SUV_FLAT_TALL_ROOF']
+  assert max((roof.matrix_world@v.co).z for v in roof.data.vertices)>2.56, 'Tremor roof height lost'
+  print('SCENEFORGE_TREMOR_SUV_BLOCK_AUDIT_OK')
  # Join static parts per material; preserve control/nozzle transforms.
  for material in [body,accent,carbon,steel,rubber,glow,glass,purple]:
   objects=[o for o in bpy.context.scene.objects if o.type=='MESH' and o.parent is None and o.data.materials[0]==material]
