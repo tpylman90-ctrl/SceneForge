@@ -1,6 +1,6 @@
 # NEON FOUNDRY — Hover Racing conversion plan
 
-Status: **design proposal / not implemented**. This is a practical roadmap for expanding the existing SceneForge Android showcase into an offline, single-player hover-racing game.
+Status: **early implementation underway**. The race-weekend UI, timed starts, solo three-lap challenge and Iron Harbor circuit prototype have been committed to main; GitHub Actions/Android device validation is not yet confirmed here. CPU rivals, career, credits, new garages and the other new worlds remain planned. This roadmap covers the wider conversion.
 
 ## Baseline to preserve
 
@@ -28,7 +28,7 @@ The first three layouts currently use a common city environment. Keep them as th
 | 0 | Neon Cross | Twilight city figure eight | Elevated crossing jump | Existing / polish |
 | 1 | Skyway | Forgiving elevated city oval | Wide high-speed bank and landing | Existing / polish |
 | 2 | Viper Rift | City technical S-bends | Banked turns, long leap | Existing / polish |
-| 3 | Iron Harbor | Industrial port, container lanes, gantries | Tight chicanes broken by dockside straights | First new location: reuse procedural industry props |
+| 3 | Iron Harbor | Industrial port, container lanes, gantries | Inset-oval chicanes and harbor leap | First playable scene prototype committed; needs phone review |
 | 4 | Crimson Divide | Red-rock canyon, cuttings, bridge spans | Ravine jump; dramatic sightlines | First fully distinct outdoor biome |
 | 5 | Emerald Run | Forested mountain valley | Flowing bends, waterfall and tunnel landmarks | Expansion |
 | 6 | Orbital Velocity | Orbital structure above a planet | Dramatic inclined transitions; *not* fully free-flight physics | Expansion |
@@ -112,4 +112,4 @@ For each room: define vehicle circulation/clearance, arrival opening with actual
 4. Design Foundry Workshop and Circuit Paddock as shared-controller scenes; review their function and floor plans before final geometry.
 5. Add ghosts/CPU challengers and then the wider circuit catalog.
 
-**Not yet shipped:** the tracks, garages, racing AI and career elements proposed in this document. Existing layouts and current functionality remain as-is until specifically implemented and validated.
+**Implementation note:** race-event code, a fourth course layout, and industrial scenery are committed but require passing CI and phone review before being called shipped. The proposed distinct garages, more environments, racing AI and career features have not been implemented.
