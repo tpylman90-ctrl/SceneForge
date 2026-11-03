@@ -171,6 +171,9 @@ jobs:
           timeout 120 godot --headless --path game --script res://tests/race_event_test.gd 2>&1 | tee build/race-event.log
           if grep -E 'SCRIPT ERROR:|ERROR:' build/race-event.log; then exit 1; fi
           grep RACE_EVENT_LIFECYCLE_OK build/race-event.log
+          timeout 120 godot --headless --path game --script res://tests/performance_parts_test.gd 2>&1 | tee build/performance-parts.log
+          if grep -E 'SCRIPT ERROR:|ERROR:' build/performance-parts.log; then exit 1; fi
+          grep PERFORMANCE_PARTS_OK build/performance-parts.log
           timeout 120 godot --headless --path game --script res://tests/wall_rebound_test.gd 2>&1 | tee build/wall-rebound.log
           if grep -E 'SCRIPT ERROR:|ERROR:' build/wall-rebound.log; then exit 1; fi
           grep WALL_REBOUND_OK build/wall-rebound.log
