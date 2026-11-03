@@ -73,7 +73,7 @@ func _ready() -> void:
 	var list := VBoxContainer.new()
 	fleet_list=list
 	list.position=Vector2(36,38)
-	list.add_theme_constant_override("separation",12)
+	list.add_theme_constant_override("separation",6 if Fleet.IDS.size()>8 else 12)
 	ui.add_child(list)
 	var heading := Label.new()
 	heading.text="SCENEFORGE / FLEET"
@@ -82,7 +82,7 @@ func _ready() -> void:
 	for i in range(Fleet.IDS.size()):
 		var button := Button.new()
 		button.text=Fleet.NAMES[i]
-		button.custom_minimum_size=Vector2(285,62)
+		button.custom_minimum_size=Vector2(285,48 if Fleet.IDS.size()>8 else 62)
 		button.add_theme_font_size_override("font_size",23)
 		button.pressed.connect(select_craft.bind(i))
 		list.add_child(button)
@@ -242,8 +242,8 @@ func select_craft(index: int) -> void:
 
 func action(label: String) -> void:
 	if busy:return
-	if label=="COCKPIT" and selected==2 and visual.showroom_upload:
-		info.text=Fleet.NOTES[selected]+"\nUploaded showroom model: canopy/interior editing is a separate pass."
+	if label=="COCKPIT" and visual.showroom_upload:
+		info.text=Fleet.NOTES[selected]+"\nPlayable in third person. Canopy glass separation is needed for cockpit view."
 		return
 	if label=="DRIVE" or label=="FOUNDRY":
 		busy=true
