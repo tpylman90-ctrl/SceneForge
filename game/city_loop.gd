@@ -353,9 +353,9 @@ func _ready() -> void:
 		prepare_jump_capture()
 	if "--track-overview" in OS.get_cmdline_user_args():
 		set_physics_process(false)
-		camera.position=Vector3(120,185,-120)
-		camera.far=450
-		camera.fov=48
+		camera.position=Vector3(25,390,-25) if track_id>=Crimson.FIRST_ID else Vector3(120,185,-120)
+		camera.far=850 if track_id>=Crimson.FIRST_ID else 450
+		camera.fov=54 if track_id>=Crimson.FIRST_ID else 48
 		camera.look_at(Vector3.ZERO)
 		for child in get_node("DrivingUI").get_children():
 			if child != hud:
@@ -580,6 +580,197 @@ func build_city() -> void:
 	sign.position = Vector3(80,7+route[0].y,-0.4)
 	sign.rotation.y = PI
 	add_child(sign)
+
+
+func rock_column(base: Vector3, radius: float, height: float, mat: Material, yaw: float = 0.0) -> void:
+	# Low-poly seven-sided sandstone with tapered tops. Batch by material so
+	# dozens of formations do not require dozens of Android draw calls.
+	var rock := CylinderMesh.new()
+	rock.top_radius=radius*0.66
+	rock.bottom_radius=radius
+	rock.height=height
+	rock.radial_segments=7
+	if not batches.has(mat):
+		var surface := SurfaceTool.new()
+		surface.begin(Mesh.PRIMITIVE_TRIANGLES)
+		batches[mat]=surface
+	var builder: SurfaceTool=batches[mat]
+	builder.append_from(rock,0,Transform3D(Basis(Vector3.UP,yaw).scaled(Vector3(1.0,1.0,0.82)),base+Vector3.UP*height*0.5))
+
+func canyon_clear(point: Vector3, clearance: float) -> bool:
+	# Keep large decoration clear of every branch of the route, including
+	# its far side. The player never collides with hidden scenic geometry.
+	var radius_squared: float=clearance*clearance
+	for line_point in route:
+		if flat(point-line_point).length_squared()<radius_squared:
+			return false
+	return true
+
+func canyon_arch(index: int, rock: Material, lip: Material) -> void:
+	var p: Vector3=route[index]
+	var tangent: Vector3=flat(route[(index+1)%COUNT]-p).normalized()
+	var normal: Vector3=Vector3(tangent.z,0.0,-tangent.x)
+	var angle: float=atan2(tangent.x,tangent.z)
+	var width: float=road_half_width(index)
+	# Genuine clear opening, not an arch-shaped collision obstacle.
+	for side in [-1.0,1.0]:
+		rock_column(Vector3(p.x+normal.x*side*(width+7.5),-0.45,p.z+normal.z*side*(width+7.5)),5.5,16.5,rock,angle)
+		block(p+normal*side*(width+7.0)+Vector3.UP*16.7,Vector3(6.0,2.3,5.8),lip,angle)
+	block(p+Vector3.UP*18.7,Vector3(width*2.0+20.0,2.7,6.1),rock,angle)
+	district_sign("CRIMSON DIVIDE / STONE ARCH",p+Vector3.UP*17.8,tangent,Color("ffe1b8"))
+
+func build_crimson_landmarks(sand: Material, sandstone: Material, rust: Material, dark_rock: Material, warm: Material) -> void:
+	# A handful of reusable mesa and needle silhouettes define three
+	# separate canyon courses. Props are scenery only; the road/barriers
+	# remain their own continuous navigation and containment contract.
+	var rng := RandomNumberGenerator.new()
+	rng.seed=4127+track_id*31
+	for index in range(0,COUNT,10):
+		var p: Vector3=route[index]
+		var tangent: Vector3=flat(route[(index+1)%COUNT]-p).normalized()
+		var normal: Vector3=Vector3(tangent.z,0,-tangent.x)
+		for side in [-1.0,1.0]:
+			var radius: float=rng.randf_range(6.0,11.0)
+			var distance: float=road_half_width(index)+radius+rng.randf_range(15.0,27.0)
+			var location: Vector3=Vector3(p.x+normal.x*distance*side,-0.48,p.z+normal.z*distance*side)
+			if canyon_clear(location,distance*0.42+radius):
+				var high: float=rng.randf_range(12.0,31.0)
+				rock_column(location,radius,high,sandstone if (index+int(side))%3==0 else rust,rng.randf_range(-PI,PI))
+				if index%20==0:
+					rock_column(location+Vector3(radius*0.42,high*0.63,0),radius*0.78,high*0.28,warm)
+	# Huge layered distant cliffs create a canyon skyline with little
+	# overdraw, no imported textures and no additional realtime lights.
+	for index in range(32):
+		var a: float=TAU*float(index)/32.0
+		var distance_x: float=285.0+25.0*sin(a*4.0)
+		var distance_z: float=168.0+16.0*cos(a*3.0)
+		var p: Vector3=Vector3(cos(a)*distance_x,-0.5,sin(a)*distance_z)
+		if canyon_clear(p,42.0):
+			var high: float=35.0+18.0*absf(sin(a*3.0))
+			rock_column(p,18.0+6.0*absf(sin(a*2.0)),high,dark_rock if index%5==0 else rust,a)
+	if track_id==4:
+		canyon_arch(86,sandstone,warm)
+		for index in [18,113,143]:
+			var p: Vector3=route[index]
+			var n: Vector3=outward_at(index)
+			var location: Vector3=p+n*36.0
+			if canyon_clear(location,24.0):
+				rock_column(Vector3(location.x,-0.5,location.z),10.0,41.0,rust)
+	elif track_id==5:
+		var p: Vector3=route[106]
+		var normal: Vector3=outward_at(106)
+		var mesa: Vector3=p+normal*58.0
+		if canyon_clear(mesa,43.0):
+			rock_column(Vector3(mesa.x,-0.5,mesa.z),27.0,23.0,sandstone)
+			block(Vector3(mesa.x,23.0,mesa.z),Vector3(52,4.0,43),warm)
+		canyon_arch(139,rust,sandstone)
+	else:
+		for index in [77,101,148]:
+			var p: Vector3=route[index]
+			var forward: Vector3=flat(route[(index+1)%COUNT]-p).normalized()
+			var normal: Vector3=Vector3(forward.z,0,-forward.x)
+			for side in [-1.0,1.0]:
+				var pt: Vector3=p+normal*side*(road_half_width(index)+8.5)
+				rock_column(Vector3(pt.x,-0.5,pt.z),4.8,26.0 if index==101 else 20.0,dark_rock)
+	# Baked-looking trail markers and guard posts outside the safety edge.
+	for index in range(0,COUNT,12):
+		var p: Vector3=route[index]
+		var outward: Vector3=outward_at(index)
+		var marker: Vector3=p+outward*(road_half_width(index)+3.8)
+		block(marker+Vector3.UP*1.7,Vector3(0.55,3.4,0.55),sand)
+		block(marker+Vector3.UP*3.5,Vector3(0.75,0.3,0.75),warm)
+
+func build_crimson_circuit() -> void:
+	# All three tracks use one proven driving/boost/jump engine. This separate
+	# biome bypasses the city buildings, street props and district decals.
+	var sand: StandardMaterial3D=material("684238")
+	var sandstone: StandardMaterial3D=material("b86c4b")
+	var rust: StandardMaterial3D=material("884b38")
+	var dark_rock: StandardMaterial3D=material("62443e")
+	var warm: StandardMaterial3D=material("d99a65")
+	var guard: StandardMaterial3D=material("614d49")
+	var edge: StandardMaterial3D=material("ffd096",true)
+	var road_mat: StandardMaterial3D=material("464348")
+	road_mat.roughness=0.87
+	block(Vector3(0,-2.1,0),Vector3(660,3.2,400),sand)
+	for index in range(COUNT):
+		route.append(route_position(index))
+	var road := SurfaceTool.new()
+	road.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var walls := SurfaceTool.new()
+	walls.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for index in range(COUNT):
+		if is_jump_gap(index):
+			continue
+		var p: Vector3=route[index]
+		var q: Vector3=route[(index+1)%COUNT]
+		var forward: Vector3=flat(q-p).normalized()
+		var side: Vector3=Vector3(forward.z,0,-forward.x)
+		var tangent_next: Vector3=flat(route[(index+2)%COUNT]-q).normalized()
+		var side_next: Vector3=Vector3(tangent_next.z,0,-tangent_next.x)
+		side.y=bank_slope(index)
+		side_next.y=bank_slope((index+1)%COUNT)
+		var half_width: float=road_half_width(index)
+		var next_width: float=road_half_width((index+1)%COUNT)
+		var corners := PackedVector3Array([p-side*half_width,q-side_next*next_width,q+side_next*next_width,p+side*half_width])
+		var face_normal: Vector3=(q-p).cross(corners[2]-corners[1]).normalized()
+		for corner in [0,2,1,0,3,2]:
+			road.set_normal(face_normal)
+			road.set_uv(Vector2(corners[corner].x,corners[corner].z)*0.07)
+			road.add_vertex(corners[corner])
+		if p.y>-0.01 or q.y>-0.01:
+			add_wall(walls,PackedVector3Array([corners[0],corners[1],Vector3(corners[1].x,-0.5,corners[1].z),Vector3(corners[0].x,-0.5,corners[0].z)]))
+			add_wall(walls,PackedVector3Array([corners[2],corners[3],Vector3(corners[3].x,-0.5,corners[3].z),Vector3(corners[2].x,-0.5,corners[2].z)]))
+		var center: Vector3=(p+q)*0.5
+		var angle: float=atan2(forward.x,forward.z)
+		var pitch: float=-atan2(q.y-p.y,flat(q-p).length())
+		var length: float=flat(q-p).length()
+		for side_sign in [-1.0,1.0]:
+			block(center+side*side_sign*(half_width+0.75)+Vector3.UP*0.65,Vector3(1.2,1.3,length+0.1),guard,angle,pitch)
+			if index%2==0:
+				block(center+side*side_sign*(half_width+0.12)+Vector3.UP*0.07,Vector3(0.11,0.10,length*0.75),edge,angle,pitch)
+		if index%4==0:
+			block(center+Vector3.UP*0.06,Vector3(0.21,0.06,1.7),warm,angle,pitch)
+		if index>=jump_start_index()-9 and index<jump_start_index() and index%2==0:
+			block(center+Vector3.UP*0.09,Vector3(half_width*1.5,0.06,0.25),edge,angle,pitch)
+	var road_mesh := MeshInstance3D.new()
+	road_mesh.name="CrimsonDriveSurface"
+	road_mesh.mesh=road.commit()
+	road_mesh.material_override=road_mat
+	road_mesh.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(road_mesh)
+	walls.generate_normals()
+	var wall_mesh := MeshInstance3D.new()
+	wall_mesh.name="CrimsonDeckSides"
+	wall_mesh.mesh=walls.commit()
+	wall_mesh.material_override=dark_rock
+	add_child(wall_mesh)
+	# The finish gantry and clear checkpoint markers are aligned to the
+	# actual first road segment rather than hard-coded city coordinates.
+	var start: Vector3=route[0]
+	var forward: Vector3=flat(route[1]-start).normalized()
+	var normal: Vector3=Vector3(forward.z,0,-forward.x)
+	var angle: float=atan2(forward.x,forward.z)
+	for sign in [-1.0,1.0]:
+		block(start+normal*sign*(road_half_width(0)+2.6)+Vector3.UP*4.3,Vector3(0.9,8.6,0.9),guard,angle)
+	block(start+Vector3.UP*8.4,Vector3(road_half_width(0)*2.0+6.0,0.8,0.9),warm,angle)
+	for stripe in range(16):
+		block(start+normal*(float(stripe)-7.5)*1.45+Vector3.UP*0.07,Vector3(1.0,0.06,0.95),warm if stripe%2==0 else dark_rock,angle)
+	var jump_p: Vector3=route[jump_start_index()-9]
+	var jump_forward: Vector3=flat(route[jump_start_index()-8]-jump_p).normalized()
+	district_sign("CANYON LEAP / AUTO LAUNCH",jump_p+Vector3.UP*8.3,jump_forward,Color("fff2c6"))
+	var landing: Vector3=route[jump_end_index()+8]
+	var landing_forward: Vector3=flat(route[jump_end_index()+9]-landing).normalized()
+	district_sign("STABLE LANDING",landing+Vector3.UP*8.3,landing_forward,Color("eec39f"))
+	build_crimson_landmarks(sand,sandstone,rust,dark_rock,warm)
+	flush_batches()
+	var start_label := Label3D.new()
+	start_label.text=track_name()+" / START"
+	start_label.font_size=64
+	start_label.pixel_size=0.009
+	start_label.position=start+Vector3.UP*7.7
+	start_label.rotation.y=angle
+	add_child(start_label)
 
 
 func build_harbor_details(concrete: Material, dark: Material, trim: Material, orange: Material, cyan: Material) -> void:
