@@ -1,6 +1,7 @@
 extends Node3D
 
 const Fleet = preload("res://vehicles/fleet_catalog.gd")
+const Parts = preload("res://vehicles/performance_parts.gd")
 
 # A bounded first driving prototype: one closed city loop, no external assets.
 const COUNT := 192
@@ -173,10 +174,13 @@ func finish_solo_race() -> void:
 	if personal_best and total>0:
 		race_best_total=total
 		save_race_best()
+	var credits_earned: int=Parts.award_race(total,personal_best)
 	var report := "%s  /  %s\n3-LAP SOLO CHALLENGE COMPLETE\nTOTAL  %.2f s\n" % [track_name(),chassis.display_name,total]
 	for i in range(race_splits.size()):
 		report+="LAP %d   %.2f s\n" % [i+1,race_splits[i]]
 	report+=("NEW EVENT RECORD" if personal_best else "EVENT BEST  %.2f s" % race_best_total)
+	report+="\n+%d RACE CREDITS  /  BANK %d" % [credits_earned,Parts.balance()]
+	report+="\nSPEND CREDITS ON PERFORMANCE PARTS IN THE FOUNDRY"
 	report+="\nSOLO CHALLENGE — CPU RIVALS COMING LATER"
 	results_info.text=report
 	countdown_label.hide()
@@ -240,6 +244,7 @@ func _ready() -> void:
 	for index in range(Fleet.IDS.size()):
 		if "--craft-%d"%index in OS.get_cmdline_user_args():craft_index=index
 	chassis=preload("res://vehicles/fleet_catalog.gd").definition(craft_index)
+	Parts.apply_to_chassis(chassis)
 	track_id=clampi(int(get_tree().get_meta("sceneforge_track",0)),0,TRACK_NAMES.size()-1)
 	race_mode=clampi(int(get_tree().get_meta("sceneforge_race_mode",0)),MODE_FREE,MODE_SOLO_RACE)
 	for index in range(TRACK_NAMES.size()):
