@@ -119,6 +119,12 @@ def build_tremor(body,maroon,armor,rubber,glow,glass,accent):
         ob=mesh(name,vertices,faces,mat)
         for p in ob.data.polygons:p.use_smooth=True
         return ob
+    def vertical_ring(name,pt,radius,tube,material):
+        # Default torus is horizontal in game space (levitation cells).
+        # Rotate to a transverse front/rear lamp or jet aperture.
+        ob=ring(name,pt,radius,tube,material)
+        ob.rotation_euler.x=math.pi/2
+        return ob
     def engine_taper(name,x,vertical,z1,z2,radii,mat,rings=20):
         vs=[];fs=[]
         for j,r in enumerate(radii):
@@ -249,7 +255,7 @@ def build_tremor(body,maroon,armor,rubber,glow,glass,accent):
              (x,1.14,3.24),(x,1.14,3.43),.17,rubber,20)
         pipe('Tremor MKII blue headlamp lens',
              (x,1.14,3.429),(x,1.14,3.445),.123,glow,20)
-        ring('Tremor MKII protective lens mount',(x,1.14,3.41),
+        vertical_ring('Tremor MKII protective lens mount',(x,1.14,3.41),
              .159,.018,armor)
         # A pair of low flank ejector optics at the front and rear haunch.
         for z,y in [(1.13,.98),(.86,.90),(-2.35,1.10)]:
@@ -363,8 +369,7 @@ def build_tremor(body,maroon,armor,rubber,glow,glass,accent):
 
     # Actual armored rear plant: closed narrow central deck, external
     # caged pressure vessel, hard-part joints and wide rectangular rear.
-    surf('Tremor MKII formed engine spine',{
-    } if False else [
+    surf('Tremor MKII formed engine spine',[
         (-3.37,-.48,.48),(-3.11,-.51,.51),(-2.76,-.48,.48),
         (-2.32,-.41,.41),(-1.90,-.31,.31)],maroon,.044,9)
     # Engine cassette sits inside a proper reinforced, cross-braced cradle.
@@ -379,7 +384,7 @@ def build_tremor(body,maroon,armor,rubber,glow,glass,accent):
             pipe('Tremor MKII silver coolant pressure vessel',
                  (side*.65,2.16,z-.17),(side*.65,2.16,z+.17),
                  .188,armor,20)
-            ring('Tremor MKII maroon thermal retainer',
+            vertical_ring('Tremor MKII maroon thermal retainer',
                  (side*.65,2.16,z+.13),.194,.024,maroon)
             # On these raised modules, no giant white body rods.
         # Rear vector pod is a section-shaped duct, NOT simple exposed tube.
@@ -388,9 +393,9 @@ def build_tremor(body,maroon,armor,rubber,glow,glass,accent):
                      x,y,-3.15,-3.68,[.27,.36,.405,.415,.37,.33],armor,32)
         pipe('Tremor MKII rear recessed nozzle throat',
              (x,y,-3.60),(x,y,-3.78),.285,rubber,28)
-        ring('Tremor MKII forged stepped nozzle rim',
+        vertical_ring('Tremor MKII forged stepped nozzle rim',
              (x,y,-3.71),.343,.044,body)
-        ring('Tremor MKII active plasma annulus',
+        vertical_ring('Tremor MKII active plasma annulus',
              (x,y,-3.76),.234,.032,glow)
         pipe('Tremor MKII recessed turbine hub',
              (x,y,-3.76),(x,y,-3.79),.071,rubber,16)
