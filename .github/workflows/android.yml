@@ -6,9 +6,11 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+# Finish already-running APK verification even when an unrelated source
+# commit arrives; otherwise regular parallel development cancels every build.
 concurrency:
   group: android-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 env:
   GODOT_VERSION: 4.5.1
 jobs:
