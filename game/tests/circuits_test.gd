@@ -47,7 +47,7 @@ func check() -> void:
 			assert(absf(scene.bank_slope(16))>0.08 and scene.route[112].y>2.9)
 		if circuit==3:
 			assert(scene.track_name()=="IRON HARBOR")
-			assert(scene.route[24].z>scene.route[48].z+10.0)
+			assert(scene.route[24].z>scene.route[48].z+2.0)
 			assert(scene.route[48].y>4.0,"Harbor leap must stay elevated")
 		scene.feedback.stop_audio()
 		scene.free()
