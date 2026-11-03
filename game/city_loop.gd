@@ -92,7 +92,7 @@ func route_position(index: int) -> Vector3:
 	elif track_id==3:
 		# A closed harbor oval with two chicane-like inset bends per side,
 		# distinct from the three existing city circuits.
-		z=30.0*sin(a)+12.0*sin(3*a)
+		z=38.0*sin(a)+8.0*sin(3*a)
 	return Vector3(80*cos(a),deck_height(index),z)
 
 func bank_slope(index: int) -> float:
