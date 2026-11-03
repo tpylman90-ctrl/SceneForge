@@ -1,0 +1,67 @@
+# Crimson Divide — three-course first build
+
+**Production stage:** procedural first-playable pass, code committed on main. **Android CI result and handset handling have not yet been verified.** Track IDs 0–3 and their existing records are unchanged.
+
+## Environment contract
+
+Crimson Divide is a sunlit sandstone basin with ochre mesas, rust-red stratified cliffs, freestanding stone needles, rough-cut rock arches, dry canyon terrain and a warm horizon. Each course shares an original procedural 7-sided sandstone asset kit; no paid generation, high-resolution imported textures or additional realtime scene lights are required. Road surfaces and continuous containment barriers remain distinct from visual cliffs.
+
+Road geometry is sampled from hand-placed **Catmull–Rom control points**. Total route lengths below are approximate centerline chord lengths calculated from 192 spline samples, not measured race time. Each course carries its own segment width, elevation, banking, desert sector names, launch-to-landing stretch, signage and selectable track ID.
+
+## Track 4 — Crimson Serpent
+
+**Approximate length:** 1.15 km per complete route. **Event:** *single-stage sprint challenge* (one complete long route instead of three laps). **Width:** generally 24 m, narrowing to 21 m through the scenic ridge. **Difficulty:** medium.
+
+| Course section | Sample index | Corner-by-corner intention |
+|---|---:|---|
+| Sunstone Approach | 0–43 | Launch straight, twin broad right-to-left hillside sweeps, rising ridge and downhill bends into a canyon leap |
+| Arch Run | 44–85 | Four-segment raised leap, wide landing, layered rolling curves and a flowing run through open sandstone |
+| Cliffside Sweep | 86–125 | A large clear-span stone arch at index 86, narrower cliff road, sustained direction changes and vista |
+| Low Canyon | 126–191 | Long return valley with high vertical stone markers and broad S-curves into the start/finish gantry |
+
+**Driving contract:** rhythm and line choice, not hairpin after hairpin; it is the longest of the three tracks. The first build uses the current closed-loop race engine for reliability, so stage start and finish share a physical line. A *true point-to-point sprint with distinct start/finish* remains a later engine feature; do not label this as implemented.
+
+## Track 5 — Red Mesa Circuit
+
+**Approximate length:** 0.81 km, **event:** three-lap circuit challenge. **Width:** 26 m throughout. **Difficulty:** easy.
+
+| Course section | Sample index | Corner-by-corner intention |
+|---|---:|---|
+| Mesa Plateau | 0–43 | Fast broad opening left and sweeping uphill ridge |
+| Horseshoe Ridge | 44–95 | Short protected leap with a generous landing, long rounded top-of-mesa arc |
+| Basin Crossing | 96–138 | Wide valley turn, tall mesa near the edge, enough width for future AI overtakes |
+| Red Rock Return | 139–191 | Natural-looking overhead rock gateway and a descending straight-to-curve finish |
+
+**Driving contract:** easiest route in Crimson Divide, generous margins and clean sightlines. Intended as the race pack's later AI traffic training ground.
+
+## Track 6 — Devil's Gate
+
+**Approximate length:** 0.80 km, **event:** three-lap circuit challenge. **Width:** 20.6 m generally, narrowing to 17.8 m through the stone gate sequence. **Difficulty:** hard.
+
+| Course section | Sample index | Corner-by-corner intention |
+|---|---:|---|
+| Gate Approach | 0–43 | Rising lateral bends and a crest into a short canyon leap |
+| Stone Needles | 44–95 | Rapid elevation transitions and needle markers at index 77 |
+| Broken Ridge | 96–143 | Technical left-right-right changes, narrow width and another needle marker at index 101 |
+| Spiral Descent | 144–191 | Tight valley combination, needle at index 148 and a fast but demanding finish |
+
+**Driving contract:** deliberate braking and steering control; do not expect full-throttle precision through every segment.
+
+## Common features
+
+- Canyon tracks use IDs 4, 5 and 6. Original IDs 0–3 are stable.
+- Course vertices, walls and cliffs use shared-material batches, with low-poly seven-sided pillars. No collision is assigned to decorative rock; road containment is authoritative.
+- Starting gantries and landing signs follow the actual route tangent.
+- Canyon jumps use a 4-segment missing-deck span rather than the city's 8-segment span. Launch, recovery and road support use the same gameplay functions.
+- Free Drive, Time Trial, one-stage Serpent event and three-lap Mesa/Devil events use existing vehicle/boost/upgrade physics and local records.
+- The circuit chooser now scrolls on mobile to fit all seven courses.
+- CI should parse the runtime, execute `tests/crimson_divide_test.gd`, capture three **overview, cockpit and jump** previews per course, then package the APK. CI software-render previews do not verify phone frame rate or steering feel.
+
+## First phone review gates
+
+1. **Serpent:** continuous smooth driving, arch clearance, visible cliff turns, finish registered exactly once, no gap recovery at normal race speed.
+2. **Mesa:** easy full lap, ample road margin, no obscuring rock geometry.
+3. **Devil:** technical corners remain driveable without sticky wall rebounds, camera keeps road ahead in view.
+4. **Performance:** ensure scene load time, FPS and memory remain viable with all nine craft on Android.
+
+**No visual craft modifications were added.** Earned performance-part upgrades remain mechanical.
