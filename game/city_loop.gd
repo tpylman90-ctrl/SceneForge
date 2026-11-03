@@ -1354,7 +1354,7 @@ func _process(_delta: float) -> void:
 			if "--track-overview" in OS.get_cmdline_user_args():
 				file="NeonLoop-overview.png"
 			if track_id>0:
-				var circuit_prefix := ["NeonLoop","Skyway","ViperRift","IronHarbor"][track_id]
+				var circuit_prefix: String = ["NeonLoop","Skyway","ViperRift","IronHarbor"][track_id]
 				file=circuit_prefix+("-overview.png" if "--track-overview" in OS.get_cmdline_user_args() else ("-jump.png" if "--track-jump" in OS.get_cmdline_user_args() else "-cockpit.png"))
 			if "--track-menu" in OS.get_cmdline_user_args():
 				file="Circuit-select.png"
