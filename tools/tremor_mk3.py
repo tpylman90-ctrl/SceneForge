@@ -107,7 +107,7 @@ def build_tremor(body,maroon,armor,rubber,glow,glass,accent):
         for j in range(n):
             # The open upper seat bath is beneath the independently fitted
             # windows and stops a black deck intersecting the cockpit.
-            if -1.78<midz<1.17 and j in [1,2,3,4]:
+            if -2.55<midz<1.17 and j in [1,2,3,4]:
                 continue
             quads.append((i*n+j,i*n+(j+1)%n,(i+1)*n+(j+1)%n,(i+1)*n+j))
     quads.append(tuple(reversed(range(n))))
@@ -255,7 +255,7 @@ def build_tremor(body,maroon,armor,rubber,glow,glass,accent):
     # low sports car canopy. The flat upper roof goes to 2.66 metres.
     roof_y=2.59
     roof_front=.54
-    roof_back=-1.79
+    roof_back=-2.55
     roof_half=1.23
     sill_front=1.19
     glass_sill_y=1.48
@@ -269,9 +269,9 @@ def build_tremor(body,maroon,armor,rubber,glow,glass,accent):
         (0,2.58,(roof_front+roof_back)*.5),
         (2.48,.18,roof_front-roof_back+.16),armor,.064)
     box("Tremor MKIII central longitudinal roof plate",
-        (0,2.695,-.54),(1.73,.038,1.79),body,.027)
+        (0,2.695,-.98),(1.73,.038,2.51),body,.027)
     box("Tremor MKIII rear roof spoiler lip",
-        (0,2.61,-1.86),(2.38,.095,.19),body,.042)
+        (0,2.61,-2.61),(2.38,.095,.19),body,.042)
     for side in [-1,1]:
         sx=side*1.16
         # Side panes: 3 actual rectangular window meshes.
@@ -281,54 +281,54 @@ def build_tremor(body,maroon,armor,rubber,glow,glass,accent):
                 (side*1.27,glass_sill_y,zback),
                 (side*1.14,2.45,zback),
                 (side*1.14,2.45,zfront)],glass)
-        side_window("vehicle_glass_tremor_mk3_front_suv_door",.48,-.46)
-        side_window("vehicle_glass_tremor_mk3_rear_suv_door",-.53,-1.37)
-        side_window("vehicle_glass_tremor_mk3_rear_quarter",-1.44,-1.76)
+        side_window("vehicle_glass_tremor_mk3_front_suv_door",.48,-.49)
+        side_window("vehicle_glass_tremor_mk3_rear_suv_door",-.56,-1.73)
+        side_window("vehicle_glass_tremor_mk3_rear_quarter",-1.80,-2.50)
         # A/B/C/D pillars give clear 4-door SUV window framing.
         polyline("Tremor MKIII "+("port" if side<0 else "starboard")+
             " squared A-pillar",[
             (side*1.28,1.44,1.17),(side*1.14,2.47,.54)],.069,body,12)
-        for z in [-.49,-1.41,-1.79]:
+        for z in [-.52,-1.76,-2.55]:
             pipe("Tremor MKIII high SUV side window pillar",
                  (side*1.28,1.43,z),(side*1.14,2.46,z),
                  .054,body,10)
         polyline("Tremor MKIII straight roofline upper trim",[
             (sx,2.53,.53),(sx,2.55,-.35),
-            (sx,2.55,-1.24),(sx,2.52,-1.83)],.035,body)
+            (sx,2.55,-1.58),(sx,2.52,-2.57)],.035,body)
         polyline("Tremor MKIII continuous straight SUV window sill",[
             (side*1.30,1.44,.97),(side*1.29,1.44,.11),
-            (side*1.29,1.44,-.94),(side*1.30,1.44,-1.89)],
+            (side*1.29,1.44,-1.56),(side*1.30,1.44,-2.57)],
             .037,body)
         # Square roof rack: rail length and 3 transverse hardpoints.
         polyline("Tremor MKIII raised roof rack longitudinal girder",[
             (side*1.04,2.72,.37),(side*1.04,2.76,.12),
-            (side*1.04,2.76,-1.46),(side*1.04,2.72,-1.76)],
+            (side*1.04,2.76,-2.30),(side*1.04,2.72,-2.52)],
             .060,body,12)
-        for z in [-1.36,-.48,.20]:
+        for z in [-2.24,-.92,.20]:
             box("Tremor MKIII machined rack foot",
                 (side*1.04,2.715,z),(.18,.11,.18),rubber,.018)
         # Discrete overhead instrument/clearance lighting.
         box("Tremor MKIII cyan roof marker",
             (side*.86,2.57,.64),(.34,.046,.084),glow,.012)
 
-    for z in [-1.36,-.48,.20]:
+    for z in [-2.24,-.92,.20]:
         pipe("Tremor MKIII roof utility rack crossrail",
              (-1.04,2.79,z),(1.04,2.79,z),.031,body,12)
     box("Tremor MKIII central roof cooling vent",
-        (0,2.728,-1.24),(.78,.032,.37),rubber,.023)
+        (0,2.728,-1.86),(.78,.032,.37),rubber,.023)
     for i in range(4):
         box("Tremor MKIII roof cooling slot",
-            (-.27+i*.18,2.75,-1.24),(.062,.013,.25),accent,.007)
+            (-.27+i*.18,2.75,-1.86),(.062,.013,.25),accent,.007)
     box("Tremor MKIII windshield lower wiper recess",
         (0,1.48,1.16),(2.20,.058,.11),rubber,.022)
     box("Tremor MKIII windscreen full width upper header",
         (0,2.50,.61),(2.36,.10,.12),body,.033)
     # Rear SUV glass, a near-vertical hatch with physical bottom.
     face("vehicle_glass_tremor_mk3_rear_hatch",[
-        (-1.16,1.54,-1.92),(-1.13,2.46,-1.82),
-        (1.13,2.46,-1.82),(1.16,1.54,-1.92)],glass)
+        (-1.16,1.54,-2.65),(-1.13,2.46,-2.58),
+        (1.13,2.46,-2.58),(1.16,1.54,-2.65)],glass)
     box("Tremor MKIII tailgate window lower rail",
-        (0,1.54,-1.965),(2.40,.11,.11),body,.026)
+        (0,1.54,-2.69),(2.40,.11,.11),body,.026)
 
     # Interior visible through actual transparent 3D glass, low enough
     # for the existing live Godot cockpit camera, not a floating overlay.
@@ -344,7 +344,7 @@ def build_tremor(body,maroon,armor,rubber,glow,glass,accent):
         box("Tremor MKIII upholstered headrest",
             (side*.45,2.18,-.76),(.42,.25,.17),rubber,.057)
         box("Tremor MKIII rear bench seat",
-            (side*.45,1.18,-1.29),(.70,.19,.51),rubber,.059)
+            (side*.45,1.18,-1.94),(.70,.19,.51),rubber,.059)
     # Rotation support rig: the yoke and five vector anchors are retained
     # so the physics feedback and cockpit instrumentation remain compatible.
     before=set(bpy.context.scene.objects)
@@ -406,7 +406,7 @@ def build_tremor(body,maroon,armor,rubber,glow,glass,accent):
     assert abs(sample(1.20)[0]-sample(-1.20)[0])<.13
     assert sample(3.56)[0]>1.78
     assert sample(-2.55)[0]>2.0
-    assert roof_front-roof_back>2.2
+    assert roof_front-roof_back>3.0
     print("SCENEFORGE_TREMOR_REFERENCE_GEOMETRY_OK",
           "BOX_SUV_MKIII","roof",roof_y,"front",sample(3.56)[0])
     print("SCENEFORGE_TREMOR_BOX_SUV_OK",
