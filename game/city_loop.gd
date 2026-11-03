@@ -79,8 +79,8 @@ var wall_cooldown := 0.0
 var wall_normal := Vector3.ZERO
 var wall_recoil := Vector3.ZERO
 var wall_hits := 0
-const TRACK_NAMES := ["NEON CROSS","SKYWAY","VIPER RIFT"]
-const TRACK_INFO := ["MEDIUM / Figure-eight crossing jump", "EASY / Elevated oval and forgiving jump", "HARD / S-bends, banked turns and extended leap"]
+const TRACK_NAMES := ["NEON CROSS","SKYWAY","VIPER RIFT","IRON HARBOR"]
+const TRACK_INFO := ["MEDIUM / Figure-eight crossing jump", "EASY / Elevated oval and forgiving jump", "HARD / S-bends, banked turns and extended leap", "MEDIUM / Dockside straights, technical chicanes and harbor leap"]
 
 func route_position(index: int) -> Vector3:
 	var a := TAU*index/COUNT
@@ -89,6 +89,10 @@ func route_position(index: int) -> Vector3:
 		z=38*sin(a)
 	elif track_id==2:
 		z+=5*sin(4*a)
+	elif track_id==3:
+		# A closed harbor oval with two chicane-like inset bends per side,
+		# distinct from the three existing city circuits.
+		z=30.0*sin(a)+12.0*sin(3*a)
 	return Vector3(80*cos(a),deck_height(index),z)
 
 func bank_slope(index: int) -> float:
@@ -238,7 +242,7 @@ func _ready() -> void:
 	chassis=preload("res://vehicles/fleet_catalog.gd").definition(craft_index)
 	track_id=int(get_tree().get_meta("sceneforge_track",0))
 	race_mode=clampi(int(get_tree().get_meta("sceneforge_race_mode",0)),MODE_FREE,MODE_SOLO_RACE)
-	for index in range(3):
+	for index in range(TRACK_NAMES.size()):
 		if "--circuit-%d"%index in OS.get_cmdline_user_args():
 			track_id=index
 	load_best()
@@ -405,7 +409,7 @@ func build_city() -> void:
 	var asphalt := road_material()
 	var concrete := material("475b66")
 	var dark := material("192932")
-	var wall := material(["344b5b","3b5264","493f50"][track_id])
+	var wall := material(["344b5b","3b5264","493f50","505d66"][track_id])
 	var trim := material("657681")
 	var orange := material("ce793a")
 	var cyan := material("55cbd6", true)
@@ -511,6 +515,8 @@ func build_city() -> void:
 	build_districts(wall,trim,dark,cyan,orange,warm,concrete)
 	build_street_detail(concrete,dark,trim,orange,cyan,warm)
 	build_map_polish(wall,trim,dark,orange,cyan,warm)
+	if track_id==3:
+		build_harbor_details(concrete,dark,trim,orange,cyan)
 	if track_id==1:
 		for index in range(0,COUNT,12):
 			var p := route[index]
@@ -528,6 +534,42 @@ func build_city() -> void:
 	sign.rotation.y = PI
 	add_child(sign)
 
+
+func build_harbor_details(concrete: Material, dark: Material, trim: Material, orange: Material, cyan: Material) -> void:
+	# The first Harbor production pass uses existing material batches, no
+	# additional dynamic lights, and scenery placed clear of the road envelope.
+	var water := material("1b4352")
+	water.roughness=0.35
+	block(Vector3(-147,-0.12,0),Vector3(106,0.11,300),water)
+	# Solid dock apron supports the containers and gantries; all are outside
+	# the road barrier so they do not pretend to be navigable shortcuts.
+	block(Vector3(-109,0.16,0),Vector3(20,0.33,160),concrete)
+	for z in [-64.0,-43.0,43.0,64.0]:
+		for level in range(2):
+			var paint: Material=orange if (int(z)+level)%3==0 else trim
+			block(Vector3(-109,1.25+2.15*level,z),Vector3(7.8,2.1,12.0),paint)
+			for rib in range(4):
+				block(Vector3(-104.98,1.25+2.15*level,z-4.5+rib*3.0),Vector3(0.08,1.8,0.17),dark)
+	for z in [-57.0,57.0]:
+		# Two recognizable dock cranes visible from the racing lane.
+		block(Vector3(-131,13,z),Vector3(2.0,26.0,2.0),trim)
+		block(Vector3(-121,26,z),Vector3(24.0,1.6,1.5),trim)
+		block(Vector3(-115,16,z),Vector3(0.22,18.0,0.22),dark)
+		block(Vector3(-115,6.5,z),Vector3(3.0,0.7,1.1),orange)
+		block(Vector3(-131,26.6,z),Vector3(3.2,0.2,3.2),cyan)
+	for z in [-53.0,-30.0,30.0,53.0]:
+		# Refinery silhouettes on the opposite skyline.
+		block(Vector3(120,9.0,z),Vector3(7.0,18.0,7.0),concrete)
+		block(Vector3(120,18.3,z),Vector3(7.8,0.45,7.8),dark)
+		block(Vector3(120,20.2,z),Vector3(1.0,4.0,1.0),trim)
+	for i in [12,84,112,166]:
+		var p := route[i]
+		var forward := flat(route[(i+1)%COUNT]-p).normalized()
+		var outward := outward_at(i)
+		var base := p+outward*12.0
+		block(base+Vector3.UP*5.0,Vector3(1.0,10.0,1.0),trim)
+		block(base+Vector3.UP*10.1,Vector3(2.5,0.25,2.5),orange)
+		district_sign("SHIPYARD / DANGER",base+Vector3.UP*7.2,forward,Color("ffb376"))
 
 func build_street_detail(concrete: Material, dark: Material, trim: Material, orange: Material, cyan: Material, warm: Material) -> void:
 	# Shared material batches: depth and readable silhouettes without extra lights.
@@ -844,7 +886,7 @@ func build_ui() -> void:
 	title.text="KESTREL / CHOOSE YOUR CIRCUIT"
 	title.add_theme_font_size_override("font_size",30)
 	choices.add_child(title)
-	for index in range(3):
+	for index in range(TRACK_NAMES.size()):
 		var choice := Button.new()
 		choice.text=TRACK_NAMES[index]+"  /  "+TRACK_INFO[index]
 		choice.custom_minimum_size=Vector2(1000,90)
@@ -1312,7 +1354,8 @@ func _process(_delta: float) -> void:
 			if "--track-overview" in OS.get_cmdline_user_args():
 				file="NeonLoop-overview.png"
 			if track_id>0:
-				file=("Skyway" if track_id==1 else "ViperRift")+("-overview.png" if "--track-overview" in OS.get_cmdline_user_args() else ("-jump.png" if "--track-jump" in OS.get_cmdline_user_args() else "-cockpit.png"))
+				var circuit_prefix := ["NeonLoop","Skyway","ViperRift","IronHarbor"][track_id]
+				file=circuit_prefix+("-overview.png" if "--track-overview" in OS.get_cmdline_user_args() else ("-jump.png" if "--track-jump" in OS.get_cmdline_user_args() else "-cockpit.png"))
 			if "--track-menu" in OS.get_cmdline_user_args():
 				file="Circuit-select.png"
 			if chassis.chassis_id in ["shrike","aerolith"] and "--track-action" in OS.get_cmdline_user_args():
