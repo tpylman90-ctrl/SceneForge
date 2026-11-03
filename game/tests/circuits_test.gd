@@ -10,7 +10,7 @@ func drive(scene: Node3D, hz: int) -> void:
 	scene.right=error< -0.015
 	scene._physics_process(1.0/hz)
 func check() -> void:
-	for circuit in range(3):
+	for circuit in range(4):
 		set_meta("sceneforge_track",circuit)
 		var scene: Node3D=load("res://city_loop.tscn").instantiate()
 		root.add_child(scene)
@@ -45,6 +45,10 @@ func check() -> void:
 			assert(scene.route[0].y==2.0 and scene.route[48].z>37)
 		if circuit==2:
 			assert(absf(scene.bank_slope(16))>0.08 and scene.route[112].y>2.9)
+		if circuit==3:
+			assert(scene.track_name()=="IRON HARBOR")
+			assert(scene.route[24].z>scene.route[48].z+10.0)
+			assert(scene.route[48].y>4.0,"Harbor leap must stay elevated")
 		scene.feedback.stop_audio()
 		scene.free()
 	# Actual menu selection must tear down and create the requested circuit.
