@@ -1,6 +1,7 @@
 extends Node3D
 
 const Fleet = preload("res://vehicles/fleet_catalog.gd")
+const Parts = preload("res://vehicles/performance_parts.gd")
 var selected_craft := 0
 var chassis: Resource
 var lot_craft: Node3D
@@ -35,6 +36,10 @@ var door_button: Button
 var mode_button: Button
 var help_label: Label
 var stats_panel: Control
+var upgrades_panel: ColorRect
+var upgrades_balance: Label
+var upgrades_status: Label
+var upgrades_buttons: Array[Button] = []
 var last_door_tween: Tween
 var saved_orbit := false
 var sun: DirectionalLight3D
@@ -414,6 +419,9 @@ func ui() -> void:
 	var fleet_button := make_button("FLEET", open_fleet, 130)
 	fleet_button.position=Vector2(1100,100)
 	layer.add_child(fleet_button)
+	var parts_button := make_button("PERFORMANCE PARTS",open_upgrades,230)
+	parts_button.position=Vector2(28,215)
+	layer.add_child(parts_button)
 	row.add_child(make_button("STATS", func():
 		stats_panel.visible = not stats_panel.visible
 		fps_label.visible = stats_panel.visible
@@ -429,6 +437,37 @@ func ui() -> void:
 	stats.add_child(quality_button)
 	compare_button = make_button("COMPARE FPS", start_comparison, 180)
 	stats.add_child(compare_button)
+
+	# Mechanical parts garage: one clear overlay, no cosmetic meshes or paint.
+	upgrades_panel=ColorRect.new()
+	upgrades_panel.color=Color(0.015,0.035,0.060,0.985)
+	upgrades_panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	layer.add_child(upgrades_panel)
+	var heading := Label.new()
+	heading.text="FOUNDRY WORKSHOP / PERFORMANCE PARTS"
+	heading.position=Vector2(100,38)
+	heading.add_theme_font_size_override("font_size",34)
+	upgrades_panel.add_child(heading)
+	upgrades_balance=Label.new()
+	upgrades_balance.position=Vector2(100,97)
+	upgrades_balance.add_theme_font_size_override("font_size",24)
+	upgrades_panel.add_child(upgrades_balance)
+	for i in range(Parts.PARTS.size()):
+		var part_button := make_button("",buy_upgrade.bind(str(Parts.PARTS[i])),1010)
+		part_button.custom_minimum_size=Vector2(1010,88)
+		part_button.position=Vector2(100,157+i*108)
+		part_button.add_theme_font_size_override("font_size",23)
+		upgrades_panel.add_child(part_button)
+		upgrades_buttons.append(part_button)
+	upgrades_status=Label.new()
+	upgrades_status.position=Vector2(100,495)
+	upgrades_status.add_theme_font_size_override("font_size",20)
+	upgrades_panel.add_child(upgrades_status)
+	var close_button := make_button("BACK TO GARAGE",close_upgrades,310)
+	close_button.position=Vector2(100,580)
+	upgrades_panel.add_child(close_button)
+	upgrades_panel.hide()
+
 	stick_ring = Control.new()
 	stick_ring.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	stick_ring.draw.connect(func():
@@ -437,6 +476,36 @@ func ui() -> void:
 		stick_ring.draw_circle(stick * 48, 18, Color(0.5, 0.9, 1, 0.6)))
 	stick_ring.visible = false
 	layer.add_child(stick_ring)
+
+func open_upgrades() -> void:
+	upgrades_status.text="Race three-lap challenges to earn credits. Parts improve handling only."
+	refresh_upgrades()
+	upgrades_panel.show()
+	set_physics_process(false)
+
+func close_upgrades() -> void:
+	upgrades_panel.hide()
+	set_physics_process(true)
+
+func refresh_upgrades() -> void:
+	var credits: int=Parts.balance()
+	upgrades_balance.text=Fleet.NAMES[selected_craft]+"   /   %d CREDITS" % credits
+	for i in range(Parts.PARTS.size()):
+		var part_id: String=str(Parts.PARTS[i])
+		var tier: int=Parts.level(chassis.chassis_id,part_id)
+		var part_button: Button=upgrades_buttons[i]
+		if tier>=Parts.MAX_LEVEL:
+			part_button.text="%s  /  LEVEL %d  /  MAX INSTALLED\n%s" % [Parts.NAMES[i],tier,Parts.BENEFITS[i]]
+			part_button.disabled=true
+		else:
+			var price: int=Parts.part_cost(tier+1)
+			part_button.text="%s  /  LEVEL %d → %d  /  %d CREDITS\n%s" % [Parts.NAMES[i],tier,tier+1,price,Parts.BENEFITS[i]]
+			part_button.disabled=credits<price
+
+func buy_upgrade(part_id: String) -> void:
+	var purchased: bool=Parts.buy(chassis.chassis_id,part_id)
+	upgrades_status.text="PART INSTALLED / APPLIES TO YOUR NEXT RACE" if purchased else "NOT ENOUGH CREDITS OR ALREADY AT MAX LEVEL"
+	refresh_upgrades()
 
 func set_inspection(enabled: bool) -> void:
 	set_seat_view(false)
@@ -543,10 +612,14 @@ func test_door_motion() -> void:
 	shutdown_for_test()
 
 func _input(event: InputEvent) -> void:
+	if upgrades_panel!=null and upgrades_panel.visible:
+		return
 	if event is InputEventScreenTouch and not event.pressed:
 		touch_points.erase(event.index)
 
 func _unhandled_input(event: InputEvent) -> void:
+	if upgrades_panel!=null and upgrades_panel.visible:
+		return
 
 	if seat_mode and orbit_mode and not comparing:
 		if event is InputEventScreenTouch:
