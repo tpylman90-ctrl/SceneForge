@@ -52,7 +52,7 @@ static func buy(craft_id: String, part_id: String, path: String = SAVE_PATH) -> 
 
 static func award_race(total_seconds: float, personal_best: bool, path: String = SAVE_PATH) -> int:
 	# Called once when a completed three-lap solo challenge is classified.
-	if not is_finite(total_seconds) or total_seconds<=0.0:
+	if is_nan(total_seconds) or is_inf(total_seconds) or total_seconds<=0.0:
 		return 0
 	var cfg := ConfigFile.new()
 	cfg.load(path)
