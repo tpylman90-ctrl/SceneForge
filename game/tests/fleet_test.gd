@@ -64,10 +64,23 @@ func check() -> void:
 				for slot in ["repulsor_fl","repulsor_fr","repulsor_rl","repulsor_rr"]:
 					assert(scene.chassis.mount_points[slot].y<0,"Synapse repulsors must sit beneath the low hull")
 				assert(scene.chassis.cockpit_eye.y<1.0 and scene.chassis.cockpit_eye.z<0.0,"Synapse cockpit camera must sit inside the fitted canopy")
+			elif definition.chassis_id=="aerolith":
+				assert(scene.feedback.has_node("Aerolith_Original_Body"),"Original Assetwright model did not instantiate in racing scene")
+				assert(scene.feedback.synapse_thrusters.size()==2,"AEROLITH must use two real vectored thruster positions")
+				assert(scene.feedback.footprint_positions.size()==4)
+				assert(scene.feedback.glass.size()>0,"AEROLITH visor must have cockpit transparency overrides")
+				assert(not scene.feedback.showroom_upload)
+				print("FLEET_AEROLITH_ORIGINAL_DRIVE_MODEL_OK")
 			else:
 				assert(scene.feedback.tails.size()==5 and scene.feedback.yoke!=null)
+			if definition.chassis_id=="shrike":
+				assert(scene.feedback.showroom_upload,"Racing Shrike must use uploaded master, not procedural fallback")
 			assert(scene.feedback.get_node("ComponentMounts").get_child_count()==8)
 			scene.toggle_camera()
+			if definition.chassis_id=="shrike":
+				assert(scene.near_chase and not scene.cockpit,"Baked Shrike glass must use a usable chase view")
+			else:
+				assert(scene.cockpit)
 			scene.reset_car()
 			scene.throttle=true
 			for frame in range(3600):
@@ -81,7 +94,11 @@ func check() -> void:
 				if scene.lap>1:break
 			assert(scene.lap==2 and scene.jump_landings==1 and scene.jump_recoveries==0,"Fleet circuit failed")
 			assert(scene.feedback.telemetry.craft_name==definition.display_name)
-			assert(scene.camera.position.distance_to(scene.feedback.to_global(definition.cockpit_eye))<.01)
+			if definition.chassis_id=="shrike":
+				assert(not scene.cockpit and scene.near_chase)
+				print("FLEET_SHRIKE_UPLOADED_DRIVE_OK ",circuit)
+			else:
+				assert(scene.camera.position.distance_to(scene.feedback.to_global(definition.cockpit_eye))<.01)
 			print("FLEET_LAP_OK ",definition.chassis_id," / ",circuit)
 			scene.feedback.stop_audio()
 			scene.free()
@@ -95,8 +112,7 @@ func check() -> void:
 		assert(hangar.visual.chassis.chassis_id==Fleet.IDS[index])
 		hangar.action("COCKPIT")
 		if index==2 and hangar.visual.showroom_upload:
-			# The user-uploaded Tripo texture bakes opaque glass into its shell.
-			# Only exterior Fleet / garage inspection is enabled for this pass.
+			# A race-ready exterior vehicle; driver-seat glass will follow.
 			assert(not hangar.cockpit)
 			assert(hangar.visual.get_node_or_null("ComponentMounts")!=null)
 			print("FLEET_SHRIKE_UPLOADED_EXTERIOR_OK")
