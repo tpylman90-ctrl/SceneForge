@@ -1126,6 +1126,8 @@ func _process(_delta: float) -> void:
 				file=("Skyway" if track_id==1 else "ViperRift")+("-overview.png" if "--track-overview" in OS.get_cmdline_user_args() else ("-jump.png" if "--track-jump" in OS.get_cmdline_user_args() else "-cockpit.png"))
 			if "--track-menu" in OS.get_cmdline_user_args():
 				file="Circuit-select.png"
+			if chassis.chassis_id in ["shrike","aerolith"] and "--track-action" in OS.get_cmdline_user_args():
+				file="NeonLoop-"+chassis.chassis_id+"-driving.png"
 			get_viewport().get_texture().get_image().save_png(OS.get_environment("GITHUB_WORKSPACE")+"/build/"+file)
 			shutdown()
 
