@@ -15,7 +15,7 @@ jobs:
   build:
     if: github.event_name != 'push' || !contains(github.event.head_commit.message, '[viewer]')
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -105,10 +105,17 @@ jobs:
             build/asset-report.json
             build/fleet-report.json
           key: foundry-blender-4.5.3-${{ hashFiles('tools/build_neon_foundry.py', 'tools/kestrel_detail.py', 'tools/build_fleet.py', 'tools/piledriver_detail.py', 'tools/forge_detail.py', 'tools/shrike_smooth.py') }}
-      - name: Install optional Shrike showroom model
-        # The source GLB is never fed into Blender's procedural exporter.
-        # This affects only Fleet and Foundry, not driving / physics.
+      - name: Install playable uploaded Shrike
+        # SHA-validated uploaded original retained separately from Blender cache.
         run: python tools/install_showroom_shrike.py --required
+      - name: Install pinned original AEROLITH playable and garage LODs
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tools/install_aerolith.py | tee build/aerolith-install.log
+          test -s game/assets/fleet/aerolith.glb
+          test -s game/assets/showroom/aerolith.glb
+          test "$(grep -c SCENEFORGE_AEROLITH_ASSET_OK build/aerolith-install.log)" = 2
       - name: Import and smoke test
         shell: bash
         run: |
@@ -194,6 +201,8 @@ jobs:
           timeout 180 godot --headless --path game --script res://tests/fleet_test.gd 2>&1 | tee build/fleet-test.log
           if grep -E 'SCRIPT ERROR:|ERROR:' build/fleet-test.log; then exit 1; fi
           grep FLEET_OK build/fleet-test.log
+          grep FLEET_AEROLITH_ORIGINAL_DRIVE_MODEL_OK build/fleet-test.log
+          grep FLEET_SHRIKE_UPLOADED_DRIVE_OK build/fleet-test.log
           timeout 120 godot --headless --path game --script res://tests/foundry_selection_test.gd 2>&1 | tee build/foundry-selection.log
           if grep -E 'SCRIPT ERROR:|ERROR:' build/foundry-selection.log; then exit 1; fi
           grep FOUNDRY_FLEET_OK build/foundry-selection.log
@@ -209,7 +218,14 @@ jobs:
           timeout 120 xvfb-run -a godot --audio-driver Dummy --path game --rendering-method gl_compatibility --resolution 1280x720 res://fleet_hangar.tscn -- --capture --craft-2 --fleet-hero --fleet-clean 2>&1 | tee build/fleet-shrike-uploaded-render.log
           test -s build/Fleet-shrike-hero-clean.png
           grep -q SCENEFORGE_SHRIKE_UPLOADED_SHOWROOM_OK build/fleet-shrike-uploaded-render.log
-          for craft in 0 1 2 3 4 5 6; do
+          # Full-resolution original for inspection, optimized original for racing.
+          timeout 120 xvfb-run -a godot --audio-driver Dummy --path game --rendering-method gl_compatibility --resolution 1280x720 -- --capture --craft-8 2>&1 | tee build/foundry-aerolith-render.log
+          test -s build/Foundry-aerolith.png
+          grep -q SCENEFORGE_AEROLITH_DRIVE_MODEL_OK build/foundry-aerolith-render.log
+          timeout 120 xvfb-run -a godot --audio-driver Dummy --path game --rendering-method gl_compatibility --resolution 1280x720 res://fleet_hangar.tscn -- --capture --craft-8 --fleet-hero --fleet-clean 2>&1 | tee build/fleet-aerolith-render.log
+          test -s build/Fleet-aerolith-hero-clean.png
+          grep -q SCENEFORGE_AEROLITH_DRIVE_MODEL_OK build/fleet-aerolith-render.log
+          for craft in 0 1 2 3 4 5 6 7 8; do
             timeout 120 xvfb-run -a godot --audio-driver Dummy --path game --rendering-method gl_compatibility --resolution 1280x720 res://fleet_hangar.tscn -- --capture --craft-$craft 2>&1 | tee build/fleet-$craft-render.log
           done
           for view in tail side top cockpit under; do
@@ -225,7 +241,15 @@ jobs:
             test -s build/Fleet-synapse-$view.png
           done
           if grep -E 'SCRIPT ERROR:|ERROR:' build/fleet-*-render.log; then exit 1; fi
-          for name in kestrel piledriver shrike mantis aurora forge synapse; do test -s build/Fleet-$name.png; done
+          for name in kestrel piledriver shrike mantis aurora forge synapse tremor aerolith; do test -s build/Fleet-$name.png; done
+          for id in 2 8; do
+            timeout 120 xvfb-run -a godot --audio-driver Dummy --path game --rendering-method gl_compatibility --resolution 1280x720 res://city_loop.tscn -- --capture --craft-$id --track-action 2>&1 | tee build/drive-$id-render.log
+          done
+          test -s build/NeonLoop-shrike-driving.png
+          test -s build/NeonLoop-aerolith-driving.png
+          grep -q SCENEFORGE_SHRIKE_UPLOADED_SHOWROOM_OK build/drive-2-render.log
+          grep -q SCENEFORGE_AEROLITH_DRIVE_MODEL_OK build/drive-8-render.log
+          if grep -E 'SCRIPT ERROR:|ERROR:' build/drive-*-render.log; then exit 1; fi
       - name: Export and verify APK
         shell: bash
         run: |
@@ -308,5 +332,5 @@ jobs:
           if ! gh release view pipeline-latest >/dev/null 2>&1; then
             gh release create pipeline-latest --target "$GITHUB_SHA" --prerelease --title "SceneForge — latest Android test" --notes "Permanently signed Android build. Download SceneForge.apk."
           fi
-          gh release upload pipeline-latest build/SceneForge.apk build/SceneForge-debug.apk build/SHA256SUMS.txt build/BUILD.txt build/NeonFoundry-preview.png build/NeonFoundry-ingame.png build/NeonFoundry-road.png build/Kestrel-hovercar.png build/Kestrel-tail.png build/Kestrel-cockpit.png build/Kestrel-door-open.png build/Kestrel-driver-seat.png build/NeonFoundry-rear.png build/asset-report.json build/NeonLoop-track.png build/NeonLoop-cockpit.png build/NeonLoop-action.png build/NeonLoop-overview.png build/NeonCross-jump.png build/NeonCross-jump-cockpit.png build/Skyway-overview.png build/Skyway-cockpit.png build/Skyway-jump.png build/ViperRift-overview.png build/ViperRift-cockpit.png build/ViperRift-jump.png build/Circuit-select.png build/fleet-report.json build/Fleet-kestrel.png build/Fleet-piledriver.png build/Fleet-shrike.png build/Fleet-mantis.png build/Fleet-aurora.png build/Fleet-synapse.png build/Fleet-synapse-front.png build/Fleet-synapse-rear.png build/Fleet-synapse-side.png build/Fleet-synapse-top.png build/Fleet-synapse-under.png build/Fleet-synapse-zoomed-rear.png build/Fleet-piledriver-tail.png build/Fleet-piledriver-side.png build/Fleet-piledriver-top.png build/Fleet-piledriver-cockpit.png build/Fleet-piledriver-under.png build/Fleet-forge.png build/Fleet-forge-nose.png build/Fleet-forge-side.png build/Fleet-forge-top.png build/Fleet-forge-cockpit.png build/Foundry-piledriver.png build/Foundry-piledriver-seat.png build/Foundry-shrike.png build/Fleet-shrike-hero-clean.png --clobber
+          gh release upload pipeline-latest build/SceneForge.apk build/SceneForge-debug.apk build/SHA256SUMS.txt build/BUILD.txt build/NeonFoundry-preview.png build/NeonFoundry-ingame.png build/NeonFoundry-road.png build/Kestrel-hovercar.png build/Kestrel-tail.png build/Kestrel-cockpit.png build/Kestrel-door-open.png build/Kestrel-driver-seat.png build/NeonFoundry-rear.png build/asset-report.json build/NeonLoop-track.png build/NeonLoop-cockpit.png build/NeonLoop-action.png build/NeonLoop-overview.png build/NeonCross-jump.png build/NeonCross-jump-cockpit.png build/Skyway-overview.png build/Skyway-cockpit.png build/Skyway-jump.png build/ViperRift-overview.png build/ViperRift-cockpit.png build/ViperRift-jump.png build/Circuit-select.png build/fleet-report.json build/Fleet-kestrel.png build/Fleet-piledriver.png build/Fleet-shrike.png build/Fleet-mantis.png build/Fleet-aurora.png build/Fleet-synapse.png build/Fleet-synapse-front.png build/Fleet-synapse-rear.png build/Fleet-synapse-side.png build/Fleet-synapse-top.png build/Fleet-synapse-under.png build/Fleet-synapse-zoomed-rear.png build/Fleet-piledriver-tail.png build/Fleet-piledriver-side.png build/Fleet-piledriver-top.png build/Fleet-piledriver-cockpit.png build/Fleet-piledriver-under.png build/Fleet-forge.png build/Fleet-forge-nose.png build/Fleet-forge-side.png build/Fleet-forge-top.png build/Fleet-forge-cockpit.png build/Foundry-piledriver.png build/Foundry-piledriver-seat.png build/Foundry-shrike.png build/Fleet-shrike-hero-clean.png build/Fleet-tremor.png build/Fleet-aerolith.png build/Fleet-aerolith-hero-clean.png build/Foundry-aerolith.png build/NeonLoop-shrike-driving.png build/NeonLoop-aerolith-driving.png --clobber
           gh release edit pipeline-latest --notes "Successful pipeline build #$GITHUB_RUN_NUMBER from commit $GITHUB_SHA. Permanent release signing verified. Download SceneForge.apk; the debug variant remains available separately."
