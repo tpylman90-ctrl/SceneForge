@@ -49,7 +49,10 @@ func check() -> void:
 				assert(not scene.race_finished)
 		assert(scene.race_finished and scene.results_panel.visible,"Expected race finish after required stages")
 		assert(scene.race_splits.size()==scene.challenge_laps())
-		assert(scene.results_info.text.contains("SPRINT STAGE COMPLETE") if circuit==4 else scene.results_info.text.contains("3-LAP SOLO CHALLENGE COMPLETE"))
+		if circuit==4:
+			assert(scene.results_info.text.contains("SPRINT STAGE COMPLETE"))
+		else:
+			assert(scene.results_info.text.contains("3-LAP SOLO CHALLENGE COMPLETE"))
 		scene.feedback.stop_audio()
 		scene.free()
 	assert(lengths[0]>1000.0,"Serpent must be a long curving stage")
