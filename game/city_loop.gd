@@ -240,7 +240,7 @@ func _ready() -> void:
 	for index in range(Fleet.IDS.size()):
 		if "--craft-%d"%index in OS.get_cmdline_user_args():craft_index=index
 	chassis=preload("res://vehicles/fleet_catalog.gd").definition(craft_index)
-	track_id=int(get_tree().get_meta("sceneforge_track",0))
+	track_id=clampi(int(get_tree().get_meta("sceneforge_track",0)),0,TRACK_NAMES.size()-1)
 	race_mode=clampi(int(get_tree().get_meta("sceneforge_race_mode",0)),MODE_FREE,MODE_SOLO_RACE)
 	for index in range(TRACK_NAMES.size()):
 		if "--circuit-%d"%index in OS.get_cmdline_user_args():
@@ -883,7 +883,7 @@ func build_ui() -> void:
 	choices.add_theme_constant_override("separation",20)
 	track_menu.add_child(choices)
 	var title := Label.new()
-	title.text="KESTREL / CHOOSE YOUR CIRCUIT"
+	title.text=chassis.display_name+" / CHOOSE YOUR CIRCUIT"
 	title.add_theme_font_size_override("font_size",30)
 	choices.add_child(title)
 	for index in range(TRACK_NAMES.size()):
