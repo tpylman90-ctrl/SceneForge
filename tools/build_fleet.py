@@ -96,7 +96,9 @@ exec((ROOT/'tools/piledriver_detail.py').read_text())
 
 exec((ROOT/'tools/forge_detail.py').read_text())
 exec((ROOT/'tools/shrike_smooth.py').read_text())
-exec((ROOT/'tools/tremor_body.py').read_text())
+# MK I geometry remains available in Git history; MK II is the new original
+# production candidate, reviewed in isolation through the viewer workflow.
+exec((ROOT/'tools/tremor_mk2.py').read_text())
 
 exec((ROOT/'tools/synapse_body.py').read_text(),globals())
 
