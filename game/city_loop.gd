@@ -39,6 +39,7 @@ var boost_button: Button
 var left := false
 var right := false
 var cockpit := false
+var near_chase := false # Shrike baked-in glass needs a second exterior camera
 var hud: Label
 var left_button: Button
 var right_button: Button
@@ -812,6 +813,14 @@ func reset_car() -> void:
 	driving_touches.clear()
 
 func toggle_camera() -> void:
+	if feedback.showroom_upload:
+		# Painted/baked opaque glass cannot be used as a driver's windshield.
+		# Offer two genuinely useful chase views instead of placing the camera
+		# inside an opaque Tripo shell. Racing and HUD remain fully functional.
+		cockpit=false
+		near_chase=not near_chase
+		feedback.set_cockpit(false)
+		return
 	cockpit = not cockpit
 	feedback.set_cockpit(cockpit)
 
@@ -1100,9 +1109,9 @@ func update_camera(delta: float) -> void:
 	if cockpit:
 		camera.global_transform = feedback.global_transform*Transform3D(Basis.from_euler(Vector3(chassis.cockpit_pitch,PI,0)),chassis.cockpit_eye)
 	else:
-		var desired := car.to_global(Vector3(0,3.6,-8.5))
+		var desired := car.to_global(Vector3(0,2.8,-5.65) if near_chase else Vector3(0,3.6,-8.5))
 		camera.position = camera.position.lerp(desired,1-exp(-delta*8))
-		camera.look_at(car.to_global(Vector3(0,1.15,4)))
+		camera.look_at(car.to_global(Vector3(0,1.05,3.3) if near_chase else Vector3(0,1.15,4)))
 
 func _process(_delta: float) -> void:
 	if "--capture" in OS.get_cmdline_user_args():
