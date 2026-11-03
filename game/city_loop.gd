@@ -60,6 +60,21 @@ var shutting_down := false
 var driving_touches: Dictionary = {}
 var track_id := 0
 var track_menu: Control
+var event_menu: ColorRect
+var results_panel: ColorRect
+var results_info: Label
+var countdown_label: Label
+const MODE_FREE := 0
+const MODE_TIME_TRIAL := 1
+const MODE_SOLO_RACE := 2
+var race_mode := MODE_FREE
+var race_countdown := 0.0
+var race_go_flash := 0.0
+var race_finished := false
+var race_elapsed := 0.0
+var race_best_total := 0.0
+var race_splits: Array[float] = []
+const RACE_LAPS := 3
 var wall_cooldown := 0.0
 var wall_normal := Vector3.ZERO
 var wall_recoil := Vector3.ZERO
@@ -98,18 +113,95 @@ func save_best() -> void:
 	records.set_value("best",str(track_id)+"/"+chassis.chassis_id,best)
 	records.save("user://records.cfg")
 
-func open_tracks() -> void:
+func load_race_best() -> void:
+	var records := ConfigFile.new()
+	if records.load("user://records.cfg")==OK:
+		race_best_total=float(records.get_value("race_totals",str(track_id)+"/"+chassis.chassis_id,0.0))
+	else:
+		race_best_total=0.0
+
+func save_race_best() -> void:
+	var records := ConfigFile.new()
+	records.load("user://records.cfg")
+	records.set_value("race_totals",str(track_id)+"/"+chassis.chassis_id,race_best_total)
+	records.save("user://records.cfg")
+
+func clear_drive_input() -> void:
 	left=false
 	right=false
 	throttle=false
 	brake=false
 	boost=false
 	driving_touches.clear()
+
+func open_events() -> void:
+	clear_drive_input()
 	set_physics_process(false)
+	track_menu.hide()
+	results_panel.hide()
+	event_menu.show()
+
+func begin_event(mode: int) -> void:
+	race_mode=clampi(mode,MODE_FREE,MODE_SOLO_RACE)
+	get_tree().set_meta("sceneforge_race_mode",race_mode)
+	event_menu.hide()
+	track_menu.hide()
+	results_panel.hide()
+	reset_car()
+	set_physics_process(true)
+
+func resume_track() -> void:
+	if race_finished:
+		reset_car()
+	track_menu.hide()
+	set_physics_process(true)
+
+func finish_solo_race() -> void:
+	if race_finished or race_mode!=MODE_SOLO_RACE:
+		return
+	race_finished=true
+	clear_drive_input()
+	set_physics_process(false)
+	var total := 0.0
+	for split in race_splits:
+		total+=split
+	var personal_best := race_best_total<=0.0 or total<race_best_total
+	if personal_best and total>0:
+		race_best_total=total
+		save_race_best()
+	var report := "%s  /  %s\n3-LAP SOLO CHALLENGE COMPLETE\nTOTAL  %.2f s\n" % [track_name(),chassis.display_name,total]
+	for i in range(race_splits.size()):
+		report+="LAP %d   %.2f s\n" % [i+1,race_splits[i]]
+	report+=("NEW EVENT RECORD" if personal_best else "EVENT BEST  %.2f s" % race_best_total)
+	report+="\nSOLO CHALLENGE — CPU RIVALS COMING LATER"
+	results_info.text=report
+	countdown_label.hide()
+	results_panel.show()
+	hud.text=track_name()+" / FINISHED\nTOTAL %.2f s  /  %d LAPS" % [total,RACE_LAPS]
+
+func advance_countdown(delta: float) -> bool:
+	if race_countdown>0.0:
+		race_countdown=maxf(0.0,race_countdown-delta)
+		countdown_label.text=str(ceili(race_countdown)) if race_countdown>0.0 else "GO!"
+		countdown_label.show()
+		if race_countdown<=0.0:
+			race_go_flash=0.8
+		return true
+	if race_go_flash>0.0:
+		race_go_flash=maxf(0.0,race_go_flash-delta)
+		countdown_label.visible=race_go_flash>0.0
+	return false
+
+func open_tracks() -> void:
+	clear_drive_input()
+	set_physics_process(false)
+	event_menu.hide()
+	results_panel.hide()
 	track_menu.show()
 
 func choose_track(index: int) -> void:
 	get_tree().set_meta("sceneforge_track",index)
+	get_tree().set_meta("sceneforge_race_mode",race_mode)
 	shutdown("res://city_loop.tscn")
 
 func material(color: String, glow: bool = false) -> StandardMaterial3D:
@@ -145,10 +237,12 @@ func _ready() -> void:
 		if "--craft-%d"%index in OS.get_cmdline_user_args():craft_index=index
 	chassis=preload("res://vehicles/fleet_catalog.gd").definition(craft_index)
 	track_id=int(get_tree().get_meta("sceneforge_track",0))
+	race_mode=clampi(int(get_tree().get_meta("sceneforge_race_mode",0)),MODE_FREE,MODE_SOLO_RACE)
 	for index in range(3):
 		if "--circuit-%d"%index in OS.get_cmdline_user_args():
 			track_id=index
 	load_best()
+	load_race_best()
 	var environment := WorldEnvironment.new()
 	var settings := Environment.new()
 	settings.background_mode = Environment.BG_SKY
@@ -693,7 +787,7 @@ func build_ui() -> void:
 	layer.add_child(lap_banner)
 	var top := HBoxContainer.new()
 	top.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
-	top.position = Vector2(-670,20)
+	top.position = Vector2(-790,20)
 	layer.add_child(top)
 	ui_button(top,"VIEW",toggle_camera,100)
 	sound_button = ui_button(top,"SOUND OFF",func():
@@ -701,6 +795,7 @@ func build_ui() -> void:
 		sound_button.text = "SOUND OFF" if feedback.muted else "SOUND ON",110)
 	ui_button(top,"RESET",reset_car,100)
 	ui_button(top,"TRACKS",open_tracks,105)
+	ui_button(top,"EVENT",open_events,105)
 	ui_button(top,"FLEET",func(): shutdown("res://fleet_hangar.tscn"),95)
 	ui_button(top,"FOUNDRY",func(): shutdown("res://main.tscn"),125)
 	var row := HBoxContainer.new()
@@ -759,9 +854,81 @@ func build_ui() -> void:
 	var resume := Button.new()
 	resume.text="RESUME / "+track_name()
 	resume.custom_minimum_size=Vector2(1000,70)
-	resume.pressed.connect(func(): track_menu.hide(); set_physics_process(true))
+	resume.pressed.connect(resume_track)
 	choices.add_child(resume)
 	track_menu.hide()
+
+	# Race setup is separate from track selection so existing free-drive and
+	# circuit-record behavior remains backward compatible.
+	event_menu=ColorRect.new()
+	event_menu.color=Color(0.018,0.043,0.070,0.985)
+	event_menu.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	layer.add_child(event_menu)
+	var event_choices := VBoxContainer.new()
+	event_choices.position=Vector2(110,95)
+	event_choices.add_theme_constant_override("separation",14)
+	event_menu.add_child(event_choices)
+	var event_title := Label.new()
+	event_title.text="NEON FOUNDRY / RACE WEEKEND"
+	event_title.add_theme_font_size_override("font_size",34)
+	event_choices.add_child(event_title)
+	var event_note := Label.new()
+	event_note.text="CHOOSE AN EVENT  ·  SOLO COMPETITION / AI RIVALS IN DEVELOPMENT"
+	event_note.add_theme_font_size_override("font_size",18)
+	event_choices.add_child(event_note)
+	for option in [
+		{"name":"FREE DRIVE", "detail":"Explore the selected circuit without a countdown", "mode":MODE_FREE},
+		{"name":"TIME TRIAL", "detail":"Standing start / timed laps / personal bests", "mode":MODE_TIME_TRIAL},
+		{"name":"3-LAP CHALLENGE", "detail":"Standing start / three laps / event classification", "mode":MODE_SOLO_RACE}
+	]:
+		var button := Button.new()
+		button.text=option["name"]+"   /   "+option["detail"]
+		button.custom_minimum_size=Vector2(1020,88)
+		button.add_theme_font_size_override("font_size",24)
+		button.pressed.connect(begin_event.bind(int(option["mode"])))
+		event_choices.add_child(button)
+	var back := Button.new()
+	back.text="RETURN TO CIRCUIT"
+	back.custom_minimum_size=Vector2(1020,62)
+	back.pressed.connect(func(): event_menu.hide(); set_physics_process(true))
+	event_choices.add_child(back)
+	event_menu.hide()
+
+	results_panel=ColorRect.new()
+	results_panel.color=Color(0.018,0.043,0.070,0.985)
+	results_panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	layer.add_child(results_panel)
+	var results_column := VBoxContainer.new()
+	results_column.position=Vector2(110,55)
+	results_column.add_theme_constant_override("separation",14)
+	results_panel.add_child(results_column)
+	results_info=Label.new()
+	results_info.add_theme_font_size_override("font_size",25)
+	results_column.add_child(results_info)
+	for option in ["RACE AGAIN","TIME TRIAL","TRACKS","FOUNDRY GARAGE"]:
+		var button := Button.new()
+		button.text=option
+		button.custom_minimum_size=Vector2(870,66)
+		button.add_theme_font_size_override("font_size",22)
+		if option=="RACE AGAIN":
+			button.pressed.connect(begin_event.bind(MODE_SOLO_RACE))
+		elif option=="TIME TRIAL":
+			button.pressed.connect(begin_event.bind(MODE_TIME_TRIAL))
+		elif option=="TRACKS":
+			button.pressed.connect(open_tracks)
+		else:
+			button.pressed.connect(func(): shutdown("res://main.tscn"))
+		results_column.add_child(button)
+	results_panel.hide()
+
+	countdown_label=Label.new()
+	countdown_label.position=Vector2(475,170)
+	countdown_label.size=Vector2(330,150)
+	countdown_label.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER
+	countdown_label.add_theme_font_size_override("font_size",100)
+	countdown_label.add_theme_color_override("font_color",Color("ffca85"))
+	layer.add_child(countdown_label)
+	countdown_label.hide()
 
 func reset_car() -> void:
 	car.position = route[0]
@@ -811,6 +978,16 @@ func reset_car() -> void:
 	left=false
 	right=false
 	driving_touches.clear()
+	race_elapsed=0.0
+	race_splits.clear()
+	race_finished=false
+	race_go_flash=0.0
+	race_countdown=3.0 if race_mode!=MODE_FREE else 0.0
+	if countdown_label!=null:
+		countdown_label.visible=race_countdown>0.0
+		countdown_label.text="3" if race_countdown>0.0 else ""
+	if results_panel!=null:
+		results_panel.hide()
 
 func toggle_camera() -> void:
 	if feedback.showroom_upload:
@@ -858,9 +1035,13 @@ func track_progress(index: int) -> void:
 			best=lap_time
 			if lap_time>0.0:
 				save_best()
+		if race_mode==MODE_SOLO_RACE and not race_finished:
+			race_splits.append(lap_time)
 		lap+=1
 		lap_time=0
 		checkpoint=0
+		if race_mode==MODE_SOLO_RACE and race_splits.size()>=RACE_LAPS:
+			finish_solo_race()
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_APPLICATION_FOCUS_OUT:
@@ -872,7 +1053,7 @@ func _notification(what: int) -> void:
 		driving_touches.clear()
 
 func _input(event: InputEvent) -> void:
-	if track_menu.visible:
+	if track_menu.visible or event_menu.visible or results_panel.visible or race_countdown>0.0:
 		return
 	var screen := get_viewport().get_visible_rect().size
 	var control_top := screen.y-160
@@ -997,6 +1178,12 @@ func prepare_jump_capture() -> void:
 	hud.text=track_name()+" / JUMP\nD %03d KM/H\nAIRBORNE / %.1f s"%[int(speed*3.6),air_time]
 
 func _physics_process(delta: float) -> void:
+	if race_finished or track_menu.visible or event_menu.visible or results_panel.visible:
+		return
+	if race_mode!=MODE_FREE and advance_countdown(delta):
+		return
+	if race_mode!=MODE_FREE:
+		race_elapsed+=delta
 	var boost_requested := boost or Input.is_physical_key_pressed(KEY_SHIFT)
 	var gas := throttle or boost_requested or Input.is_physical_key_pressed(KEY_W) or Input.is_physical_key_pressed(KEY_UP)
 	var stopping := brake or Input.is_physical_key_pressed(KEY_S) or Input.is_physical_key_pressed(KEY_DOWN)
@@ -1061,7 +1248,7 @@ func _physics_process(delta: float) -> void:
 	feedback.position.y-=landing_kick
 	if not airborne:
 		feedback.rotation.z+=atan(bank)
-	if absf(speed) > 0.1:
+	if race_mode!=MODE_FREE or absf(speed)>0.1:
 		lap_running=true
 	if lap_running:
 		lap_time += delta
@@ -1072,7 +1259,9 @@ func _physics_process(delta: float) -> void:
 		track_progress(nearest["index"])
 	update_camera(delta)
 	boost_button.text = "%s / %03d%%" % ["BOOST" if not boost_locked else "RECHARGING",int(boost_energy)]
-	hud.text = track_name()+" / LAP %d\n%s %03d KM/H  ·  %.1f s\nBEST %s  ·  %d FPS\n%s" % [lap,"R" if speed < -0.05 else "D",int(absf(speed)*3.6),lap_time,"—" if best==0 else "%.1f s"%best,Engine.get_frames_per_second(),("AIRBORNE / %.1f s"%air_time) if airborne else DISTRICTS[int(nearest["index"])/(COUNT/4)]]
+	if not race_finished:
+		var event_name := "FREE DRIVE" if race_mode==MODE_FREE else ("TIME TRIAL" if race_mode==MODE_TIME_TRIAL else "3-LAP CHALLENGE")
+		hud.text = track_name()+" / "+event_name+" / LAP %d\n%s %03d KM/H  ·  %.1f s\nBEST %s  ·  %d FPS\n%s" % [lap,"R" if speed < -0.05 else "D",int(absf(speed)*3.6),lap_time,"—" if best==0 else "%.1f s"%best,Engine.get_frames_per_second(),("AIRBORNE / %.1f s"%air_time) if airborne else DISTRICTS[int(nearest["index"])/(COUNT/4)]]
 
 func resolve_wall(center: Vector3, limit: float) -> void:
 	var offset := flat(car.position-center)
