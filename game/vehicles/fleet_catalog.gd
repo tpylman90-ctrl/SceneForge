@@ -2,7 +2,7 @@ extends RefCounted
 
 const IDS := ["kestrel","piledriver","shrike","mantis","aurora","forge","synapse","tremor","aerolith"]
 const NAMES := ["KESTREL","PYLDRIVER","SHRIKE","MANTIS","AURORA","FORGE","SYNAPSE","TREMOR","AEROLITH"]
-const NOTES := ["Balanced raptor / slate and burnt orange", "Armored racer / purple and brass", "Wide-body interceptor / silver, lime and deep purple", "Stable utility racer / olive green", "Fast swept speedster / blue and copper", "Precision racer / graphite and amber", "AI racer / active four-point hover array and ion propulsion", "Tremor MK II / armored hammerhead, framed cabin and caged reactor", "Satin-titanium manta interceptor / twin vectored plasma turbines"]
+const NOTES := ["Balanced raptor / slate and burnt orange", "Armored racer / purple and brass", "Wide-body interceptor / silver, lime and deep purple", "Stable utility racer / olive green", "Fast swept speedster / blue and copper", "Precision racer / graphite and amber", "AI racer / active four-point hover array and ion propulsion", "Tremor MK III / armored box SUV, tall roof and square hover pods", "Satin-titanium manta interceptor / twin vectored plasma turbines"]
 
 # The user-approved Shrike GLB is now the main drive model as well as the showroom model.
 # AEROLITH uses the optimized original LOD1 during races, and LOD0 in the garage.
@@ -14,7 +14,7 @@ static func definition(index: int, presentation_only: bool = false) -> Resource:
 	index=clampi(index,0,IDS.size()-1)
 	var craft: Resource=preload("res://vehicles/kestrel.tres").duplicate(true)
 	craft.chassis_id=IDS[index]
-	craft.display_name=NAMES[index]+(" / MK II" if index==7 else " / MK I")
+	craft.display_name=NAMES[index]+(" / MK III" if index==7 else " / MK I")
 	if index==0:craft.footprint_stretch=1.7
 	if index>0:
 		craft.visual_scene="res://assets/fleet/"+IDS[index]+".glb"
