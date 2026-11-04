@@ -24,11 +24,11 @@ bpy.ops.object.delete(use_global=False)
 # separate objects or joined islands. Smooth piecewise Hermite interpolation
 # avoids Catmull-Rom overshoot near the nose and tail.
 STATIONS = [
-    (-4.18, .55, .33, .84), (-3.68, 1.17, .32, 1.01),
-    (-2.65, 1.47, .35, 1.19), (-1.45, 1.47, .37, 1.20),
-    (-.20, 1.52, .36, 1.19), (1.26, 1.51, .34, 1.15),
-    (2.42, 1.40, .33, 1.09), (3.31, 1.13, .30, .92),
-    (4.08, .41, .34, .68),
+    (-4.18, .96, .33, .95), (-3.68, 1.35, .32, 1.10),
+    (-2.65, 1.64, .35, 1.21), (-1.45, 1.26, .37, 1.17),
+    (-.20, 1.19, .36, 1.15), (1.26, 1.29, .34, 1.17),
+    (2.42, 1.59, .33, 1.11), (3.31, 1.26, .30, .97),
+    (4.08, .49, .34, .74),
 ]
 NZ = 92
 NR = 72
@@ -76,18 +76,22 @@ def shell_point(z, angle):
     a = math.acos(max(-1., min(1., math.cos(angle))))
     side = math.sin(angle)
     # Integrate fender volume into the underlying hull surface itself.
-    front_flare = .16 * gaussian(z, 2.33, .87)
-    rear_flare = .23 * gaussian(z, -2.52, 1.02)
-    fender = (front_flare + rear_flare) * gaussian(a, 1.25, .55)
-    carved_waist = .115 * gaussian(z, -.08, 1.5) * gaussian(a, 1.59, .29)
+    front_flare = .24 * gaussian(z, 2.40, .92)
+    rear_flare = .28 * gaussian(z, -2.55, 1.12)
+    fender = (front_flare + rear_flare) * gaussian(a, 1.19, .55)
+    carved_waist = .24 * gaussian(z, -.08, 1.60) * gaussian(a, 1.57, .35)
     x = side * (width + fender - carved_waist)
     upper = ((1. + math.cos(angle)) * .5) ** .80
-    ridge = (.18 * gaussian(z, 2.35, 1.03) +
-             .26 * gaussian(z, -2.55, 1.25)) * gaussian(a, .83, .29)
-    lower_channel = .075 * gaussian(z, .1, 1.65) * gaussian(a, 2.23, .32)
+    ridge = (.42 * gaussian(z, 2.38, .98) +
+             .51 * gaussian(z, -2.54, 1.12)) * gaussian(a, .77, .31)
+    lower_channel = .105 * gaussian(z, .1, 1.65) * gaussian(a, 2.23, .32)
     y = bottom + (deck - bottom) * upper + ridge + lower_channel
-    # A real, continuous deep rocker/energy trench beneath the shoulder.
-    y -= .07 * gaussian(z, .0, 1.85) * gaussian(a, 1.78, .27)
+    # Twin recessed bonnet valleys and a raised center spine are formed in
+    # the primary body surface: not overlaid painted stripes or stuck panels.
+    y -= .155 * gaussian(z, 2.37, .93) * gaussian(a, .42, .18)
+    y += .075 * gaussian(z, 2.47, 1.12) * gaussian(a, 0., .15)
+    # A real continuous deep rocker/energy trench beneath the shoulder.
+    y -= .115 * gaussian(z, .0, 1.85) * gaussian(a, 1.78, .28)
     return (x, y, z)
 
 def material(name, rgb, metallic=.0, roughness=.5, alpha=1., glow=0.):
@@ -136,7 +140,20 @@ zs = [STATIONS[0][0] +
 angles = [2.*math.pi*j/NR for j in range(NR)]
 hull_pts = [shell_point(z,a) for z in zs for a in angles]
 hull_faces = []
+hull_face_material = []
 aperture_quads = 0
+# Rectangular, indexed inset duct zones on both rear shoulders. The rim,
+# recess floor and walls will SHARE the original body boundary vertices.
+# No dark rectangle or raised block is glued to the car's side.
+def index_at_z(value):
+    return min(range(NZ), key=lambda i: abs(zs[i]-value))
+def index_at_angle(value):
+    return round(value*NR/(2*math.pi))
+scoops=[]
+for jstart,jend in [(index_at_angle(1.13),index_at_angle(1.64)),
+                    (index_at_angle(2*math.pi-1.64),
+                     index_at_angle(2*math.pi-1.13))]:
+    scoops.append((index_at_z(-2.70),index_at_z(-1.68),jstart,jend))
 for k in range(NZ-1):
     middle_z = .5*(zs[k]+zs[k+1])
     for j in range(NR):
@@ -146,16 +163,56 @@ for k in range(NZ-1):
         if APERTURE_Z[0] < middle_z < APERTURE_Z[1] and unsigned < APERTURE_THETA:
             aperture_quads += 1
             continue
+        if any(k0<=k<k1 and j0<=j<j1 for k0,k1,j0,j1 in scoops):
+            continue
         a=k*NR+j
         b=k*NR+next_j
         c=(k+1)*NR+j
         d=(k+1)*NR+next_j
         hull_faces.append((a,c,d,b))
+        hull_face_material.append(0)
+# Each duct is a real, recessed four-sided cavity in the same indexed mesh.
+# Dark face material gives depth, while rim edges are shared with the hull.
+scoop_quads=0
+for k0,k1,j0,j1 in scoops:
+    inner={}
+    for k in range(k0,k1+1):
+        for j in range(j0,j1+1):
+            outer=hull_pts[k*NR+j]
+            x,y,z=outer
+            inside=(x-math.copysign(.24,x),y-.045,z)
+            inner[(k,j)]=len(hull_pts)
+            hull_pts.append(inside)
+    for k in range(k0,k1):
+        for j in range(j0,j1):
+            hull_faces.append((inner[(k,j)],inner[(k+1,j)],
+                               inner[(k+1,j+1)],inner[(k,j+1)]))
+            hull_face_material.append(1)
+            scoop_quads+=1
+    for j in range(j0,j1):
+        hull_faces.append((k0*NR+j,k0*NR+j+1,
+                           inner[(k0,j+1)],inner[(k0,j)]))
+        hull_face_material.append(1)
+        hull_faces.append((k1*NR+j,k1*NR+j+1,
+                           inner[(k1,j+1)],inner[(k1,j)]))
+        hull_face_material.append(1)
+    for k in range(k0,k1):
+        hull_faces.append((k*NR+j0,(k+1)*NR+j0,
+                           inner[(k+1,j0)],inner[(k,j0)]))
+        hull_face_material.append(1)
+        hull_faces.append((k*NR+j1,(k+1)*NR+j1,
+                           inner[(k+1,j1)],inner[(k,j1)]))
+        hull_face_material.append(1)
 # End caps intentionally seal the pointed nose and flat rear; central opening
 # remains open for cockpit visibility (Solidify will give it a proper rim).
 hull_faces.append(tuple(reversed(range(NR))))
 hull_faces.append(tuple((NZ-1)*NR+j for j in range(NR)))
+hull_face_material.extend([0,0])
 hull = geometry("SOLSTICE_UNIFIED_OUTER_SKIN", hull_pts, hull_faces, paint)
+hull.data.materials.append(dark)
+assert len(hull.data.polygons)==len(hull_face_material)
+for polygon,slot in zip(hull.data.polygons,hull_face_material):
+    polygon.material_index=slot
 thickness = hull.modifiers.new("Stamped body skin 28 mm", "SOLIDIFY")
 thickness.thickness = .028
 thickness.offset = -1.
@@ -296,16 +353,24 @@ for z,position_name in [(2.32,"Front"),(-2.52,"Rear")]:
     for side,label in [(-1,"Port"),(1,"Starboard")]:
         x=side*(1.08 if z>0 else 1.17)
         prefix="SOLSTICE_"+position_name+"_"+label
-        cylinder(prefix+"_Magnetic_Deck",x,.285,z,.41,.075,dark)
-        torus(prefix+"_Machined_Retainer",x,.265,z,.37,.045,metal)
-        torus(prefix+"_Flux_Ring",x,.227,z,.28,.040,glow)
-        cylinder(prefix+"_Field_Emitter",x,.215,z,.20,.016,ice)
+        # A true half-buried fairing bridges the recessed field to the body.
+        bpy.ops.mesh.primitive_uv_sphere_add(segments=24,ring_count=12,
+                                            location=cv((x,.42,z)))
+        pod=bpy.context.object
+        pod.name=prefix+"_Integrated_Hover_Fairing"
+        pod.scale=(.53,.79,.17)  # X, Blender longitudinal Y, vertical Z
+        pod.data.materials.append(paint)
+        for face in pod.data.polygons:face.use_smooth=True
+        cylinder(prefix+"_Magnetic_Deck",x,.325,z,.39,.065,dark)
+        torus(prefix+"_Machined_Retainer",x,.304,z,.35,.038,metal)
+        torus(prefix+"_Flux_Ring",x,.267,z,.285,.032,glow)
+        cylinder(prefix+"_Field_Emitter",x,.265,z,.19,.010,ice)
 # Twin actual propulsion tubes behind the broad structural tail.
 for side,label in [(-1,"Port"),(1,"Starboard")]:
     x=side*.81
-    cylinder("SOLSTICE_"+label+"_Rear_Thruster",x,.76,-3.83,.34,.29,dark,"FORWARD")
-    torus("SOLSTICE_"+label+"_Rear_Nozzle_Lip",x,.76,-4.01,.295,.033,metal,True)
-    cylinder("SOLSTICE_"+label+"_Plasma_Core",x,.76,-4.025,.215,.018,glow,"FORWARD")
+    cylinder("SOLSTICE_"+label+"_Rear_Thruster",x,.78,-3.91,.35,.27,dark,"FORWARD")
+    torus("SOLSTICE_"+label+"_Rear_Nozzle_Lip",x,.78,-4.12,.29,.032,metal,True)
+    cylinder("SOLSTICE_"+label+"_Plasma_Core",x,.78,-4.14,.205,.015,glow,"FORWARD")
 # Flush, not floating: exterior lighting follows the vehicle's functional edges.
 rounded_block("SOLSTICE_Thin_Tail_Lightbar",(0,1.07,-4.11),
               (1.19,.035,.025),ice,.014)
@@ -315,12 +380,14 @@ for side,label in [(-1,"Port"),(1,"Starboard")]:
 
 # Validate on the original source before any export operator can change it.
 assert aperture_quads>250, "Actual cockpit opening was not generated"
-assert len(hull.data.vertices)==NZ*NR, "Unexpected disconnected hull vertices"
+assert len(hull.data.vertices)==NZ*NR+sum((k1-k0+1)*(j1-j0+1) for k0,k1,j0,j1 in scoops), "Unexpected body cage vertices"
+assert scoop_quads>50, "Integrated shoulder intake geometry missing"
 assert all(face.loop_total in (3,4,NR) for face in hull.data.polygons)
 assert len(hull.data.polygons)>4500
 assert len([o for o in bpy.data.objects if o.name=="SOLSTICE_UNIFIED_OUTER_SKIN"])==1
 print("SCENEFORGE_SOLSTICE_CONNECTED_BODY_OK",len(hull.data.vertices),
-      len(hull.data.polygons),"opening_quads",aperture_quads)
+      len(hull.data.polygons),"opening_quads",aperture_quads,
+      "recessed_scoop_quads",scoop_quads)
 
 authored=[o for o in bpy.data.objects if o.type in ("MESH","CURVE")]
 # Render assets directly from Blender, not conceptual AI images.
@@ -359,12 +426,12 @@ def stage_camera(pos,focus=(0,1.05,0),scale=10.5):
 # Save full editable vehicle, including bevel/solidify and spline controls.
 bpy.ops.wm.save_as_mainfile(filepath=str((OUT/"Solstice_S01_Master.blend").resolve()))
 views=[
-    ("hero",(6.6,3.65,8.7),11.5),
-    ("rear-quarter",(-6.7,3.6,-8.6),11.5),
-    ("side",(11.4,2.45,0),10.8),
-    ("front",(0,2.55,11.5),7.4),
-    ("rear",(0,2.6,-11.5),7.4),
-    ("top",(0,11.3,0),10.5),
+    ("hero",(6.6,3.65,8.7),9.8),
+    ("rear-quarter",(-6.7,3.6,-8.6),9.8),
+    ("side",(11.4,2.45,0),9.5),
+    ("front",(0,2.55,11.5),5.9),
+    ("rear",(0,2.6,-11.5),5.9),
+    ("top",(0,11.3,0),9.3),
 ]
 for name,pos,scale in views:
     stage_camera(pos,scale=scale)
@@ -377,7 +444,7 @@ original_colors=[(m,m.diffuse_color[:]) for m in [paint,metal,dark]]
 for m,c in original_colors:
     m.diffuse_color=(.55,.58,.61,1.)
 studio.color_type="MATERIAL"
-stage_camera((6.6,3.65,8.7),scale=11.5)
+stage_camera((6.6,3.65,8.7),scale=9.8)
 scene.render.filepath=str((OUT/"Solstice-clay.png").resolve())
 bpy.ops.render.render(write_still=True)
 for m,c in original_colors:m.diffuse_color=c
@@ -424,6 +491,7 @@ report={
     "length_m":8.26,"estimated_width_m":3.40,
     "triangles":triangles,"glb_bytes":len(raw),
     "open_cockpit_quads":aperture_quads,
+    "recessed_scoop_quads":scoop_quads,
     "glazing":"independent mesh surfaces",
     "views":[x[0] for x in views]+["clay"],
 }
