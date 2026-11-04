@@ -540,7 +540,10 @@ assert aperture_quads>250, "Actual cockpit opening was not generated"
 assert "SOLSTICE_Port_Formed_A_Pillar" in bpy.data.objects
 assert "SOLSTICE_Starboard_Roof_to_Haunch_Buttress" in bpy.data.objects
 assert "SOLSTICE_Front_Port_Aft_Structural_Cradle" in bpy.data.objects
-assert len(hull.data.vertices)==NZ*NR+sum((k1-k0+1)*(j1-j0+1) for k0,k1,j0,j1 in scoops), "Unexpected body cage vertices"
+expected_recess_vertices=sum(
+    (k1-k0+1)*(j1-j0+1)+2*((k1-k0)+(j1-j0))
+    for (k0,k1,j0,j1),kind in recesses)
+assert len(hull.data.vertices)==NZ*NR+expected_recess_vertices, "Unexpected body cage vertices"
 assert scoop_quads>50, "Integrated shoulder intake geometry missing"
 assert extractor_quads>50, "True shared-hull hood extractor recesses missing"
 assert formed_lip_segments>60, "Stamped lip geometry missing"
