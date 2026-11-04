@@ -334,6 +334,6 @@ jobs:
           files=(build/SceneForge.apk build/SceneForge-debug.apk build/SHA256SUMS.txt build/BUILD.txt)
           while IFS= read -r -d '' file; do
             files+=("$file")
-          done < <(find build -maxdepth 1 -type f \\( -name '*.png' -o -name '*.json' \\) -print0)
+          done < <(find build -maxdepth 1 -type f \( -name '*.png' -o -name '*.json' \) -print0)
           gh release upload pipeline-latest "${files[@]}" --clobber
           gh release edit pipeline-latest --notes "Successful pipeline build #$GITHUB_RUN_NUMBER from commit $GITHUB_SHA. Permanent release signing verified. Download SceneForge.apk. Screenshots are selectively captured; historical approved gallery images may belong to an earlier run."
