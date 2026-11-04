@@ -4,6 +4,13 @@ on:
     branches: [main]
   pull_request:
   workflow_dispatch:
+    inputs:
+      capture_scope:
+        description: 'Screenshots: auto change detection, active projects, full gallery, or none'
+        required: false
+        default: auto
+        type: choice
+        options: [auto, active, full, none]
 permissions:
   contents: read
 # Finish already-running APK verification even when an unrelated source
@@ -20,6 +27,27 @@ jobs:
     timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Select captures affected by this change
+        shell: bash
+        env:
+          BEFORE_SHA: ${{ github.event.before }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          CAPTURE_SCOPE: ${{ inputs.capture_scope || 'auto' }}
+        run: |
+          set -euo pipefail
+          python3 -m unittest discover -s tools/tests -p 'test_ci_capture_plan.py'
+          mkdir -p build
+          : > build/changed-files.txt
+          if [[ "$GITHUB_EVENT_NAME" == "push" && -n "$BEFORE_SHA" && "$BEFORE_SHA" != "0000000000000000000000000000000000000000" ]]; then
+            git diff --name-only "$BEFORE_SHA" "$GITHUB_SHA" > build/changed-files.txt
+          elif [[ "$GITHUB_EVENT_NAME" == "pull_request" && -n "$PR_BASE_SHA" ]]; then
+            git diff --name-only "$PR_BASE_SHA"...HEAD > build/changed-files.txt
+          elif [[ "$GITHUB_EVENT_NAME" == "push" ]]; then
+            git show --pretty='' --name-only HEAD > build/changed-files.txt
+          fi
+          python3 tools/ci_capture_plan.py --changes build/changed-files.txt --scope "$CAPTURE_SCOPE" --env-file "$GITHUB_ENV" --summary "$GITHUB_STEP_SUMMARY" | tee build/capture-plan.txt
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -125,38 +153,26 @@ jobs:
           godot --headless --path game --editor --import 2>&1 | tee build/import.log
           godot --headless --verbose --path game --quit-after 60 2>&1 | tee build/smoke.log
           if grep -E 'SCRIPT ERROR:|ERROR:' build/import.log build/smoke.log; then exit 1; fi
-      - name: Capture actual Godot scene
-        env:
-          LIBGL_ALWAYS_SOFTWARE: '1'
+      - name: Install headless renderer
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y xvfb libgl1-mesa-dri
-          timeout 120 xvfb-run -a godot --audio-driver Dummy --path game --rendering-method gl_compatibility --resolution 1280x720 -- --capture
-          test -s build/NeonFoundry-ingame.png
-          timeout 120 xvfb-run -a godot --audio-driver Dummy --path game --rendering-method gl_compatibility --resolution 1280x720 -- --capture --road-closeup
-          test -s build/NeonFoundry-road.png
-          timeout 120 xvfb-run -a godot --audio-driver Dummy --path game --rendering-method gl_compatibility --resolution 1280x720 -- --capture --vehicle-view
-          test -s build/Kestrel-hovercar.png
-          timeout 120 xvfb-run -a godot --audio-driver Dummy --path game --rendering-method gl_compatibility --resolution 1280x720 -- --capture --vehicle-tail
-          test -s build/Kestrel-tail.png
-          timeout 120 xvfb-run -a godot --audio-driver Dummy --path game --rendering-method gl_compatibility --resolution 1280x720 -- --capture --cockpit-view
-          test -s build/Kestrel-cockpit.png
-          timeout 120 xvfb-run -a godot --audio-driver Dummy --path game --rendering-method gl_compatibility --resolution 1280x720 -- --capture --door-open
-          test -s build/Kestrel-door-open.png
-          timeout 120 xvfb-run -a godot --audio-driver Dummy --path game --rendering-method gl_compatibility --resolution 1280x720 -- --capture --seat-view
-          test -s build/Kestrel-driver-seat.png
+      - name: Verify Foundry doors and comparison benchmark
+        env:
+          LIBGL_ALWAYS_SOFTWARE: '1'
+        shell: bash
+        run: |
+          set -euo pipefail
           timeout 120 xvfb-run -a godot --audio-driver Dummy --path game --rendering-method gl_compatibility --resolution 1280x720 -- --door-motion-smoke 2>&1 | tee build/door-motion.log
           if grep -E 'SCRIPT ERROR:|ERROR:' build/door-motion.log; then exit 1; fi
           grep SCENEFORGE_DOOR_MOTION_OK build/door-motion.log
-          timeout 120 xvfb-run -a godot --audio-driver Dummy --path game --rendering-method gl_compatibility --resolution 1280x720 -- --capture --rear-view
-          test -s build/NeonFoundry-rear.png
           timeout 120 xvfb-run -a godot --audio-driver Dummy --path game --rendering-method gl_compatibility --resolution 1280x720 -- --benchmark-smoke 2>&1 | tee build/comparison-smoke.log
           if grep -E 'SCRIPT ERROR:|ERROR:' build/comparison-smoke.log; then exit 1; fi
           grep SCENEFORGE_COMPARISON build/comparison-smoke.log
-      - name: Verify city loop driving and capture
-        env:
-          LIBGL_ALWAYS_SOFTWARE: '1'
+      - name: Run all driving and circuit tests
+        shell: bash
         run: |
+          set -euo pipefail
           timeout 120 godot --headless --path game res://city_loop.tscn -- --track-smoke 2>&1 | tee build/city-loop.log
           if grep -E 'SCRIPT ERROR:|ERROR:' build/city-loop.log; then exit 1; fi
           grep SCENEFORGE_CITY_LOOP_OK build/city-loop.log
@@ -180,112 +196,58 @@ jobs:
           timeout 120 godot --headless --path game --script res://tests/wall_rebound_test.gd 2>&1 | tee build/wall-rebound.log
           if grep -E 'SCRIPT ERROR:|ERROR:' build/wall-rebound.log; then exit 1; fi
           grep WALL_REBOUND_OK build/wall-rebound.log
-          timeout 120 xvfb-run -a godot --audio-driver Dummy --path game --rendering-method gl_compatibility --resolution 1280x720 res://city_loop.tscn -- --capture 2>&1 | tee build/loop-track-render.log
-          test -s build/NeonLoop-track.png
-          timeout 120 xvfb-run -a godot --audio-driver Dummy --path game --rendering-method gl_compatibility --resolution 1280x720 res://city_loop.tscn -- --capture --track-cockpit --track-action --sound-on 2>&1 | tee build/loop-cockpit-render.log
-          test -s build/NeonLoop-cockpit.png
-          timeout 120 xvfb-run -a godot --audio-driver Dummy --path game --rendering-method gl_compatibility --resolution 1280x720 res://city_loop.tscn -- --capture --track-action --sound-on 2>&1 | tee build/loop-action-render.log
-          test -s build/NeonLoop-action.png
-          timeout 120 xvfb-run -a godot --audio-driver Dummy --path game --rendering-method gl_compatibility --resolution 1280x720 res://city_loop.tscn -- --capture --track-overview 2>&1 | tee build/loop-overview-render.log
-          test -s build/NeonLoop-overview.png
-          timeout 120 xvfb-run -a godot --audio-driver Dummy --path game --rendering-method gl_compatibility --resolution 1280x720 res://city_loop.tscn -- --capture --track-jump 2>&1 | tee build/loop-jump-render.log
-          test -s build/NeonCross-jump.png
-          timeout 120 xvfb-run -a godot --audio-driver Dummy --path game --rendering-method gl_compatibility --resolution 1280x720 res://city_loop.tscn -- --capture --track-jump --track-cockpit 2>&1 | tee build/loop-jump-cockpit-render.log
-          test -s build/NeonCross-jump-cockpit.png
-          for circuit in 1 2 3; do
-            timeout 120 xvfb-run -a godot --audio-driver Dummy --path game --rendering-method gl_compatibility --resolution 1280x720 res://city_loop.tscn -- --capture --track-overview --circuit-$circuit 2>&1 | tee build/loop-circuit-$circuit-overview-render.log
-            timeout 120 xvfb-run -a godot --audio-driver Dummy --path game --rendering-method gl_compatibility --resolution 1280x720 res://city_loop.tscn -- --capture --track-cockpit --track-action --circuit-$circuit 2>&1 | tee build/loop-circuit-$circuit-cockpit-render.log
-            timeout 120 xvfb-run -a godot --audio-driver Dummy --path game --rendering-method gl_compatibility --resolution 1280x720 res://city_loop.tscn -- --capture --track-jump --circuit-$circuit 2>&1 | tee build/loop-circuit-$circuit-jump-render.log
-          done
-          timeout 120 xvfb-run -a godot --audio-driver Dummy --path game --rendering-method gl_compatibility --resolution 1280x720 res://city_loop.tscn -- --capture --track-menu 2>&1 | tee build/loop-menu-render.log
-          for circuit in 4 5 6; do
-            timeout 120 xvfb-run -a godot --audio-driver Dummy --path game --rendering-method gl_compatibility --resolution 1280x720 res://city_loop.tscn -- --capture --track-overview --circuit-$circuit 2>&1 | tee build/loop-crimson-$circuit-overview-render.log
-            timeout 120 xvfb-run -a godot --audio-driver Dummy --path game --rendering-method gl_compatibility --resolution 1280x720 res://city_loop.tscn -- --capture --track-cockpit --track-action --circuit-$circuit 2>&1 | tee build/loop-crimson-$circuit-cockpit-render.log
-            timeout 120 xvfb-run -a godot --audio-driver Dummy --path game --rendering-method gl_compatibility --resolution 1280x720 res://city_loop.tscn -- --capture --track-jump --circuit-$circuit 2>&1 | tee build/loop-crimson-$circuit-jump-render.log
-          done
-          for name in Skyway ViperRift IronHarbor CrimsonSerpent RedMesa DevilsGate; do
-            test -s build/$name-overview.png
-            test -s build/$name-cockpit.png
-            test -s build/$name-jump.png
-          done
-          test -s build/Circuit-select.png
-          if grep -E 'SCRIPT ERROR:|ERROR:' build/loop-*-render.log; then exit 1; fi
-      - name: Verify and capture selectable fleet
+      - name: Capture only changed tracks
+        if: env.CAPTURE_TRACKS != ''
         env:
           LIBGL_ALWAYS_SOFTWARE: '1'
+        run: bash tools/ci_capture_tracks.sh
+      - name: Verify every vehicle and Foundry selection
+        shell: bash
         run: |
+          set -euo pipefail
           timeout 180 godot --headless --path game --script res://tests/fleet_test.gd 2>&1 | tee build/fleet-test.log
           if grep -E 'SCRIPT ERROR:|ERROR:' build/fleet-test.log; then exit 1; fi
           grep FLEET_OK build/fleet-test.log
           grep FLEET_AEROLITH_ORIGINAL_DRIVE_MODEL_OK build/fleet-test.log
           grep FLEET_SHRIKE_UPLOADED_DRIVE_OK build/fleet-test.log
-          # MK III uses the same proven vehicle physics, but the new roof,
-          # camera and wheelhouse proportions must survive all four tracks.
           grep -q 'FLEET_LAP_OK tremor' build/fleet-test.log
           timeout 120 godot --headless --path game --script res://tests/foundry_selection_test.gd 2>&1 | tee build/foundry-selection.log
           if grep -E 'SCRIPT ERROR:|ERROR:' build/foundry-selection.log; then exit 1; fi
           grep FOUNDRY_FLEET_OK build/foundry-selection.log
           grep -q 'FOUNDRY_SELECTION_OK tremor' build/foundry-selection.log
-          timeout 120 xvfb-run -a godot --audio-driver Dummy --path game --rendering-method gl_compatibility --resolution 1280x720 -- --capture --craft-1 2>&1 | tee build/foundry-pyldriver-render.log
-          timeout 120 xvfb-run -a godot --audio-driver Dummy --path game --rendering-method gl_compatibility --resolution 1280x720 -- --capture --craft-1 --seat-view 2>&1 | tee build/foundry-pyldriver-seat-render.log
-          test -s build/Foundry-piledriver.png
-          test -s build/Foundry-piledriver-seat.png
-          # These are genuine runtime screenshots of the user-uploaded
-          # Shrike in the actual garage and Fleet scene.
-          timeout 120 xvfb-run -a godot --audio-driver Dummy --path game --rendering-method gl_compatibility --resolution 1280x720 -- --capture --craft-2 2>&1 | tee build/foundry-shrike-render.log
-          test -s build/Foundry-shrike.png
-          grep -q SCENEFORGE_SHRIKE_UPLOADED_SHOWROOM_OK build/foundry-shrike-render.log
-          timeout 120 xvfb-run -a godot --audio-driver Dummy --path game --rendering-method gl_compatibility --resolution 1280x720 res://fleet_hangar.tscn -- --capture --craft-2 --fleet-hero --fleet-clean 2>&1 | tee build/fleet-shrike-uploaded-render.log
-          test -s build/Fleet-shrike-hero-clean.png
-          grep -q SCENEFORGE_SHRIKE_UPLOADED_SHOWROOM_OK build/fleet-shrike-uploaded-render.log
-          # Temporary windshield-only review: bodywork stays identical outside.
-          timeout 120 xvfb-run -a godot --audio-driver Dummy --path game --rendering-method gl_compatibility --resolution 1280x720 res://fleet_hangar.tscn -- --capture --craft-2 --fleet-cockpit 2>&1 | tee build/fleet-shrike-cockpit-render.log
-          timeout 120 xvfb-run -a godot --audio-driver Dummy --path game --rendering-method gl_compatibility --resolution 1280x720 -- --capture --craft-2 --seat-view 2>&1 | tee build/foundry-shrike-seat-render.log
-          test -s build/Fleet-shrike-cockpit.png
-          test -s build/Foundry-shrike-seat.png
-          grep -q SCENEFORGE_SHRIKE_WINDSCREEN_SEPARATED build/fleet-shrike-cockpit-render.log
-          if grep -E 'SCRIPT ERROR:|ERROR:' build/*shrike*-render.log; then exit 1; fi
-          # Verify the entirely rebuilt square-shouldered Tremor MK III
-          # in actual game views before exporting the signed APK.
-          timeout 120 xvfb-run -a godot --audio-driver Dummy --path game --rendering-method gl_compatibility --resolution 1280x720 -- --capture --craft-7 2>&1 | tee build/foundry-tremor-render.log
-          test -s build/Foundry-tremor.png
-          timeout 120 xvfb-run -a godot --audio-driver Dummy --path game --rendering-method gl_compatibility --resolution 1280x720 res://fleet_hangar.tscn -- --capture --craft-7 --fleet-hero --fleet-clean 2>&1 | tee build/fleet-tremor-hero-render.log
-          test -s build/Fleet-tremor-hero-clean.png
-          timeout 120 xvfb-run -a godot --audio-driver Dummy --path game --rendering-method gl_compatibility --resolution 1280x720 res://fleet_hangar.tscn -- --capture --craft-7 --fleet-rear-quarter --fleet-clean 2>&1 | tee build/fleet-tremor-rear-render.log
-          test -s build/Fleet-tremor-rear-quarter-clean.png
-          if grep -E 'SCRIPT ERROR:|ERROR:' build/*tremor*-render.log; then exit 1; fi
-          # Full-resolution original for inspection, optimized original for racing.
-          timeout 120 xvfb-run -a godot --audio-driver Dummy --path game --rendering-method gl_compatibility --resolution 1280x720 -- --capture --craft-8 2>&1 | tee build/foundry-aerolith-render.log
-          test -s build/Foundry-aerolith.png
-          grep -q SCENEFORGE_AEROLITH_DRIVE_MODEL_OK build/foundry-aerolith-render.log
-          timeout 120 xvfb-run -a godot --audio-driver Dummy --path game --rendering-method gl_compatibility --resolution 1280x720 res://fleet_hangar.tscn -- --capture --craft-8 --fleet-hero --fleet-clean 2>&1 | tee build/fleet-aerolith-render.log
-          test -s build/Fleet-aerolith-hero-clean.png
-          grep -q SCENEFORGE_AEROLITH_DRIVE_MODEL_OK build/fleet-aerolith-render.log
-          for craft in 0 1 2 3 4 5 6 7 8; do
-            timeout 120 xvfb-run -a godot --audio-driver Dummy --path game --rendering-method gl_compatibility --resolution 1280x720 res://fleet_hangar.tscn -- --capture --craft-$craft 2>&1 | tee build/fleet-$craft-render.log
-          done
-          for view in tail side top cockpit under; do
-            timeout 120 xvfb-run -a godot --audio-driver Dummy --path game --rendering-method gl_compatibility --resolution 1280x720 res://fleet_hangar.tscn -- --capture --craft-1 --fleet-$view 2>&1 | tee build/fleet-pyldriver-$view-render.log
-            test -s build/Fleet-piledriver-$view.png
-          done
-          for view in nose side top cockpit; do
-            timeout 120 xvfb-run -a godot --audio-driver Dummy --path game --rendering-method gl_compatibility --resolution 1280x720 res://fleet_hangar.tscn -- --capture --craft-5 --fleet-$view 2>&1 | tee build/fleet-forge-$view-render.log
-            test -s build/Fleet-forge-$view.png
-          done
-          for view in front rear side top under zoomed-rear; do
-            timeout 120 xvfb-run -a godot --audio-driver Dummy --path game --rendering-method gl_compatibility --resolution 1280x720 res://fleet_hangar.tscn -- --capture --craft-6 --fleet-$view 2>&1 | tee build/fleet-synapse-$view-render.log
-            test -s build/Fleet-synapse-$view.png
-          done
-          if grep -E 'SCRIPT ERROR:|ERROR:' build/fleet-*-render.log; then exit 1; fi
-          for name in kestrel piledriver shrike mantis aurora forge synapse tremor aerolith; do test -s build/Fleet-$name.png; done
-          for id in 2 8; do
-            timeout 120 xvfb-run -a godot --audio-driver Dummy --path game --rendering-method gl_compatibility --resolution 1280x720 res://city_loop.tscn -- --capture --craft-$id --track-action 2>&1 | tee build/drive-$id-render.log
-          done
-          test -s build/NeonLoop-shrike-driving.png
-          test -s build/NeonLoop-aerolith-driving.png
-          grep -q SCENEFORGE_SHRIKE_UPLOADED_SHOWROOM_OK build/drive-2-render.log
-          grep -q SCENEFORGE_AEROLITH_DRIVE_MODEL_OK build/drive-8-render.log
-          if grep -E 'SCRIPT ERROR:|ERROR:' build/drive-*-render.log; then exit 1; fi
+      - name: Capture Foundry only when affected
+        if: env.CAPTURE_FOUNDRY == '1'
+        env:
+          LIBGL_ALWAYS_SOFTWARE: '1'
+        shell: bash
+        run: |
+          set -euo pipefail
+          capture() {
+            local log="$1"; shift
+            timeout 120 xvfb-run -a godot --audio-driver Dummy --path game --rendering-method gl_compatibility --resolution 1280x720 -- --capture "$@" 2>&1 | tee "build/$log.log"
+            if grep -E 'SCRIPT ERROR:|ERROR:' "build/$log.log"; then return 1; fi
+          }
+          capture foundry-ingame-render
+          test -s build/NeonFoundry-ingame.png
+          capture foundry-road-render --road-closeup
+          test -s build/NeonFoundry-road.png
+          capture kestrel-body-render --vehicle-view
+          test -s build/Kestrel-hovercar.png
+          capture kestrel-tail-render --vehicle-tail
+          test -s build/Kestrel-tail.png
+          capture kestrel-cockpit-render --cockpit-view
+          test -s build/Kestrel-cockpit.png
+          capture kestrel-door-render --door-open
+          test -s build/Kestrel-door-open.png
+          capture kestrel-seat-render --seat-view
+          test -s build/Kestrel-driver-seat.png
+          capture foundry-rear-render --rear-view
+          test -s build/NeonFoundry-rear.png
+      - name: Capture only modified or requested craft
+        if: env.CAPTURE_FLEET != ''
+        env:
+          LIBGL_ALWAYS_SOFTWARE: '1'
+        run: bash tools/ci_capture_fleet.sh
       - name: Export and verify APK
         shell: bash
         run: |
@@ -368,5 +330,10 @@ jobs:
           if ! gh release view pipeline-latest >/dev/null 2>&1; then
             gh release create pipeline-latest --target "$GITHUB_SHA" --prerelease --title "SceneForge — latest Android test" --notes "Permanently signed Android build. Download SceneForge.apk."
           fi
-          gh release upload pipeline-latest build/SceneForge.apk build/SceneForge-debug.apk build/SHA256SUMS.txt build/BUILD.txt build/NeonFoundry-preview.png build/NeonFoundry-ingame.png build/NeonFoundry-road.png build/Kestrel-hovercar.png build/Kestrel-tail.png build/Kestrel-cockpit.png build/Kestrel-door-open.png build/Kestrel-driver-seat.png build/NeonFoundry-rear.png build/asset-report.json build/NeonLoop-track.png build/NeonLoop-cockpit.png build/NeonLoop-action.png build/NeonLoop-overview.png build/NeonCross-jump.png build/NeonCross-jump-cockpit.png build/Skyway-overview.png build/Skyway-cockpit.png build/Skyway-jump.png build/ViperRift-overview.png build/ViperRift-cockpit.png build/ViperRift-jump.png build/Circuit-select.png build/fleet-report.json build/Fleet-kestrel.png build/Fleet-piledriver.png build/Fleet-shrike.png build/Fleet-mantis.png build/Fleet-aurora.png build/Fleet-synapse.png build/Fleet-synapse-front.png build/Fleet-synapse-rear.png build/Fleet-synapse-side.png build/Fleet-synapse-top.png build/Fleet-synapse-under.png build/Fleet-synapse-zoomed-rear.png build/Fleet-piledriver-tail.png build/Fleet-piledriver-side.png build/Fleet-piledriver-top.png build/Fleet-piledriver-cockpit.png build/Fleet-piledriver-under.png build/Fleet-forge.png build/Fleet-forge-nose.png build/Fleet-forge-side.png build/Fleet-forge-top.png build/Fleet-forge-cockpit.png build/Foundry-piledriver.png build/Foundry-piledriver-seat.png build/Foundry-shrike.png build/Fleet-shrike-hero-clean.png build/Fleet-shrike-cockpit.png build/Foundry-shrike-seat.png build/Fleet-tremor.png build/Fleet-aerolith.png build/Fleet-aerolith-hero-clean.png build/Foundry-aerolith.png build/NeonLoop-shrike-driving.png build/NeonLoop-aerolith-driving.png build/Foundry-tremor.png build/Fleet-tremor-hero-clean.png build/Fleet-tremor-rear-quarter-clean.png build/IronHarbor-overview.png build/IronHarbor-cockpit.png build/IronHarbor-jump.png build/CrimsonSerpent-overview.png build/CrimsonSerpent-cockpit.png build/CrimsonSerpent-jump.png build/RedMesa-overview.png build/RedMesa-cockpit.png build/RedMesa-jump.png build/DevilsGate-overview.png build/DevilsGate-cockpit.png build/DevilsGate-jump.png --clobber
-          gh release edit pipeline-latest --notes "Successful pipeline build #$GITHUB_RUN_NUMBER from commit $GITHUB_SHA. Permanent release signing verified. Download SceneForge.apk; the debug variant remains available separately."
+          # Only upload photos produced by this run; do not require a stale fleet gallery.
+          files=(build/SceneForge.apk build/SceneForge-debug.apk build/SHA256SUMS.txt build/BUILD.txt)
+          while IFS= read -r -d '' file; do
+            files+=("$file")
+          done < <(find build -maxdepth 1 -type f \\( -name '*.png' -o -name '*.json' \\) -print0)
+          gh release upload pipeline-latest "${files[@]}" --clobber
+          gh release edit pipeline-latest --notes "Successful pipeline build #$GITHUB_RUN_NUMBER from commit $GITHUB_SHA. Permanent release signing verified. Download SceneForge.apk. Screenshots are selectively captured; historical approved gallery images may belong to an earlier run."
