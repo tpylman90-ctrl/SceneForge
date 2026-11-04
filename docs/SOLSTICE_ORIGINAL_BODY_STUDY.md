@@ -65,3 +65,27 @@ hover machinery replaced the initial generic smooth boat-like outline.
 Additional source-geometry validation checks for nonmanifold edges before
 Solidify. The latest review also produces two CPU Cycles PBR renders and runs
 a real Godot Compatibility GLB import test. The asset remains experimental.
+
+## S-01.3 greenhouse and mechanical refinement
+
+The approved basic 8.26 m proportions, original station profiles and the
+flowing hood/fender surfaces remain unchanged. The glass was rebuilt from
+shared boundary functions: front windscreen to roof, side glass to front
+screen and roof, and rear screen to roof are checked numerically at regular
+samples with 0.01 mm tolerance. A/B/C pillars are formed dark frame strips
+following the same edges; narrow bronze edge accents are secondary.
+
+The former detached rear sail surfaces have been replaced by smooth formed
+roof-to-haunch transitions. Their outer hem is located directly on evaluated
+rear shoulder surface coordinates (separate intentional manufactured panel).
+
+Eight tapered manufactured cradle webs connect the four hover emitter units
+to underbody anchoring coordinates. Three small louvres sit in each actual
+rear intake cavity. These details are supplementary to the main connected
+body, not fake disconnected fender panels.
+
+New review views: `Solstice-greenhouse.png` and
+`Solstice-rear-mechanics.png`. Automated gates enforce the glazing seam
+contract, structural part presence, triangle budget, clean main shell,
+GLB export and Godot Compatibility import. Artistic reflection matching
+and physical phone FPS remain review-required.
