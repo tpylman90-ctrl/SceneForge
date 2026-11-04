@@ -33,10 +33,11 @@ jobs:
           mkdir -p build/original-solstice
           xvfb-run -a /tmp/blender-4.5.3-linux-x64/blender --background --threads 4 --python tools/build_original_solstice.py 2>&1 | tee build/original-solstice/blender.log
           grep -q SCENEFORGE_SOLSTICE_CONNECTED_BODY_OK build/original-solstice/blender.log
+          grep -q SCENEFORGE_SOLSTICE_GREENHOUSE_SEAMS_OK build/original-solstice/blender.log
           grep -q SCENEFORGE_SOLSTICE_EXPORT_OK build/original-solstice/blender.log
           test -s build/original-solstice/Solstice_S01.glb
           test -s build/original-solstice/Solstice_S01_Master.blend
-          for view in hero rear-quarter front rear side top clay; do
+          for view in hero rear-quarter front rear side top clay greenhouse rear-mechanics; do
             test -s "build/original-solstice/Solstice-$view.png"
           done
           python - <<'PY'
@@ -48,6 +49,8 @@ jobs:
           assert v["open_cockpit_quads"]>250
           assert v["recessed_scoop_quads"]>50
           assert v["body_nonmanifold_edges"]==0
+          assert v["structural_cradle_count"]==8
+          assert v["rear_intake_louvre_count"]==6
           print("SOLSTICE_EXPORT_REPORT_VERIFIED",v["triangles"])
           PY
       - name: Render studio-lit PBR views in CPU Cycles
