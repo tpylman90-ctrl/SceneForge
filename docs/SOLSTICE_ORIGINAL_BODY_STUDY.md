@@ -57,3 +57,11 @@ does not modify the playable fleet or add this experimental asset to Android.
 - Blender Subdivision Surface: https://docs.blender.org/manual/en/4.5/modeling/modifiers/generate/subdivision_surface.html
 - Automotive surface continuity: Autodesk Alias Class-A surfacing.
 - Earlier project research: docs/TREMOR_MKIV_AUTOMOTIVE_SURFACING_RESEARCH.md
+
+## Subsequent shape/audit pass
+Actual recessed rear intakes were cut into the shared shell and backed with
+inward cavity walls. Stronger integrated fender ridges and partly embedded
+hover machinery replaced the initial generic smooth boat-like outline.
+Additional source-geometry validation checks for nonmanifold edges before
+Solidify. The latest review also produces two CPU Cycles PBR renders and runs
+a real Godot Compatibility GLB import test. The asset remains experimental.

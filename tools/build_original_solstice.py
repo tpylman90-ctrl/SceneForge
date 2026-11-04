@@ -260,6 +260,18 @@ patch("SOLSTICE_REAR_WINDSCREEN",18,12,
       lambda u,v: ((2*u-1)*(.52+.16*v),
                    1.99-.68*v+.035*(1-(2*u-1)**2),
                    -1.15-.39*v),glass)
+# Rear canopy buttresses are separately manufactured panels; unlike the
+# fenders, they are allowed a deliberate joint to the unified monocoque.
+for side,label in [(-1,"Port"),(1,"Starboard")]:
+    def sail_point(u,v,s=side):
+        z=-1.12-1.66*v
+        return (s*(.50+.69*v+(.13-.01*v)*u),
+                1.99-.68*v+.13*math.sin(math.pi*v)-.045*u,z)
+    sail=patch("SOLSTICE_"+label+"_Roof_to_Haunch_Buttress",
+               6,22,sail_point,paint)
+    rolled=sail.modifiers.new("Formed steel return","SOLIDIFY")
+    rolled.thickness=.022
+    rolled.offset=-1.
 
 # Bezier tubes are kept editable in the .blend source, then converted to
 # evaluated meshes for glTF. They are separate manufactured trim pieces.
@@ -378,7 +390,16 @@ for side,label in [(-1,"Port"),(1,"Starboard")]:
     rounded_block("SOLSTICE_"+label+"_Front_Light",
                   (side*.69,.82,3.61),(.54,.040,.035),ice,.014)
 
-# Validate on the original source before any export operator can change it.
+# An actual cockpit aperture is allowed, but no surface edge may have
+# three or more incident faces. Check before Solidify and GLB triangulation.
+import bmesh
+bm=bmesh.new()
+bm.from_mesh(hull.data)
+ambiguous_edges=sum(1 for edge in bm.edges if len(edge.link_faces)>2)
+boundary_edges=sum(1 for edge in bm.edges if edge.is_boundary)
+assert ambiguous_edges==0, "Primary body has overlapping/nonmanifold topology"
+assert boundary_edges<150, "Unexpected disconnected body seams"
+bm.free()
 assert aperture_quads>250, "Actual cockpit opening was not generated"
 assert len(hull.data.vertices)==NZ*NR+sum((k1-k0+1)*(j1-j0+1) for k0,k1,j0,j1 in scoops), "Unexpected body cage vertices"
 assert scoop_quads>50, "Integrated shoulder intake geometry missing"
@@ -431,7 +452,7 @@ views=[
     ("side",(11.4,2.45,0),9.5),
     ("front",(0,2.55,11.5),5.9),
     ("rear",(0,2.6,-11.5),5.9),
-    ("top",(0,11.3,0),9.3),
+    ("top",(0,11.3,0),15.2),
 ]
 for name,pos,scale in views:
     stage_camera(pos,scale=scale)
@@ -492,6 +513,8 @@ report={
     "triangles":triangles,"glb_bytes":len(raw),
     "open_cockpit_quads":aperture_quads,
     "recessed_scoop_quads":scoop_quads,
+    "body_boundary_edges":boundary_edges,
+    "body_nonmanifold_edges":ambiguous_edges,
     "glazing":"independent mesh surfaces",
     "views":[x[0] for x in views]+["clay"],
 }

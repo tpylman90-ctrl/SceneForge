@@ -46,8 +46,29 @@ jobs:
           v=json.loads(p.read_text())
           assert 8000 < v["triangles"] < 75000
           assert v["open_cockpit_quads"]>250
+          assert v["recessed_scoop_quads"]>50
+          assert v["body_nonmanifold_edges"]==0
           print("SOLSTICE_EXPORT_REPORT_VERIFIED",v["triangles"])
           PY
+      - name: Render studio-lit PBR views in CPU Cycles
+        run: |
+          set -euo pipefail
+          /tmp/blender-4.5.3-linux-x64/blender --background --threads 4 --python tools/render_original_solstice_pbr.py 2>&1 | tee build/original-solstice/studio-render.log
+          test -s build/original-solstice/Solstice-studio-hero.png
+          test -s build/original-solstice/Solstice-studio-rear-quarter.png
+          grep -q SCENEFORGE_SOLSTICE_STUDIO_RENDER_OK build/original-solstice/studio-render.log
+      - name: Verify GLB in Godot 4.5 Compatibility
+        run: |
+          set -euo pipefail
+          curl -fL --retry 3 https://github.com/godotengine/godot/releases/download/4.5.1-stable/Godot_v4.5.1-stable_linux.x86_64.zip -o /tmp/godot.zip
+          unzip -q /tmp/godot.zip -d /tmp/godot
+          sudo install /tmp/godot/Godot_v4.5.1-stable_linux.x86_64 /usr/local/bin/godot
+          mkdir -p game/assets/prototypes
+          cp build/original-solstice/Solstice_S01.glb game/assets/prototypes/
+          godot --headless --path game --editor --import --quit 2>&1 | tee build/original-solstice/godot-import.log
+          godot --headless --path game --script res://tests/solstice_import_test.gd 2>&1 | tee build/original-solstice/godot-check.log
+          grep -q SCENEFORGE_SOLSTICE_GODOT_IMPORT_OK build/original-solstice/godot-check.log
+          if grep -E 'SCRIPT ERROR:|ERROR:' build/original-solstice/godot-*.log; then exit 1; fi
       - uses: actions/upload-artifact@v4
         if: always()
         with:
