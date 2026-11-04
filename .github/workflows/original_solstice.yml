@@ -4,6 +4,7 @@ on:
     branches: [main]
     paths:
       - "tools/build_original_solstice.py"
+      - "tools/solstice_pbr.py"
       - ".github/workflows/original_solstice.yml"
       - "docs/SOLSTICE_ORIGINAL_BODY_STUDY.md"
   workflow_dispatch:
@@ -33,6 +34,8 @@ jobs:
           mkdir -p build/original-solstice
           xvfb-run -a /tmp/blender-4.5.3-linux-x64/blender --background --threads 4 --python tools/build_original_solstice.py 2>&1 | tee build/original-solstice/blender.log
           grep -q SCENEFORGE_SOLSTICE_CONNECTED_BODY_OK build/original-solstice/blender.log
+          grep -q SCENEFORGE_SOLSTICE_ORIGINAL_PBR_TEXTURES_OK build/original-solstice/blender.log
+          grep -q SCENEFORGE_SOLSTICE_PBR_MAPS_OK build/original-solstice/blender.log
           grep -q SCENEFORGE_SOLSTICE_GREENHOUSE_SEAMS_OK build/original-solstice/blender.log
           grep -q SCENEFORGE_SOLSTICE_EXPORT_OK build/original-solstice/blender.log
           test -s build/original-solstice/Solstice_S01.glb

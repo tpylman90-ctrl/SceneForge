@@ -120,6 +120,8 @@ seatmat = material("SOLSTICE_Cockpit_Charcoal", (.056,.074,.082), .17, .78)
 glow = material("SOLSTICE_Amber_Lift_Emitters", (.96,.41,.11), .05, .30, glow=2.)
 ice = material("SOLSTICE_Ice_Accent", (.20,.74,.73), .06, .29, glow=1.6)
 clay = material("SOLSTICE_Diagnostic_Clay", (.52,.56,.58), .0, .7)
+exec((Path(__file__).parent / "solstice_pbr.py").read_text(),globals())
+install_solstice_pbr(paint)
 
 def geometry(name, points, faces, mat, smooth=True):
     data = bpy.data.meshes.new(name + "_Mesh")
@@ -171,6 +173,10 @@ for k in range(NZ-1):
         d=(k+1)*NR+next_j
         hull_faces.append((a,c,d,b))
         hull_face_material.append(0)
+# Preserve continuous cylindrical UV coordinates through the body and all
+# inner walls. Split the wrap per-face to avoid the 0/1 seam interpolation.
+uv_seed={k*NR+j:(j/NR,k/(NZ-1))
+         for k in range(NZ) for j in range(NR)}
 # Each duct is a real, recessed four-sided cavity in the same indexed mesh.
 # Dark face material gives depth, while rim edges are shared with the hull.
 scoop_quads=0
@@ -183,6 +189,7 @@ for k0,k1,j0,j1 in scoops:
             inside=(x-math.copysign(.24,x),y-.045,z)
             inner[(k,j)]=len(hull_pts)
             hull_pts.append(inside)
+            uv_seed[inner[(k,j)]]=uv_seed[k*NR+j]
     for k in range(k0,k1):
         for j in range(j0,j1):
             hull_faces.append((inner[(k,j)],inner[(k+1,j)],
@@ -213,6 +220,12 @@ hull.data.materials.append(dark)
 assert len(hull.data.polygons)==len(hull_face_material)
 for polygon,slot in zip(hull.data.polygons,hull_face_material):
     polygon.material_index=slot
+uv_layer=hull.data.uv_layers.new(name="Solstice_Paint_Cylindrical_UV")
+for polygon in hull.data.polygons:
+    uv=[uv_seed[hull.data.loops[i].vertex_index] for i in polygon.loop_indices]
+    wrap=max(x[0] for x in uv)-min(x[0] for x in uv)>.5
+    for loop,(u,v) in zip(polygon.loop_indices,uv):
+        uv_layer.data[loop].uv=(u+1 if wrap and u<.5 else u,v)
 thickness = hull.modifiers.new("Stamped body skin 28 mm", "SOLIDIFY")
 thickness.thickness = .028
 thickness.offset = -1.
@@ -226,7 +239,13 @@ def patch(name, nu, nv, point, mat, smooth=True):
         for i in range(nu):
             a = j*(nu+1)+i
             faces.append((a, a+1, a+nu+2, a+nu+1))
-    return geometry(name,pts,faces,mat,smooth)
+    obj=geometry(name,pts,faces,mat,smooth)
+    layer=obj.data.uv_layers.new(name="Parametric_UV")
+    for polygon in obj.data.polygons:
+        for loop in polygon.loop_indices:
+            vertex=obj.data.loops[loop].vertex_index
+            layer.data[loop].uv=((vertex%(nu+1))/nu,(vertex//(nu+1))/nv)
+    return obj
 
 # Independent fitted windshield, roof and side glazing.
 # No glass polygon is baked into the painted monocoque material.
@@ -586,6 +605,14 @@ assert "SOLSTICE_UNIFIED_OUTER_SKIN" in nodes
 assert "SOLSTICE_FRONT_WINDSCREEN" in nodes
 assert "SOLSTICE_STRUCTURAL_ROOF" in nodes
 assert "SOLSTICE_Front_Port_Flux_Ring" in nodes
+paint_mat=next(m for m in glb["materials"] if m.get("name")=="SOLSTICE_Petrol_Teal_Clearcoat")
+assert "normalTexture" in paint_mat, "Paint normal map lost in glTF"
+assert "metallicRoughnessTexture" in paint_mat["pbrMetallicRoughness"]
+assert "baseColorTexture" in paint_mat["pbrMetallicRoughness"]
+assert len(glb.get("images",[]))>=3, "Three original PBR texture images required"
+body_mesh=next(x for x in glb["meshes"] if x["name"]=="SOLSTICE_UNIFIED_OUTER_SKIN_Mesh")
+assert "TEXCOORD_0" in body_mesh["primitives"][0]["attributes"]
+print("SCENEFORGE_SOLSTICE_PBR_MAPS_OK",len(glb["images"]))
 triangles=0
 for mesh_def in glb["meshes"]:
     for primitive in mesh_def["primitives"]:

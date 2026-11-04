@@ -89,3 +89,20 @@ New review views: `Solstice-greenhouse.png` and
 contract, structural part presence, triangle budget, clean main shell,
 GLB export and Godot Compatibility import. Artistic reflection matching
 and physical phone FPS remain review-required.
+
+## Approved Shrike GLB inspection — original materials study
+The approved 8.53MB Shrike GLB has 164,235 triangles, 105,667 vertices,
+a 6.80 × 3.56 × 1.85 m bound, one mesh/material and UVs. It uses
+three 2048 × 2048 images: albedo, metallic/roughness and normalGL.
+Original SOLSTICE pass had 55,160 triangles in 77 GLB meshes and seven
+materials, but no texture images at all. These proportions and shader-layer
+differences explain its uniform soft appearance; triangles are not the only
+difference. Source assets stay unchanged.
+
+The SOLSTICE prototype now creates ORIGINAL deterministic 1024² color,
+metallic/roughness, and OpenGL tangent normal atlases. The shell and
+panel patches have UV coordinates. Three glTF material textures and the
+main body UV attribute are asserted at export time. Microtexture is very
+subtle: panel shapes must still come from geometry. No Shrike texture
+pixels are ever reused.
+Reference: https://github.com/KhronosGroup/glTF-Blender-IO/blob/main/docs/blender_docs/scene_gltf2.rst
