@@ -156,6 +156,13 @@ for jstart,jend in [(index_at_angle(1.13),index_at_angle(1.64)),
                     (index_at_angle(2*math.pi-1.64),
                      index_at_angle(2*math.pi-1.13))]:
     scoops.append((index_at_z(-2.70),index_at_z(-1.68),jstart,jend))
+front_extractors=[]
+for jstart,jend in [(index_at_angle(.56),index_at_angle(.97)),
+                    (index_at_angle(2*math.pi-.97),
+                     index_at_angle(2*math.pi-.56))]:
+    front_extractors.append((index_at_z(2.20),index_at_z(2.95),jstart,jend))
+recesses=[(region,"rear") for region in scoops]+[
+         (region,"hood") for region in front_extractors]
 for k in range(NZ-1):
     middle_z = .5*(zs[k]+zs[k+1])
     for j in range(NR):
@@ -165,7 +172,8 @@ for k in range(NZ-1):
         if APERTURE_Z[0] < middle_z < APERTURE_Z[1] and unsigned < APERTURE_THETA:
             aperture_quads += 1
             continue
-        if any(k0<=k<k1 and j0<=j<j1 for k0,k1,j0,j1 in scoops):
+        if any(k0<=k<k1 and j0<=j<j1
+               for (k0,k1,j0,j1),kind in recesses):
             continue
         a=k*NR+j
         b=k*NR+next_j
@@ -177,39 +185,54 @@ for k in range(NZ-1):
 # inner walls. Split the wrap per-face to avoid the 0/1 seam interpolation.
 uv_seed={k*NR+j:(j/NR,k/(NZ-1))
          for k in range(NZ) for j in range(NR)}
-# Each duct is a real, recessed four-sided cavity in the same indexed mesh.
-# Dark face material gives depth, while rim edges are shared with the hull.
+# New hood extractors and existing rear coolers are REAL monocoque holes.
+# Each rim shares its original shell indices; a second edge loop creates a
+# rolled stamped lip before a dark cavity wall and an actual interior floor.
 scoop_quads=0
-for k0,k1,j0,j1 in scoops:
+extractor_quads=0
+formed_lip_segments=0
+for (k0,k1,j0,j1),kind in recesses:
     inner={}
+    lip={}
     for k in range(k0,k1+1):
         for j in range(j0,j1+1):
-            outer=hull_pts[k*NR+j]
-            x,y,z=outer
-            inside=(x-math.copysign(.24,x),y-.045,z)
+            original=k*NR+j
+            x,y,z=hull_pts[original]
+            inward=.24 if kind=="rear" else .048
+            down=.045 if kind=="rear" else .132
             inner[(k,j)]=len(hull_pts)
-            hull_pts.append(inside)
-            uv_seed[inner[(k,j)]]=uv_seed[k*NR+j]
+            hull_pts.append((x-math.copysign(inward,x),y-down,z))
+            uv_seed[inner[(k,j)]]=uv_seed[original]
+            if k in (k0,k1) or j in (j0,j1):
+                lip[(k,j)]=len(hull_pts)
+                hull_pts.append((x-math.copysign(
+                    .028 if kind=="rear" else .013,x),
+                    y-(.017 if kind=="rear" else .022),z))
+                uv_seed[lip[(k,j)]]=uv_seed[original]
     for k in range(k0,k1):
         for j in range(j0,j1):
             hull_faces.append((inner[(k,j)],inner[(k+1,j)],
                                inner[(k+1,j+1)],inner[(k,j+1)]))
             hull_face_material.append(1)
-            scoop_quads+=1
+            if kind=="rear":
+                scoop_quads+=1
+            else:
+                extractor_quads+=1
+    def wall(a,b):
+        global formed_lip_segments
+        a0=a[0]*NR+a[1]
+        b0=b[0]*NR+b[1]
+        hull_faces.append((a0,b0,lip[b],lip[a]))
+        hull_face_material.append(0)
+        hull_faces.append((lip[a],lip[b],inner[b],inner[a]))
+        hull_face_material.append(1)
+        formed_lip_segments+=1
     for j in range(j0,j1):
-        hull_faces.append((k0*NR+j,k0*NR+j+1,
-                           inner[(k0,j+1)],inner[(k0,j)]))
-        hull_face_material.append(1)
-        hull_faces.append((k1*NR+j,k1*NR+j+1,
-                           inner[(k1,j+1)],inner[(k1,j)]))
-        hull_face_material.append(1)
+        wall((k0,j),(k0,j+1))
+        wall((k1,j),(k1,j+1))
     for k in range(k0,k1):
-        hull_faces.append((k*NR+j0,(k+1)*NR+j0,
-                           inner[(k+1,j0)],inner[(k,j0)]))
-        hull_face_material.append(1)
-        hull_faces.append((k*NR+j1,(k+1)*NR+j1,
-                           inner[(k+1,j1)],inner[(k,j1)]))
-        hull_face_material.append(1)
+        wall((k,j0),(k+1,j0))
+        wall((k,j1),(k+1,j1))
 # End caps intentionally seal the pointed nose and flat rear; central opening
 # remains open for cockpit visibility (Solidify will give it a proper rim).
 hull_faces.append(tuple(reversed(range(NR))))
@@ -487,6 +510,15 @@ for side,label in [(-1,"Port"),(1,"Starboard")]:
         rounded_block("SOLSTICE_"+label+"_Intake_Louvre_"+str(blade),
             (x-side*.19,y-.035,z),(.037,.075,.22),metal,.018)
 
+# Three recessed stators live inside each front hood extractor; these do
+# not paint dark stripes over the original continuous metal surface.
+for side,label in [(-1,"Port"),(1,"Starboard")]:
+    for blade in range(3):
+        z=2.35+.205*blade
+        x,y,_=shell_point(z,side*.76)
+        rounded_block("SOLSTICE_"+label+"_Front_Extractor_Stator_"+str(blade),
+            (x-side*.045,y-.101,z),(.13,.035,.075),dark,.008)
+
 # Flush, not floating: exterior lighting follows the vehicle's functional edges.
 rounded_block("SOLSTICE_Thin_Tail_Lightbar",(0,1.07,-4.11),
               (1.19,.035,.025),ice,.014)
@@ -510,6 +542,8 @@ assert "SOLSTICE_Starboard_Roof_to_Haunch_Buttress" in bpy.data.objects
 assert "SOLSTICE_Front_Port_Aft_Structural_Cradle" in bpy.data.objects
 assert len(hull.data.vertices)==NZ*NR+sum((k1-k0+1)*(j1-j0+1) for k0,k1,j0,j1 in scoops), "Unexpected body cage vertices"
 assert scoop_quads>50, "Integrated shoulder intake geometry missing"
+assert extractor_quads>50, "True shared-hull hood extractor recesses missing"
+assert formed_lip_segments>60, "Stamped lip geometry missing"
 assert all(face.loop_total in (3,4,NR) for face in hull.data.polygons)
 assert len(hull.data.polygons)>4500
 assert len([o for o in bpy.data.objects if o.name=="SOLSTICE_UNIFIED_OUTER_SKIN"])==1
@@ -630,6 +664,8 @@ report={
     "triangles":triangles,"glb_bytes":len(raw),
     "open_cockpit_quads":aperture_quads,
     "recessed_scoop_quads":scoop_quads,
+    "front_extractor_quads":extractor_quads,
+    "formed_lip_segments":formed_lip_segments,
     "body_boundary_edges":boundary_edges,
     "body_nonmanifold_edges":ambiguous_edges,
     "greenhouse_seam_tolerance_mm":.01,
