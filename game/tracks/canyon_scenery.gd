@@ -10,6 +10,12 @@ const ROCK_COLORS = [
 ]
 const TERRAIN_PALE = Color("ad7755")
 const TERRAIN_DARK = Color("80523f")
+# Shared immutable radial profiles avoid re-allocating four arrays for each
+# vertex on an Android track load.
+const ROCK_LEVELS = [0.0,0.08,0.19,0.31,0.44,0.57,0.69,0.83,1.0]
+const ROCK_MESA = [1.16,1.10,1.04,0.93,1.03,0.97,0.92,0.84,0.76]
+const ROCK_NEEDLE = [1.08,0.91,0.83,0.70,0.77,0.65,0.55,0.46,0.27]
+const ROCK_BLUFF = [1.18,1.06,0.92,1.01,0.91,0.82,0.88,0.70,0.61]
 
 static func _face(st: SurfaceTool, a: Vector3, b: Vector3, c: Vector3, tint: Color) -> void:
 	var normal: Vector3=(b-a).cross(c-a)
@@ -83,14 +89,10 @@ static func _terrain(owner: Node3D, route: PackedVector3Array, noise: FastNoiseL
 	owner.add_child(mesh)
 
 static func _stone_point(base: Vector3, radius: float, height: float, yaw: float, seed: int, style: int, ring: int, slice: int, sides: int) -> Vector3:
-	var levels := [0.0,0.08,0.19,0.31,0.44,0.57,0.69,0.83,1.0]
 	# Broad mesas, broken towers and eroded wall-like buttes have different profiles.
-	var mesa := [1.16,1.10,1.04,0.93,1.03,0.97,0.92,0.84,0.76]
-	var needle := [1.08,0.91,0.83,0.70,0.77,0.65,0.55,0.46,0.27]
-	var bluff := [1.18,1.06,0.92,1.01,0.91,0.82,0.88,0.70,0.61]
-	var profile: Array=mesa if style==0 else (needle if style==1 else bluff)
+	var profile: Array=ROCK_MESA if style==0 else (ROCK_NEEDLE if style==1 else ROCK_BLUFF)
 	var angle: float=TAU*float(slice)/float(sides)+yaw
-	var t: float=levels[ring]
+	var t: float=ROCK_LEVELS[ring]
 	var grain: float=1.0+0.085*sin(angle*3.0+float(seed)*0.13)+0.052*cos(angle*5.0-float(seed)*0.21)
 	var fracture: float=1.0+0.055*sin(angle*7.0+float(seed)*0.10+float(ring)*0.68)
 	var r: float=radius*profile[ring]*grain*fracture
