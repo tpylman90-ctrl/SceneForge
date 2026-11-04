@@ -230,48 +230,79 @@ def patch(name, nu, nv, point, mat, smooth=True):
 
 # Independent fitted windshield, roof and side glazing.
 # No glass polygon is baked into the painted monocoque material.
+# All four windshield, roof and side-glass edges share the same
+# numerical perimeter control, rather than approximating matching points.
 def windshield_point(u,v):
-    x01 = 2*u-1
-    z = 1.30-.70*v
-    width = .68-.16*v
-    return (width*x01, 1.23+.73*v+.060*(1-x01*x01),z)
-windshield = patch("SOLSTICE_FRONT_WINDSCREEN",20,12,windshield_point,glass)
+    x01=2*u-1
+    z=1.30-.70*v
+    width=.68-.16*v
+    return (width*x01,1.23+.73*v+.060*(1-x01*x01),z)
+windshield=patch("SOLSTICE_FRONT_WINDSCREEN",20,12,windshield_point,glass)
 
 def roof_point(u,v):
-    x01 = 2*u-1
-    z = .60-1.75*v
+    x01=2*u-1
+    z=.60-1.75*v
     return (x01*(.52+.030*math.sin(math.pi*v)),
-            1.96+.070*math.sin(math.pi*v)+.038*(1-x01*x01),z)
-roof = patch("SOLSTICE_STRUCTURAL_ROOF",18,22,roof_point,dark)
+            1.96+.070*math.sin(math.pi*v)+.060*(1-x01*x01),z)
+roof=patch("SOLSTICE_STRUCTURAL_ROOF",18,22,roof_point,dark)
 
 def side_window_point(side,u,v):
-    z = 1.27-2.72*v
-    fade = min(1., max(.07, min(1.27-z,z+1.45)/.60))
-    roof_y = 1.94+.07*math.sin(math.pi*v)
-    sill_y = 1.28+.08*gaussian(z,-.8,1.)
-    height = (roof_y-sill_y)*fade
-    x = side*(.70-(.13*fade)*u)
-    return (x, sill_y+height*u, z)
-for side,side_name in [(-1,"Port"),(1,"Starboard")]:
-    patch("SOLSTICE_"+side_name+"_GLAZING",5,28,
+    zfront=1.30-.70*u
+    zrear=-1.55+.40*u
+    z=zfront+(zrear-zfront)*v
+    xl=.68+.035*math.sin(math.pi*v)
+    xu=.52+.030*math.sin(math.pi*v)
+    x=side*((1-u)*xl+u*xu+.018*math.sin(math.pi*u)*math.sin(math.pi*v))
+    sill=1.23+.045*math.sin(math.pi*v)
+    roof_edge_y=1.96+.070*math.sin(math.pi*max(0.,min(1.,(.60-z)/1.75)))
+    y=(1-u)*sill+u*roof_edge_y+.016*math.sin(math.pi*u)*math.sin(math.pi*v)
+    return (x,y,z)
+for side,label in [(-1,"Port"),(1,"Starboard")]:
+    patch("SOLSTICE_"+label+"_GLAZING",12,32,
           lambda u,v,s=side: side_window_point(s,u,v),glass)
 
-patch("SOLSTICE_REAR_WINDSCREEN",18,12,
-      lambda u,v: ((2*u-1)*(.52+.16*v),
-                   1.99-.68*v+.035*(1-(2*u-1)**2),
-                   -1.15-.39*v),glass)
-# Rear canopy buttresses are separately manufactured panels; unlike the
-# fenders, they are allowed a deliberate joint to the unified monocoque.
+def rear_windscreen_point(u,v):
+    x01=2*u-1
+    return ((.52+.16*v)*x01,
+            1.96-.65*v+.060*(1-x01*x01)*(1-v),-1.15-.40*v)
+patch("SOLSTICE_REAR_WINDSCREEN",18,16,rear_windscreen_point,glass)
+
+def smoothstep(t):
+    t=max(0.,min(1.,t))
+    return t*t*(3.-2.*t)
+
+# Formed rear-quarter sails land on ACTUAL surface points of the haunch.
+# They remain separate manufactured panels but are no longer loose sheets.
+def sail_point(side,u,v):
+    z=-1.15-1.83*v
+    root=shell_point(z,side*(.82-.065*v))
+    bridge=smoothstep(v)
+    inner_x=side*(.52+(abs(root[0])-.52)*bridge-.028*bridge)
+    inner_y=1.96+(root[1]-1.96)*bridge+.085*math.sin(math.pi*v)+.025*bridge
+    return (inner_x*(1-u)+root[0]*u,
+            inner_y*(1-u)+root[1]*u+.055*math.sin(math.pi*u)*math.sin(math.pi*v),
+            z)
 for side,label in [(-1,"Port"),(1,"Starboard")]:
-    def sail_point(u,v,s=side):
-        z=-1.12-1.66*v
-        return (s*(.50+.69*v+(.13-.01*v)*u),
-                1.99-.68*v+.13*math.sin(math.pi*v)-.045*u,z)
     sail=patch("SOLSTICE_"+label+"_Roof_to_Haunch_Buttress",
-               6,22,sail_point,paint)
-    rolled=sail.modifiers.new("Formed steel return","SOLIDIFY")
+               10,32,lambda u,v,s=side: sail_point(s,u,v),paint)
+    rolled=sail.modifiers.new("Formed rear sail hem","SOLIDIFY")
     rolled.thickness=.022
     rolled.offset=-1.
+
+def check_glass_fit(a,b,tolerance=1e-5):
+    distance=(Vector(a)-Vector(b)).length
+    assert distance<tolerance, "Glazing seam mismatch %.7f m" % distance
+
+for u in (0.,.25,.5,.75,1.):
+    check_glass_fit(windshield_point(u,1.),roof_point(u,0.))
+    check_glass_fit(rear_windscreen_point(u,0.),roof_point(u,1.))
+for side in (-1,1):
+    for t in (0.,.25,.5,.75,1.):
+        edge_u=0. if side==-1 else 1.
+        check_glass_fit(windshield_point(edge_u,t),side_window_point(side,t,0.))
+    check_glass_fit(side_window_point(side,1.,1.),
+                    roof_point(0. if side==-1 else 1.,1.))
+print("SCENEFORGE_SOLSTICE_GREENHOUSE_SEAMS_OK")
 
 # Bezier tubes are kept editable in the .blend source, then converted to
 # evaluated meshes for glTF. They are separate manufactured trim pieces.
