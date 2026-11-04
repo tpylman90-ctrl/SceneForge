@@ -65,10 +65,14 @@ static func isolate(craft: Node3D, eye: Vector3) -> Dictionary:
 				var a: Vector3=vertex_to_craft*vertices[ia]
 				var b: Vector3=vertex_to_craft*vertices[ib]
 				var c: Vector3=vertex_to_craft*vertices[ic]
-				var target: PackedInt32Array=window if is_front_windscreen(a,b,c,eye) else keep
-				target.append(ia)
-				target.append(ib)
-				target.append(ic)
+				if is_front_windscreen(a,b,c,eye):
+					window.append(ia)
+					window.append(ib)
+					window.append(ic)
+				else:
+					keep.append(ia)
+					keep.append(ib)
+					keep.append(ic)
 			var active: Material=node.get_active_material(surface)
 			if not keep.is_empty():
 				var opaque_arrays: Array=original_arrays.duplicate(true)
