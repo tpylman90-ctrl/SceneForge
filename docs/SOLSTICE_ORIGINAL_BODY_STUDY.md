@@ -106,3 +106,18 @@ main body UV attribute are asserted at export time. Microtexture is very
 subtle: panel shapes must still come from geometry. No Shrike texture
 pixels are ever reused.
 Reference: https://github.com/KhronosGroup/glTF-Blender-IO/blob/main/docs/blender_docs/scene_gltf2.rst
+
+## SOLSTICE fine-form refinement, informed by Shrike's real GLB
+The primary body silhouette and stations remain unchanged. We added two
+shallow, built-in hood extractor ducts to the shared-index hull. Unlike surface
+stickers, their outer edges are the original body vertices, with intermediate
+formed chamfer-lip rings, genuine dark return walls and inner floors. The two
+original rear shoulder scoops now also have rolled edges, improving real
+specular highlight breaks without splitting the master fender surfaces.
+Three small stators occupy each new hood opening. This geometry is intentionally
+more important than decoration and is checked independently in Blender CI.
+Original 1024px base-color, packed ORM and OpenGL tangent-space normal maps
+provide subtle microdetail without copying Shrike's UV art. For Android, these
+three maps are initially used on the hero prototype only; they are not proof
+that an opponent LOD can afford the same materials. The prototype must remain
+outside the fleet until actual phone reviews and collision/seat controls.
