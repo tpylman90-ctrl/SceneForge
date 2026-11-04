@@ -25,8 +25,19 @@ func check() -> void:
 			assert(scenic!=null and scenic.mesh!=null,"Missing canyon scenery: "+name)
 			assert(scenic.mesh.get_surface_count()==1,"Scenery must stay batched")
 		var rock: MeshInstance3D=scene.get_node("CrimsonStratifiedCliffs")
-		assert(rock.mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX].size()>2000)
-		assert(rock.mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX].size()<100000,"Too much canyon geometry for Android")
+		var rock_vertices: int=rock.mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX].size()
+		assert(rock_vertices>2000)
+		assert(rock_vertices<100000,"Too much canyon geometry for Android")
+		if circuit==4:
+			# The new continuous gorge is exclusive to Crimson Serpent.
+			assert(rock_vertices>50000 and rock_vertices<85000)
+			var apron: MeshInstance3D=scene.get_node("CrimsonTerrain")
+			assert(apron.mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX].size()>1000)
+			var rubble: MultiMeshInstance3D=scene.get_node_or_null("CrimsonTalus")
+			assert(rubble!=null and rubble.multimesh!=null)
+			assert(rubble.multimesh.instance_count>=40)
+		else:
+			assert(scene.get_node_or_null("CrimsonTalus")==null,"Other canyons must be unchanged")
 		assert(scene.jump_start_index()==44 and scene.jump_end_index()==48)
 		assert(scene.is_jump_gap(44) and scene.is_jump_gap(47))
 		assert(not scene.is_jump_gap(48))

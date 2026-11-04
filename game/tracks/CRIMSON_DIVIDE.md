@@ -74,3 +74,27 @@ Road geometry is sampled from hand-placed **Catmull–Rom control points**. Tota
 - Adjusted canyon-only skylight and sun intensity to reduce blown-out colors. City routes retain their previous lighting.
 - Road, barriers, jump geometry, course controls and gameplay collision remain unchanged. Three scenery meshes replace many individual scenic props. The existing stone arches and track signs remain.
 - CI test now checks scenery node presence, batching and a broad static rock vertex cap. **Android FPS and real-device screenshots require verification after CI.**
+
+## Crimson Serpent canyon corridor — focused second-pass experiment
+
+**Scope: track 4 only.** Red Mesa and Devil's Gate still run the prior
+`canyon_scenery.gd` scene builder. The racing engine, wall collision,
+track controls, jump gap, crafting systems, garage and fleet are unchanged.
+
+- `serpent_canyon.gd` samples the route centerline and builds a connected
+  136×92 heightfield using the nearest track-segment distance. This carves a
+  real winding gorge into one landscape surface: 16.7 m clearance from the
+  centerline, steep rocky slopes immediately beyond the shoulders, broad upper
+  benches and a valley that merges naturally where the route doubles back.
+  There are no individual pillar props pretending to be cliff walls.
+- Cliff detail uses smooth surface normals, nuanced geology vertex colors
+  with irregular shallow bedding, and one small procedurally generated
+  triplanar grain map. The skyline is a simple 96-segment batched silhouette.
+- A separate low-poly shoulder mesh and one MultiMesh of small talus add close
+  parallax. All are decorative, static and collision-free.
+- Serpent alone has increased climb/descent variation and a warmer aerial
+  perspective fog treatment. No extra dynamic lights or volumetric fog.
+- Expected: roughly 75,000 cliff vertices (one terrain mesh), inexpensive
+  far silhouettes, plus one instanced debris draw. CI tests check the isolated
+  scenery change and vertex budget. **Phone FPS and load time must be measured
+  on-device after this build before extending the technique to other tracks.**

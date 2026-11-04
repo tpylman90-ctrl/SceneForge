@@ -4,6 +4,7 @@ const Fleet = preload("res://vehicles/fleet_catalog.gd")
 const Parts = preload("res://vehicles/performance_parts.gd")
 const Crimson = preload("res://tracks/crimson_divide.gd")
 const CanyonScenery = preload("res://tracks/canyon_scenery.gd")
+const SerpentCanyon = preload("res://tracks/serpent_canyon.gd")
 
 # A bounded first driving prototype: one closed city loop, no external assets.
 const COUNT := 192
@@ -280,7 +281,7 @@ func _ready() -> void:
 	var sky := Sky.new()
 	if track_id>=Crimson.FIRST_ID:
 		var desert_sky := ProceduralSkyMaterial.new()
-		desert_sky.sky_top_color=Color("496b83")
+		desert_sky.sky_top_color=Color("41657f") if track_id==4 else Color("496b83")
 		desert_sky.sky_horizon_color=Color("e9ac83")
 		desert_sky.ground_horizon_color=Color("c88965")
 		desert_sky.ground_bottom_color=Color("473b3d")
@@ -293,18 +294,24 @@ func _ready() -> void:
 	settings.background_color = Color("172c42")
 	settings.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	settings.ambient_light_color = Color("a9aeaa") if track_id>=Crimson.FIRST_ID else Color("91afc4")
-	settings.ambient_light_energy = 0.62 if track_id>=Crimson.FIRST_ID else 0.8
+	settings.ambient_light_energy = 0.56 if track_id==4 else (0.62 if track_id>=Crimson.FIRST_ID else 0.8)
 	settings.tonemap_mode = Environment.TONE_MAPPER_FILMIC
 	settings.fog_enabled = true
 	settings.fog_light_color = Color("be8368") if track_id>=Crimson.FIRST_ID else Color("273c50")
-	settings.fog_density = 0.0014 if track_id>=Crimson.FIRST_ID else 0.002
+	settings.fog_density = 0.0032 if track_id==4 else (0.0014 if track_id>=Crimson.FIRST_ID else 0.002)
 	settings.fog_sky_affect = 0.0
+	if track_id==4:
+		# Lightweight distance haze, not expensive realtime volumetrics.
+		settings.fog_aerial_perspective=0.3
+		settings.fog_sun_scatter=0.12
+		settings.fog_height=1.0
+		settings.fog_height_density=0.008
 	environment.environment = settings
 	add_child(environment)
 	var sun := DirectionalLight3D.new()
 	sun.rotation_degrees = Vector3(-38, -28, 0)
 	sun.light_color = Color("ffd3a5") if track_id>=Crimson.FIRST_ID else Color("b8d6ef")
-	sun.light_energy = 0.98 if track_id>=Crimson.FIRST_ID else 1.0
+	sun.light_energy = 0.95 if track_id==4 else (0.98 if track_id>=Crimson.FIRST_ID else 1.0)
 	sun.shadow_enabled = true
 	sun.directional_shadow_max_distance = 70
 	sun.shadow_bias = 0.15
@@ -649,7 +656,10 @@ func build_crimson_circuit() -> void:
 	road_mat.roughness=0.87
 	for index in range(COUNT):
 		route.append(route_position(index))
-	CanyonScenery.populate(self,route,track_id)
+	if track_id==4:
+		SerpentCanyon.populate(self,route)
+	else:
+		CanyonScenery.populate(self,route,track_id)
 	var road := SurfaceTool.new()
 	road.begin(Mesh.PRIMITIVE_TRIANGLES)
 	var walls := SurfaceTool.new()

@@ -70,7 +70,9 @@ static func point(track_id: int, index: int, count: int) -> Vector2:
 static func ground_height(track_id: int, index: int, count: int) -> float:
 	var a: float=TAU*float(posmod(index,count))/float(count)
 	if track_id==4:
-		return 3.5+1.5*sin(a+0.3)+0.9*sin(a*3.0-0.4)
+		# Longer climbs and descents for the carved Serpent canyon only;
+		# measured grades remain gentle enough for the hovercraft physics.
+		return 6.0+2.5*sin(a+0.3)+1.7*sin(a*2.0-0.75)+1.0*sin(a*4.0+0.4)
 	if track_id==5:
 		return 4.0+1.8*sin(a+0.2)
 	return 5.2+2.1*sin(a*2.0-0.35)+0.7*sin(a*4.0)
