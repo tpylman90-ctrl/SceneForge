@@ -98,3 +98,10 @@ track controls, jump gap, crafting systems, garage and fleet are unchanged.
   far silhouettes, plus one instanced debris draw. CI tests check the isolated
   scenery change and vertex budget. **Phone FPS and load time must be measured
   on-device after this build before extending the technique to other tracks.**
+
+## Crimson Serpent — cliff realism, erosion terraces and mobile shadow fix
+
+- Replaced abruptly stepped 4-sector wall heights with a continuous, loop-periodic height modulation. Steeper rock escarpments now have a talus foot, two eroded shelves, upper vertical faces and natural mesas, all in one heightfield.
+- Darkened the rock base and added irregular weathered sediment coloring, plus a 256×256 procedurally generated world-triplanar albedo-grain texture. No new geometry density or imported paid assets.
+- Disabled terrain casting oversized jagged shadows onto the racing surface, retaining natural cliff lighting and vehicle shadows. Added a second inexpensive far ridge in the same draw surface.
+- Scoped completely to track 4; Red Mesa / Devil's Gate remain unchanged. CI tests guard the no-terrain-shadow performance policy. Android FPS needs verifying on-device for this revision.

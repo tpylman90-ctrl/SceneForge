@@ -10,8 +10,8 @@ const HALF_X = 340.0
 const HALF_Z = 222.0
 const ROAD_CLEARANCE = 16.7
 const ROCK_PALETTE = [
-	Color("9d5b47"), Color("aa674d"), Color("b87755"),
-	Color("c98c65"), Color("a46b50")
+	Color("85503e"), Color("9c6049"), Color("ae7053"),
+	Color("ba8060"), Color("9e654e")
 ]
 
 static func _noise() -> FastNoiseLite:
@@ -48,39 +48,44 @@ static func _nearest(route: PackedVector3Array, x: float, z: float) -> Vector3:
 static func _ground(nearest: Vector3, noise: FastNoiseLite, x: float, z: float) -> float:
 	var distance: float=nearest.x
 	var index: int=int(nearest.y)
-	var sector: int=clampi(index/48,0,3)
-	# Hugs the roadway on both sides but leaves a broad physical clearance
-	# for barriers and the racing line. No solid cliffs can cross the deck.
-	var wall_begin: float=ROAD_CLEARANCE+1.0*sin(float(index)*0.085)
-	var rise: float=smoothstep(wall_begin,wall_begin+26.0,distance)
-	var detail: float=noise.get_noise_2d(x*0.42,z*0.42)
-	var weathering: float=noise.get_noise_2d(x*0.095+83.0,z*0.095-17.0)
-	var wall_top: float=[47.0,37.0,52.0,57.0][sector]
-	wall_top+=7.0*weathering+4.0*sin(float(index)*0.11)
-	# A shallow shoulder follows each climb/descent, so the road is a
-	# canyon floor instead of a floating bridge over an unrelated slab.
-	var floor_y: float=nearest.z-2.1
-	# Keep the actual four-segment jump deck gap clearly below the racer.
-	if index>=43 and index<=48:
-		floor_y=minf(floor_y,-3.0)
-	var face_breakup: float=rise*(2.7*detail+1.3*noise.get_noise_2d(x*0.75,z*0.75))
-	var plateau: float=smoothstep(46.0,94.0,distance)*(7.0+6.0*weathering)
-	return floor_y+rise*wall_top+face_breakup+plateau
+	var phase: float=TAU*float(index)/192.0
+	# Periodic height variation removes the previous abrupt 4-sector jumps.
+	var wall_begin: float=ROAD_CLEARANCE+0.8*sin(phase*3.0+0.3)
+	var d: float=maxf(0.0,distance-wall_begin)
+	var erosion: float=noise.get_noise_2d(x*0.15+33.0,z*0.15-11.0)
+	var fine: float=noise.get_noise_2d(x*0.67,z*0.67)
+	var broad: float=noise.get_noise_2d(x*0.062-81.0,z*0.062+46.0)
+	# Carved sandstone: apron, steep scarp, two eroded benches and an upper rim.
+	var toe: float=4.8*smoothstep(0.0,5.3,d)
+	var lower_face: float=16.4*smoothstep(4.5,10.6,d)
+	var lower_shelf: float=2.3*smoothstep(11.1,16.3,d)
+	var upper_face: float=18.3*smoothstep(16.0,23.2,d)
+	var upper_shelf: float=3.7*smoothstep(24.4,28.0,d)
+	var rim: float=7.5*smoothstep(28.0,36.0,d)
+	var mesa: float=5.5*smoothstep(40.0,84.0,d)
+	var mass: float=toe+lower_face+lower_shelf+upper_face+upper_shelf+rim+mesa
+	var variation: float=0.94+0.085*sin(phase*2.0+0.7)+0.06*sin(phase*5.0-0.4)
+	var fracture: float=smoothstep(5.0,12.0,d)*(1.8*erosion+0.55*fine)
+	var weathering: float=smoothstep(15.0,43.0,d)*2.4*broad
+	var floor_y: float=nearest.z-2.3
+	# Gradual carve underneath the leap, no abrupt step at index 43/48.
+	var gap_mask: float=smoothstep(39.0,44.0,float(index))*(1.0-smoothstep(48.0,53.0,float(index)))
+	floor_y=lerpf(floor_y,minf(floor_y,-3.0),gap_mask)
+	return floor_y+mass*variation+fracture+weathering
 
 static func _color(y: float, distance: float, x: float, z: float, noise: FastNoiseLite) -> Color:
-	# Macro layers come from height and weathering, NOT regular alternating
-	# color blocks. The distant wall reads as coherent sedimentary rock.
+	# Subtle layered rock bedding and darkened bases, avoiding stripe blocks.
 	var grain: float=noise.get_noise_2d(x*0.18+63.0,z*0.18-11.0)
 	var contour: float=noise.get_noise_2d(x*0.34+7.0,z*0.34+51.0)
-	var step: float=0.5+0.5*sin(y*0.91+0.95*contour)
-	var hue: float=clampf(0.37+0.22*grain+0.13*step,0.08,0.88)
+	var strata_y: float=y+2.6*noise.get_noise_2d(x*0.11+53.0,z*0.11-47.0)
+	var band: float=0.5+0.5*sin(strata_y*0.44+contour)
+	var seam: float=pow(1.0-band,8.0)
+	var hue: float=clampf(0.44+0.23*grain+0.12*band,0.07,0.9)
 	var color: Color=ROCK_PALETTE[0].lerp(ROCK_PALETTE[3],hue)
-	var seam: float=1.0-0.075*pow(1.0-step,3.0)
-	color*=seam
-	color=color.lerp(Color("97715d"),clampf((distance-160.0)/180.0,0.0,0.26))
-	if distance<20.0:
-		color=color.lerp(Color("865d4d"),1.0-smoothstep(15.0,21.0,distance))
-	return color
+	color*=1.0-0.11*seam
+	var near_foot: float=1.0-smoothstep(17.0,29.0,distance)
+	color=color.lerp(ROCK_PALETTE[0].darkened(0.08),near_foot*0.48)
+	return color.lerp(Color("a27b6a"),clampf((distance-125.0)/210.0,0.0,0.24))
 
 static func _material(use_grain: bool=false) -> StandardMaterial3D:
 	var mat := StandardMaterial3D.new()
@@ -92,21 +97,26 @@ static func _material(use_grain: bool=false) -> StandardMaterial3D:
 		# Tiny baked-on-load tiling grain, only one texture rather than a
 		# costly stack of PBR maps. World triplanar prevents stretching over
 		# cliffs without demanding dense geometry or external paid textures.
-		var image := Image.create(128,128,false,Image.FORMAT_RGB8)
+		var image := Image.create(256,256,false,Image.FORMAT_RGB8)
 		var micro := FastNoiseLite.new()
 		micro.seed=918733
-		micro.frequency=0.057
+		micro.frequency=0.072
 		micro.noise_type=FastNoiseLite.TYPE_SIMPLEX_SMOOTH
-		for x in range(128):
-			for y in range(128):
+		for x in range(256):
+			for y in range(256):
 				var n: float=micro.get_noise_2d(float(x),float(y))
-				var v: float=clampf(0.90+0.095*n,0.79,1.0)
-				image.set_pixel(x,y,Color(v,v*0.992,v*0.98))
+				var chips: float=micro.get_noise_2d(float(x)*1.9+37.0,float(y)*1.9-13.0)
+				var drift: float=micro.get_noise_2d(float(x)*0.23+87.0,float(y)*0.23)
+				var bedding: float=0.5+0.5*sin(TAU*(float(y)/32.0+0.012*drift))
+				var seam: float=pow(1.0-bedding,13.0)*0.17
+				var crack: float=pow(maxf(0.0,0.5-absf(chips)),5.0)*0.37
+				var v: float=clampf(0.91+0.14*n+0.04*chips-seam-crack,0.63,1.0)
+				image.set_pixel(x,y,Color(v,v*0.987,v*0.978))
 		image.generate_mipmaps()
 		mat.albedo_texture=ImageTexture.create_from_image(image)
 		mat.uv1_triplanar=true
 		mat.uv1_world_triplanar=true
-		mat.uv1_scale=Vector3(0.13,0.13,0.13)
+		mat.uv1_scale=Vector3(0.105,0.105,0.105)
 	return mat
 
 static func _vertex(st: SurfaceTool, point: Vector3, normal: Vector3, tint: Color) -> void:
@@ -173,6 +183,9 @@ static func _cliff_mesh(owner: Node3D, route: PackedVector3Array, noise: FastNoi
 	mesh.name="CrimsonStratifiedCliffs"
 	mesh.mesh=st.commit()
 	mesh.material_override=_material(true)
+	# Avoid giant stairstep shadow triangles across the mobile racing surface.
+	# Diffuse terrain normals and baked albedo still shade the canyon itself.
+	mesh.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	owner.add_child(mesh)
 
 static func _road_shoulder(owner: Node3D, route: PackedVector3Array, noise: FastNoiseLite) -> void:
@@ -214,24 +227,26 @@ static func _road_shoulder(owner: Node3D, route: PackedVector3Array, noise: Fast
 	owner.add_child(mesh)
 
 static func _far_ridge(owner: Node3D) -> void:
-	# A continuous, low-geometry horizon. Atmospheric fog handles detail at
-	# this range; extra geometry would be invisible at Android resolution.
+	# Two atmospheric skyline silhouettes in a single low-poly material batch.
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	var near_color: Color=Color("8a665d")
-	var top_color: Color=Color("b48a70")
-	for index in range(96):
-		var p: float=TAU*float(index)/96.0
-		var q: float=TAU*float(index+1)/96.0
-		var h0: float=54.0+17.0*absf(sin(p*3.0))+9.0*absf(sin(p*8.0-0.3))
-		var h1: float=54.0+17.0*absf(sin(q*3.0))+9.0*absf(sin(q*8.0-0.3))
-		var a:=Vector3(365.0*cos(p),5.0,265.0*sin(p))
-		var b:=Vector3(365.0*cos(q),5.0,265.0*sin(q))
-		var c:=Vector3(365.0*cos(q),h1,265.0*sin(q))
-		var d:=Vector3(365.0*cos(p),h0,265.0*sin(p))
-		var n: Vector3=Vector3(-cos((p+q)*0.5),0.0,-sin((p+q)*0.5))
-		_tri(st,a,b,c,n,n,n,near_color,near_color,top_color)
-		_tri(st,a,c,d,n,n,n,near_color,top_color,top_color)
+	for layer in range(2):
+		var rx: float=367.0 if layer==0 else 414.0
+		var rz: float=257.0 if layer==0 else 287.0
+		var bottom: Color=Color("805d51") if layer==0 else Color("98796a")
+		var top: Color=Color("a77b64") if layer==0 else Color("b9957d")
+		for index in range(96):
+			var p: float=TAU*float(index)/96.0
+			var q: float=TAU*float(index+1)/96.0
+			var h0: float=53.0+17.0*absf(sin(p*3.0+float(layer)*0.7))+10.0*absf(sin(p*9.0-0.3))
+			var h1: float=53.0+17.0*absf(sin(q*3.0+float(layer)*0.7))+10.0*absf(sin(q*9.0-0.3))
+			var a:=Vector3(rx*cos(p),-4.0,rz*sin(p))
+			var b:=Vector3(rx*cos(q),-4.0,rz*sin(q))
+			var c:=Vector3(rx*cos(q),h1,rz*sin(q))
+			var d:=Vector3(rx*cos(p),h0,rz*sin(p))
+			var n: Vector3=Vector3(-cos((p+q)*0.5),0.0,-sin((p+q)*0.5))
+			_tri(st,a,b,c,n,n,n,bottom,bottom,top)
+			_tri(st,a,c,d,n,n,n,bottom,top,top)
 	var mesh := MeshInstance3D.new()
 	mesh.name="CrimsonDistantRidgeline"
 	mesh.mesh=st.commit()

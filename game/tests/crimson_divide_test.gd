@@ -31,6 +31,7 @@ func check() -> void:
 		if circuit==4:
 			# The new continuous gorge is exclusive to Crimson Serpent.
 			assert(rock_vertices>50000 and rock_vertices<85000)
+			assert(rock.cast_shadow==GeometryInstance3D.SHADOW_CASTING_SETTING_OFF,"Decorative cliffs must not cast stair-step shadows across the road")
 			var apron: MeshInstance3D=scene.get_node("CrimsonTerrain")
 			assert(apron.mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX].size()>1000)
 			var rubble: MultiMeshInstance3D=scene.get_node_or_null("CrimsonTalus")
