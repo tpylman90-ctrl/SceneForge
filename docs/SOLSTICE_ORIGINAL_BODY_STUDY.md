@@ -132,3 +132,38 @@ roughness/color variation and sub-degree paint micro-normals. This improves
 the geometry's highlight readability while preserving separate textured
 material channels. The source remains non-final until studio renders are
 reviewed; automated topology and material tests alone are insufficient.
+
+## S-01.6 — countersunk fastback cockpit, body-to-cabin proportion correction
+
+The earlier roof crown was approximately 2.09 m high above the model
+origin while the central deck/shoulder intersection was around 1.15 m.
+Despite refined textures, this produced a disproportionately tall truck-cab
+greenhouse standing on a thin body. The reference Shrike uses the opposite
+design language: body shoulders climb toward the glazing and the roof is
+a relatively shallow, visually integrated top.
+
+Engineering corrections:
+- Roof baseline lowers from 1.96 to 1.69 m; crown apex becomes roughly
+  1.79 m, with the source body dimensions/long hood retained.
+- The primary **connected** monocoque shoulder around the cabin now rises
+  continuously (+0.31 m max, Gaussian falloff in width and length).
+  Windows visually recess into the fender/shoulder rather than being set
+  on a flat elevated base. No extra fender object or fake side cover.
+- The front windshield rakes rearward more and its bottom follows a
+  hood/cowl-like variable-height section instead of a horizontal frame.
+- The roof panel is painted, with separate correctly fitted glazing and
+  carefully bounded dark frame strips.
+- The **main rear body** receives a smooth fastback crown that grows
+  toward the rear window and fades into the long trunk. The shortened
+  rear glazing lands against it; no vertical truck-like bulkhead.
+- Curved quarter-panel buttress strips sample the same modeled haunch
+  as their landing, replacing arbitrary suspended fin geometry.
+- The seatback is lowered slightly for roof clearance.
+
+Measured per-build gates check shoulder height, peak roof height, roof
+exposure above the shoulder, rear screen slope and exact glazing edges.
+Added front-half close side profile and physically lit side render, along
+with the existing hero/clay/rear comparison angles. These constraints are
+design targets, **not** certification of exact body/roof G2 continuity.
+The playable fleet remains unaffected, and the actual Android FPS is not
+established by the isolated preview.

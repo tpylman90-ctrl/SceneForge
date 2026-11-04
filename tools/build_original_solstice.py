@@ -35,6 +35,16 @@ NR = 72
 APERTURE_Z = (-1.48, 1.27)
 APERTURE_THETA = 0.49
 
+# S-01.5 lowered/countersunk greenhouse. Distances are authored in metres.
+# The roof is intentionally a low aerodynamic crown ABOVE the shoulder line
+# instead of a separate tall cap sitting on a shallow deck.
+CABIN_BELTLINE_Y = 1.31
+CABIN_ROOF_BASE_Y = 1.69
+CABIN_ROOF_FRONT_Z = .40
+CABIN_ROOF_REAR_Z = -1.32
+CABIN_WINDSCREEN_BASE_Z = 1.30
+CABIN_REAR_SCREEN_END_Z = -1.85
+
 def cv(p):
     """Godot (x, up, forward) to Blender (x, -forward, up)."""
     return (p[0], -p[2], p[1])
@@ -92,6 +102,16 @@ def shell_point(z, angle):
     y += .075 * gaussian(z, 2.47, 1.12) * gaussian(a, 0., .15)
     # A real continuous deep rocker/energy trench beneath the shoulder.
     y -= .115 * gaussian(z, .0, 1.85) * gaussian(a, 1.78, .28)
+
+    # One continuous raised shoulder ring under the greenhouse. This is
+    # integrated into the SAME body vertex grid: side windows sit down in
+    # the body instead of attaching to a flat central deck like a truck cab.
+    y += .31 * gaussian(z, -.06, 1.64) * gaussian(a, .53, .31)
+
+    # A long, low fastback crown rises in the existing rear body surface,
+    # meets the short rear windshield and gently fades into the trunk.
+    # The rear cab is no longer terminated by a flat vertical bulkhead.
+    y += .38 * gaussian(z, -1.90, .93) * gaussian(a, 0., .61)
     return (x, y, z)
 
 def material(name, rgb, metallic=.0, roughness=.5, alpha=1., glow=0.):
@@ -276,57 +296,80 @@ def patch(name, nu, nv, point, mat, smooth=True):
 # numerical perimeter control, rather than approximating matching points.
 def windshield_point(u,v):
     x01=2*u-1
-    z=1.30-.70*v
-    width=.68-.16*v
-    return (width*x01,1.23+.73*v+.060*(1-x01*x01),z)
+    width=.68+(.49-.68)*v
+    z=CABIN_WINDSCREEN_BASE_Z+(CABIN_ROOF_FRONT_Z-CABIN_WINDSCREEN_BASE_Z)*v
+    # Windshield lower edge follows the hood crown rather than floating
+    # uniformly above its center. Thin center, full-height shoulder corners.
+    bottom=1.18+.13*abs(x01)**1.65
+    top=CABIN_ROOF_BASE_Y+.045*(1-x01*x01)
+    return (width*x01,(1-v)*bottom+v*top,z)
 windshield=patch("SOLSTICE_FRONT_WINDSCREEN",20,12,windshield_point,glass)
 
 def roof_point(u,v):
     x01=2*u-1
-    z=.60-1.75*v
-    return (x01*(.52+.030*math.sin(math.pi*v)),
-            1.96+.070*math.sin(math.pi*v)+.060*(1-x01*x01),z)
-roof=patch("SOLSTICE_STRUCTURAL_ROOF",18,22,roof_point,dark)
+    z=CABIN_ROOF_FRONT_Z+(CABIN_ROOF_REAR_Z-CABIN_ROOF_FRONT_Z)*v
+    return (x01*(.49+.030*math.sin(math.pi*v)),
+            CABIN_ROOF_BASE_Y+.055*math.sin(math.pi*v)+
+                .045*(1-x01*x01),z)
+# The painted crown now reads as the shoulder's continuation rather than
+# a contrasting floating dark/white lid.
+roof=patch("SOLSTICE_STRUCTURAL_ROOF",18,22,roof_point,paint)
 
 def side_window_point(side,u,v):
-    zfront=1.30-.70*u
-    zrear=-1.55+.40*u
+    zfront=CABIN_WINDSCREEN_BASE_Z+(
+        CABIN_ROOF_FRONT_Z-CABIN_WINDSCREEN_BASE_Z)*u
+    zrear=-1.59+(CABIN_ROOF_REAR_Z+1.59)*u
     z=zfront+(zrear-zfront)*v
-    xl=.68+.035*math.sin(math.pi*v)
-    xu=.52+.030*math.sin(math.pi*v)
-    x=side*((1-u)*xl+u*xu+.018*math.sin(math.pi*u)*math.sin(math.pi*v))
-    sill=1.23+.045*math.sin(math.pi*v)
-    roof_edge_y=1.96+.070*math.sin(math.pi*max(0.,min(1.,(.60-z)/1.75)))
-    y=(1-u)*sill+u*roof_edge_y+.016*math.sin(math.pi*u)*math.sin(math.pi*v)
+    xl=.68+.032*math.sin(math.pi*v)
+    xu=.49+.030*math.sin(math.pi*v)
+    x=side*((1-u)*xl+u*xu+.014*math.sin(math.pi*u)*math.sin(math.pi*v))
+    sill=CABIN_BELTLINE_Y+.020*math.sin(math.pi*v)
+    roof_progress=max(0.,min(1.,(CABIN_ROOF_FRONT_Z-z)/
+                               (CABIN_ROOF_FRONT_Z-CABIN_ROOF_REAR_Z)))
+    top=CABIN_ROOF_BASE_Y+.055*math.sin(math.pi*roof_progress)
+    y=(1-u)*sill+u*top+.012*math.sin(math.pi*u)*math.sin(math.pi*v)
     return (x,y,z)
 for side,label in [(-1,"Port"),(1,"Starboard")]:
     patch("SOLSTICE_"+label+"_GLAZING",12,32,
           lambda u,v,s=side: side_window_point(s,u,v),glass)
 
-def rear_windscreen_point(u,v):
-    x01=2*u-1
-    return ((.52+.16*v)*x01,
-            1.96-.65*v+.060*(1-x01*x01)*(1-v),-1.15-.40*v)
-patch("SOLSTICE_REAR_WINDSCREEN",18,16,rear_windscreen_point,glass)
-
 def smoothstep(t):
     t=max(0.,min(1.,t))
     return t*t*(3.-2.*t)
 
-# Formed rear-quarter sails land on ACTUAL surface points of the haunch.
-# They remain separate manufactured panels but are no longer loose sheets.
+def rear_windscreen_point(u,v):
+    # Short sloping rear screen lands directly against the raised rear body.
+    # Past this line the trunk is sculpted PAINT, not glass hovering over a
+    # second opaque shell. This is a genuine fastback surface transition.
+    x01=2*u-1
+    z=CABIN_ROOF_REAR_Z+(CABIN_REAR_SCREEN_END_Z-CABIN_ROOF_REAR_Z)*v
+    width=.49+.12*v
+    start_y=CABIN_ROOF_BASE_Y+.045*(1-x01*x01)
+    landing_y=shell_point(CABIN_REAR_SCREEN_END_Z,.45*abs(x01))[1]+.013
+    b=smoothstep(v)
+    y=(1-b)*start_y+b*landing_y+.016*math.sin(math.pi*v)*(1-x01*x01)
+    return (width*x01,y,z)
+patch("SOLSTICE_REAR_WINDSCREEN",18,16,rear_windscreen_point,glass)
+
 def sail_point(side,u,v):
-    z=-1.15-1.83*v
-    root=shell_point(z,side*(.82-.065*v))
-    # Two closely related blend rails form a narrow, rolled transition.
-    # The previous full-width sail produced a tall triangular fin at the
-    # cockpit; taper both sides to the roof and rear body instead.
-    early=.025+.975*smoothstep(v)
-    late=.98*smoothstep(max(0.,(v-.16)/.84))
-    t=late*(1-u)+early*u
-    return (side*.52+(root[0]-side*.52)*t,
-            1.96+(root[1]-1.96)*t+.035*math.sin(math.pi*v)*math.sin(math.pi*u),
-            z)
+    # Formed quarter-panel bridge: each edge begins at the rear roof corner,
+    # flares gradually alongside the rear screen, and lands inside the
+    # existing raised haunch. Its end coordinates are sampled from the
+    # actual primary shell rather than approximate hand-drawn fin points.
+    z=CABIN_ROOF_REAR_Z+(-3.00-CABIN_ROOF_REAR_Z)*v
+    root=shell_point(z,side*(.74+.025*v))
+    rear_t=max(0.,min(1.,(CABIN_ROOF_REAR_Z-z)/
+                        (CABIN_ROOF_REAR_Z-CABIN_REAR_SCREEN_END_Z)))
+    glass_edge=rear_windscreen_point(0. if side==-1 else 1.,rear_t)
+    bridge=smoothstep(v)
+    inner=.009+.943*bridge**1.6
+    outer=.075+.916*bridge**.65
+    t=inner*(1-u)+outer*u
+    x=glass_edge[0]+(root[0]-glass_edge[0])*t
+    y=glass_edge[1]+(root[1]-glass_edge[1])*t
+    y+=.021*math.sin(math.pi*u)*math.sin(math.pi*v)
+    return (x,y,z)
+
 for side,label in [(-1,"Port"),(1,"Starboard")]:
     sail=patch("SOLSTICE_"+label+"_Roof_to_Haunch_Buttress",
                10,32,lambda u,v,s=side: sail_point(s,u,v),paint)
@@ -347,6 +390,26 @@ for side in (-1,1):
         check_glass_fit(windshield_point(edge_u,t),side_window_point(side,t,0.))
     check_glass_fit(side_window_point(side,1.,1.),
                     roof_point(0. if side==-1 else 1.,1.))
+
+# Proportion gate: sample the raised continuous shoulder at the cabin
+# and the actual crown apex, rather than comparing arbitrary hardcoded
+# heights. A floating truck-like cab will fail this ratio check.
+shoulder_height=shell_point(0.,.53)[1]
+roof_peak=max(roof_point(.5,i/24.)[1] for i in range(25))
+exposed_greenhouse_height=roof_peak-shoulder_height
+rear_windscreen_slope=(
+    rear_windscreen_point(.5,0.)[1]-
+    rear_windscreen_point(.5,1.)[1]) / (
+    CABIN_ROOF_REAR_Z-CABIN_REAR_SCREEN_END_Z)
+assert 1.27<shoulder_height<1.62, "Cabin shoulder sculpt lost"
+assert .22<exposed_greenhouse_height<.49, "Cabin is standing proud of the body"
+assert 0.<rear_windscreen_slope<.70, "Rear cabin ends like a vertical truck wall"
+assert CABIN_ROOF_BASE_Y<1.75
+print("SCENEFORGE_SOLSTICE_INTEGRATED_CABIN_OK",
+      "shoulder_m",round(shoulder_height,3),
+      "crown_m",round(roof_peak,3),
+      "exposed_m",round(exposed_greenhouse_height,3),
+      "rear_slope",round(rear_windscreen_slope,3))
 print("SCENEFORGE_SOLSTICE_GREENHOUSE_SEAMS_OK")
 
 # Bezier tubes are kept editable in the .blend source, then converted to
@@ -438,7 +501,7 @@ def rounded_block(name,position,dimensions,mat,bevel=.05):
 # A restrained functional pilot space, visible through true glass.
 rounded_block("SOLSTICE_Cockpit_Tub",(0,.74,-.10),(1.28,.18,2.73),dark,.085)
 rounded_block("SOLSTICE_Pilot_Seat",(0,1.02,-.46),(.58,.24,.87),seatmat,.11)
-rounded_block("SOLSTICE_Pilot_Backrest",(0,1.32,-.84),(.58,.64,.17),seatmat,.09)
+rounded_block("SOLSTICE_Pilot_Backrest",(0,1.29,-.84),(.58,.61,.17),seatmat,.09)
 rounded_block("SOLSTICE_Dashboard",(0,1.15,.84),(1.15,.22,.38),dark,.10)
 rounded_block("SOLSTICE_Flight_Instruments",(0,1.28,.72),(.70,.045,.13),ice,.015)
 rounded_block("SOLSTICE_Control_Yoke",(0,1.15,.44),(.53,.055,.075),metal,.03)
@@ -599,6 +662,7 @@ views=[
     ("top",(0,11.3,0),15.2),
     ("greenhouse",(4.5,4.15,3.35),6.7),
     ("rear-mechanics",(-5.2,2.8,-6.9),7.0),
+    ("cabin-profile",(8.6,2.35,-.10),7.8),
 ]
 for name,pos,scale in views:
     stage_camera(pos,scale=scale)
@@ -672,6 +736,10 @@ report={
     "body_boundary_edges":boundary_edges,
     "body_nonmanifold_edges":ambiguous_edges,
     "greenhouse_seam_tolerance_mm":.01,
+    "cabin_shoulder_height_m":round(shoulder_height,4),
+    "roof_peak_height_m":round(roof_peak,4),
+    "exposed_cabin_height_above_shoulder_m":round(exposed_greenhouse_height,4),
+    "rear_glass_slope":round(rear_windscreen_slope,4),
     "structural_cradle_count":8,
     "rear_intake_louvre_count":6,
     "glazing":"independent mesh surfaces",

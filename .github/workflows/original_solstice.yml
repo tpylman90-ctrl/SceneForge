@@ -37,10 +37,11 @@ jobs:
           grep -q SCENEFORGE_SOLSTICE_ORIGINAL_PBR_TEXTURES_OK build/original-solstice/blender.log
           grep -q SCENEFORGE_SOLSTICE_PBR_MAPS_OK build/original-solstice/blender.log
           grep -q SCENEFORGE_SOLSTICE_GREENHOUSE_SEAMS_OK build/original-solstice/blender.log
+          grep -q SCENEFORGE_SOLSTICE_INTEGRATED_CABIN_OK build/original-solstice/blender.log
           grep -q SCENEFORGE_SOLSTICE_EXPORT_OK build/original-solstice/blender.log
           test -s build/original-solstice/Solstice_S01.glb
           test -s build/original-solstice/Solstice_S01_Master.blend
-          for view in hero rear-quarter front rear side top clay greenhouse rear-mechanics; do
+          for view in hero rear-quarter front rear side top clay greenhouse rear-mechanics cabin-profile; do
             test -s "build/original-solstice/Solstice-$view.png"
           done
           python - <<'PY'
@@ -54,6 +55,8 @@ jobs:
           assert v["front_extractor_quads"]>=24
           assert v["formed_lip_segments"]>60
           assert v["body_nonmanifold_edges"]==0
+          assert .22 < v["exposed_cabin_height_above_shoulder_m"] < .49
+          assert v["rear_glass_slope"] < .70
           assert v["structural_cradle_count"]==8
           assert v["rear_intake_louvre_count"]==6
           print("SOLSTICE_EXPORT_REPORT_VERIFIED",v["triangles"])
@@ -64,6 +67,7 @@ jobs:
           /tmp/blender-4.5.3-linux-x64/blender --background --threads 4 --python tools/render_original_solstice_pbr.py 2>&1 | tee build/original-solstice/studio-render.log
           test -s build/original-solstice/Solstice-studio-hero.png
           test -s build/original-solstice/Solstice-studio-rear-quarter.png
+          test -s build/original-solstice/Solstice-studio-profile.png
           grep -q SCENEFORGE_SOLSTICE_STUDIO_RENDER_OK build/original-solstice/studio-render.log
       - name: Verify GLB in Godot 4.5 Compatibility
         run: |
