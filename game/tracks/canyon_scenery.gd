@@ -3,13 +3,13 @@ extends RefCounted
 # Crimson Divide's static, deterministic, collision-free landscape.
 # A single vertex-coloured formation batch replaces the cylinder forest.
 # Geometry is constructed once when a circuit loads, not every frame.
-const ROCK_COLORS := [
+const ROCK_COLORS = [
 	Color("b66a47"), Color("d18a58"), Color("a65b43"),
 	Color("c47851"), Color("8a503f"), Color("dd9960"),
 	Color("a96046"), Color("c17b50")
 ]
-const TERRAIN_PALE := Color("ad7755")
-const TERRAIN_DARK := Color("80523f")
+const TERRAIN_PALE = Color("ad7755")
+const TERRAIN_DARK = Color("80523f")
 
 static func _face(st: SurfaceTool, a: Vector3, b: Vector3, c: Vector3, tint: Color) -> void:
 	var normal: Vector3=(b-a).cross(c-a)
@@ -53,8 +53,8 @@ static func _ground_height(route: PackedVector3Array, noise: FastNoiseLite, x: f
 static func _terrain(owner: Node3D, route: PackedVector3Array, noise: FastNoiseLite) -> void:
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	const X_COUNT := 38
-	const Z_COUNT := 28
+	const X_COUNT = 38
+	const Z_COUNT = 28
 	var positions: Array=[]
 	# Precompute every height once; colors change per triangle, not per vertex.
 	for x in range(X_COUNT+1):
