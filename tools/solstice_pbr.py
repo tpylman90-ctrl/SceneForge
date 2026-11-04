@@ -16,13 +16,15 @@ def install_solstice_pbr(mat,size=1024):
             u=x/size
             h=((x*73856093)^(y*19349663)^((x*y+17)*83492791))&255
             grain=h/255.0-.5
-            a=math.sin(pi2*(u*41+v*9))
-            b=math.sin(pi2*(u*19-v*31))
-            tint=1+.017*a+.010*b+.011*grain
-            rough=max(.19,min(.36,.255+.027*a+.013*b+.013*grain))
-            metal=max(.65,min(.81,.735+.016*b))
-            nx=.016*a+.006*grain
-            ny=.018*b+.007*grain
+            a=math.sin(pi2*(u*2.7+v*.8))
+            b=math.sin(pi2*(u*1.1-v*3.9))
+            tint=1+.006*a+.003*b+.003*grain
+            rough=max(.25,min(.37,.305+.009*a+.005*b+.004*grain))
+            metal=max(.65,min(.81,.735+.008*b))
+            # A good automotive clearcoat is almost perfectly smooth:
+            # shape-changing reflectance belongs in the actual body mesh.
+            nx=.0020*a+.0009*grain
+            ny=.0023*b+.0009*grain
             nz=math.sqrt(max(.01,1-nx*nx-ny*ny))
             base.extend((.058*tint,.245*tint,.263*tint,1))
             orm.extend((1,rough,metal,1))
@@ -49,7 +51,7 @@ def install_solstice_pbr(mat,size=1024):
     links.new(sep.outputs["Blue"],p.inputs["Metallic"])
     tex=n.new("ShaderNodeTexImage");tex.image=bumps
     nm=n.new("ShaderNodeNormalMap");nm.space="TANGENT"
-    nm.inputs["Strength"].default_value=.40
+    nm.inputs["Strength"].default_value=.20
     links.new(tex.outputs["Color"],nm.inputs["Color"])
     links.new(nm.outputs["Normal"],p.inputs["Normal"])
     p.inputs["Coat Weight"].default_value=.29

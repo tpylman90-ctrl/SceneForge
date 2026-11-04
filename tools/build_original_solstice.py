@@ -157,10 +157,10 @@ for jstart,jend in [(index_at_angle(1.13),index_at_angle(1.64)),
                      index_at_angle(2*math.pi-1.13))]:
     scoops.append((index_at_z(-2.70),index_at_z(-1.68),jstart,jend))
 front_extractors=[]
-for jstart,jend in [(index_at_angle(.56),index_at_angle(.97)),
-                    (index_at_angle(2*math.pi-.97),
-                     index_at_angle(2*math.pi-.56))]:
-    front_extractors.append((index_at_z(2.20),index_at_z(2.95),jstart,jend))
+for jstart,jend in [(index_at_angle(.72),index_at_angle(1.02)),
+                    (index_at_angle(2*math.pi-1.02),
+                     index_at_angle(2*math.pi-.72))]:
+    front_extractors.append((index_at_z(2.42),index_at_z(3.00),jstart,jend))
 recesses=[(region,"rear") for region in scoops]+[
          (region,"hood") for region in front_extractors]
 for k in range(NZ-1):
@@ -198,16 +198,16 @@ for (k0,k1,j0,j1),kind in recesses:
         for j in range(j0,j1+1):
             original=k*NR+j
             x,y,z=hull_pts[original]
-            inward=.24 if kind=="rear" else .048
-            down=.045 if kind=="rear" else .132
+            inward=.24 if kind=="rear" else .026
+            down=.045 if kind=="rear" else .070
             inner[(k,j)]=len(hull_pts)
             hull_pts.append((x-math.copysign(inward,x),y-down,z))
             uv_seed[inner[(k,j)]]=uv_seed[original]
             if k in (k0,k1) or j in (j0,j1):
                 lip[(k,j)]=len(hull_pts)
                 hull_pts.append((x-math.copysign(
-                    .028 if kind=="rear" else .013,x),
-                    y-(.017 if kind=="rear" else .022),z))
+                    .028 if kind=="rear" else .007,x),
+                    y-(.017 if kind=="rear" else .011),z))
                 uv_seed[lip[(k,j)]]=uv_seed[original]
     for k in range(k0,k1):
         for j in range(j0,j1):
@@ -513,11 +513,11 @@ for side,label in [(-1,"Port"),(1,"Starboard")]:
 # Three recessed stators live inside each front hood extractor; these do
 # not paint dark stripes over the original continuous metal surface.
 for side,label in [(-1,"Port"),(1,"Starboard")]:
-    for blade in range(3):
-        z=2.35+.205*blade
-        x,y,_=shell_point(z,side*.76)
+    for blade in range(2):
+        z=2.60+.22*blade
+        x,y,_=shell_point(z,side*.86)
         rounded_block("SOLSTICE_"+label+"_Front_Extractor_Stator_"+str(blade),
-            (x-side*.045,y-.101,z),(.13,.035,.075),dark,.008)
+            (x-side*.014,y-.056,z),(.11,.013,.085),dark,.004)
 
 # Flush, not floating: exterior lighting follows the vehicle's functional edges.
 rounded_block("SOLSTICE_Thin_Tail_Lightbar",(0,1.07,-4.11),
@@ -545,7 +545,7 @@ expected_recess_vertices=sum(
     for (k0,k1,j0,j1),kind in recesses)
 assert len(hull.data.vertices)==NZ*NR+expected_recess_vertices, "Unexpected body cage vertices"
 assert scoop_quads>50, "Integrated shoulder intake geometry missing"
-assert extractor_quads>50, "True shared-hull hood extractor recesses missing"
+assert extractor_quads>=24, "True shared-hull hood extractor recesses missing"
 assert formed_lip_segments>60, "Stamped lip geometry missing"
 assert all(face.loop_total in (3,4,NR) for face in hull.data.polygons)
 assert len(hull.data.polygons)>4500

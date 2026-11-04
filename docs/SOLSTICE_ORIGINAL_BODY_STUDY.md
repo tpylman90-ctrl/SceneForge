@@ -121,3 +121,14 @@ provide subtle microdetail without copying Shrike's UV art. For Android, these
 three maps are initially used on the hero prototype only; they are not proof
 that an opponent LOD can afford the same materials. The prototype must remain
 outside the fleet until actual phone reviews and collision/seat controls.
+
+## Visual QA correction: controlled, not noisy complexity
+The first true hood cut-outs passed geometry validation but were too wide and
+scalloped in the Blender studio images, while the original procedural normal
+map produced excessive high-frequency specular mottling. For production
+quality, the two hood openings have been made narrower and shallower and the
+stators sit deeper inside. The coating now uses much slower, lower-amplitude
+roughness/color variation and sub-degree paint micro-normals. This improves
+the geometry's highlight readability while preserving separate textured
+material channels. The source remains non-final until studio renders are
+reviewed; automated topology and material tests alone are insufficient.
