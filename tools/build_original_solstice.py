@@ -324,24 +324,52 @@ def spline_tube(name,points,radius,mat):
     return obj
 
 for side,label in [(-1,"Port"),(1,"Starboard")]:
-    spline_tube("SOLSTICE_"+label+"_A_Pillar",
-        [(side*.69,1.26,1.30),(side*.64,1.51,1.05),
-         (side*.53,1.94,.60)],.026,metal)
+    edge_u=0. if side==-1 else 1.
+
+    # Dark formed strips cover the actual glass perimeter. Bronze is thin
+    # highlighting, not an exposed roll cage standing away from the cabin.
+    patch("SOLSTICE_"+label+"_Formed_A_Pillar",3,16,
+          lambda u,v,s=side,eu=edge_u: (
+              windshield_point(eu,v)[0]+s*(u-.50)*.091,
+              windshield_point(eu,v)[1]+.012,
+              windshield_point(eu,v)[2]),dark)
+    patch("SOLSTICE_"+label+"_Formed_Roof_Rail",3,22,
+          lambda u,v,s=side,eu=edge_u: (
+              roof_point(eu,v)[0]+s*(u-.50)*.086,
+              roof_point(eu,v)[1]+.015,
+              roof_point(eu,v)[2]),dark)
+    patch("SOLSTICE_"+label+"_Formed_C_Pillar",3,15,
+          lambda u,v,s=side: (
+              side_window_point(s,v,1.)[0]+s*(u-.50)*.084,
+              side_window_point(s,v,1.)[1]+.012,
+              side_window_point(s,v,1.)[2]),dark)
+
+    spline_tube("SOLSTICE_"+label+"_A_Pillar_Accent",
+        [tuple(a+b for a,b in zip(windshield_point(edge_u,t),
+                                 (side*.009,.015,0.)))
+         for t in (0.,.18,.36,.54,.72,.9,1.)],.012,metal)
     spline_tube("SOLSTICE_"+label+"_Roof_Cantrail",
-        [(side*.53,1.96,.60),(side*.55,2.04,-.17),
-         (side*.52,1.96,-1.15)],.025,metal)
-    spline_tube("SOLSTICE_"+label+"_C_Pillar",
-        [(side*.52,1.96,-1.15),(side*.62,1.62,-1.38),
-         (side*.71,1.28,-1.55)],.033,metal)
-    spline_tube("SOLSTICE_"+label+"_Beltline",
-        [(side*.70,1.29,1.30),(side*.70,1.31,-.20),
-         (side*.70,1.27,-1.53)],.019,dark)
-    # The chrome graphic traces the actual continuous shoulder surface.
-    shoulder = [shell_point(z,side*math.pi*.25 if side>0 else
-                           2*math.pi-math.pi*.25)
-                for z in [3.16,2.61,1.65,.5,-.55,-1.7,-2.5,-3.35]]
+        [tuple(a+b for a,b in zip(roof_point(edge_u,t),
+                                 (side*.011,.017,0.)))
+         for t in (0.,.20,.40,.60,.80,1.)],.014,metal)
+    spline_tube("SOLSTICE_"+label+"_C_Pillar_Accent",
+        [tuple(a+b for a,b in zip(side_window_point(side,t,1.),
+                                 (side*.009,.015,0.)))
+         for t in (0.,.20,.40,.60,.80,1.)],.013,metal)
+    spline_tube("SOLSTICE_"+label+"_Side_Glass_Seal",
+        [side_window_point(side,0.,t) for t in
+         (0.,.17,.34,.51,.68,.85,1.)],.015,dark)
+    spline_tube("SOLSTICE_"+label+"_B_Pillar",
+        [side_window_point(side,u,.58) for u in (0.,.25,.50,.75,1.)],
+        .014,dark)
+
+    shoulder=[shell_point(z,side*math.pi*.25)
+              for z in [3.16,2.61,1.65,.5,-.55,-1.7,-2.5,-3.35]]
     spline_tube("SOLSTICE_"+label+"_Shoulder_Accent",
-                shoulder,.011,metal)
+                shoulder,.010,metal)
+    spline_tube("SOLSTICE_"+label+"_Rear_Sail_Landing",
+        [sail_point(side,1.,t) for t in (0.,.16,.32,.48,.64,.80,1.)],
+        .012,dark)
 
 def rounded_block(name,position,dimensions,mat,bevel=.05):
     bpy.ops.mesh.primitive_cube_add(size=1,location=cv(position))
