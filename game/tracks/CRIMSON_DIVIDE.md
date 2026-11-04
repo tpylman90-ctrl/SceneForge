@@ -4,7 +4,7 @@
 
 ## Environment contract
 
-Crimson Divide is a sunlit sandstone basin with ochre mesas, rust-red stratified cliffs, freestanding stone needles, rough-cut rock arches, dry canyon terrain and a warm horizon. Each course shares an original procedural 7-sided sandstone asset kit; no paid generation, high-resolution imported textures or additional realtime scene lights are required. Road surfaces and continuous containment barriers remain distinct from visual cliffs.
+Crimson Divide is a sunlit sandstone basin with ochre mesas, rust-red stratified cliffs, freestanding stone needles, rough-cut rock arches, dry canyon terrain and a warm horizon. Each course uses original vertex-colored, stratified geological formations and rolling terrain; no paid generation, high-resolution imported textures or additional realtime scene lights are required. Road surfaces and continuous containment barriers remain distinct from visual cliffs.
 
 Road geometry is sampled from hand-placed **Catmull–Rom control points**. Total route lengths below are approximate centerline chord lengths calculated from 192 spline samples, not measured race time. Each course carries its own segment width, elevation, banking, desert sector names, launch-to-landing stretch, signage and selectable track ID.
 
@@ -50,7 +50,7 @@ Road geometry is sampled from hand-placed **Catmull–Rom control points**. Tota
 ## Common features
 
 - Canyon tracks use IDs 4, 5 and 6. Original IDs 0–3 are stable.
-- Course vertices, walls and cliffs use shared-material batches, with low-poly seven-sided pillars. No collision is assigned to decorative rock; road containment is authoritative.
+- The scenic canyon now uses a single batched vertex-colored rock mesh (mesas, buttes, stone needles and talus), a separate undulating ground mesh and a continuous distant ridgeline. Decorative rock has no collision; road containment is authoritative. Shared faceted normals and dark strata seams create carved geology without imported textures, extra lights or moving objects.
 - Starting gantries and landing signs follow the actual route tangent.
 - Canyon jumps use a 4-segment missing-deck span rather than the city's 8-segment span. Launch, recovery and road support use the same gameplay functions.
 - Free Drive, Time Trial, one-stage Serpent event and three-lap Mesa/Devil events use existing vehicle/boost/upgrade physics and local records.
@@ -65,3 +65,12 @@ Road geometry is sampled from hand-placed **Catmull–Rom control points**. Tota
 4. **Performance:** ensure scene load time, FPS and memory remain viable with all nine craft on Android.
 
 **No visual craft modifications were added.** Earned performance-part upgrades remain mechanical.
+
+## November 3 scenery-quality pass
+
+- Replaced the flat 660×400 ground slab with a collision-free height-varying 38×28 grid, tapered to stay under the drivable road.
+- Replaced the repeated cylinder-forest landmarks with radially deformed, multi-strata mesas, eroded buttes and needles. The base colors, ledge profiles and silhouettes vary deterministically per course.
+- Added a single low-poly, continuous far canyon ridgeline and scattered talus for depth and speed parallax.
+- Adjusted canyon-only skylight and sun intensity to reduce blown-out colors. City routes retain their previous lighting.
+- Road, barriers, jump geometry, course controls and gameplay collision remain unchanged. Three scenery meshes replace many individual scenic props. The existing stone arches and track signs remain.
+- CI test now checks scenery node presence, batching and a broad static rock vertex cap. **Android FPS and real-device screenshots require verification after CI.**

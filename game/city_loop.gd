@@ -3,6 +3,7 @@ extends Node3D
 const Fleet = preload("res://vehicles/fleet_catalog.gd")
 const Parts = preload("res://vehicles/performance_parts.gd")
 const Crimson = preload("res://tracks/crimson_divide.gd")
+const CanyonScenery = preload("res://tracks/canyon_scenery.gd")
 
 # A bounded first driving prototype: one closed city loop, no external assets.
 const COUNT := 192
@@ -279,9 +280,9 @@ func _ready() -> void:
 	var sky := Sky.new()
 	if track_id>=Crimson.FIRST_ID:
 		var desert_sky := ProceduralSkyMaterial.new()
-		desert_sky.sky_top_color=Color("55718b")
-		desert_sky.sky_horizon_color=Color("de9774")
-		desert_sky.ground_horizon_color=Color("b77a59")
+		desert_sky.sky_top_color=Color("496b83")
+		desert_sky.sky_horizon_color=Color("e9ac83")
+		desert_sky.ground_horizon_color=Color("c88965")
 		desert_sky.ground_bottom_color=Color("473b3d")
 		sky.sky_material=desert_sky
 	else:
@@ -291,8 +292,8 @@ func _ready() -> void:
 	settings.sky=sky
 	settings.background_color = Color("172c42")
 	settings.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	settings.ambient_light_color = Color("91afc4")
-	settings.ambient_light_energy = 0.8
+	settings.ambient_light_color = Color("a9aeaa") if track_id>=Crimson.FIRST_ID else Color("91afc4")
+	settings.ambient_light_energy = 0.62 if track_id>=Crimson.FIRST_ID else 0.8
 	settings.tonemap_mode = Environment.TONE_MAPPER_FILMIC
 	settings.fog_enabled = true
 	settings.fog_light_color = Color("be8368") if track_id>=Crimson.FIRST_ID else Color("273c50")
@@ -303,7 +304,7 @@ func _ready() -> void:
 	var sun := DirectionalLight3D.new()
 	sun.rotation_degrees = Vector3(-38, -28, 0)
 	sun.light_color = Color("ffd3a5") if track_id>=Crimson.FIRST_ID else Color("b8d6ef")
-	sun.light_energy = 1.12 if track_id>=Crimson.FIRST_ID else 1.0
+	sun.light_energy = 0.98 if track_id>=Crimson.FIRST_ID else 1.0
 	sun.shadow_enabled = true
 	sun.directional_shadow_max_distance = 70
 	sun.shadow_bias = 0.15
@@ -620,59 +621,13 @@ func canyon_arch(index: int, rock: Material, lip: Material) -> void:
 	district_sign("CRIMSON DIVIDE / STONE ARCH",p+Vector3.UP*17.8,tangent,Color("ffe1b8"))
 
 func build_crimson_landmarks(sand: Material, sandstone: Material, rust: Material, dark_rock: Material, warm: Material) -> void:
-	# A handful of reusable mesa and needle silhouettes define three
-	# separate canyon courses. Props are scenery only; the road/barriers
-	# remain their own continuous navigation and containment contract.
-	var rng := RandomNumberGenerator.new()
-	rng.seed=4127+track_id*31
-	for index in range(0,COUNT,10):
-		var p: Vector3=route[index]
-		var tangent: Vector3=flat(route[(index+1)%COUNT]-p).normalized()
-		var normal: Vector3=Vector3(tangent.z,0,-tangent.x)
-		for side in [-1.0,1.0]:
-			var radius: float=rng.randf_range(6.0,11.0)
-			var distance: float=road_half_width(index)+radius+rng.randf_range(15.0,27.0)
-			var location: Vector3=Vector3(p.x+normal.x*distance*side,-0.48,p.z+normal.z*distance*side)
-			if canyon_clear(location,distance*0.42+radius):
-				var high: float=rng.randf_range(12.0,31.0)
-				rock_column(location,radius,high,sandstone if (index+int(side))%3==0 else rust,rng.randf_range(-PI,PI))
-				if index%20==0:
-					rock_column(location+Vector3(radius*0.42,high*0.63,0),radius*0.78,high*0.28,warm)
-	# Huge layered distant cliffs create a canyon skyline with little
-	# overdraw, no imported textures and no additional realtime lights.
-	for index in range(32):
-		var a: float=TAU*float(index)/32.0
-		var distance_x: float=285.0+25.0*sin(a*4.0)
-		var distance_z: float=168.0+16.0*cos(a*3.0)
-		var p: Vector3=Vector3(cos(a)*distance_x,-0.5,sin(a)*distance_z)
-		if canyon_clear(p,42.0):
-			var high: float=35.0+18.0*absf(sin(a*3.0))
-			rock_column(p,18.0+6.0*absf(sin(a*2.0)),high,dark_rock if index%5==0 else rust,a)
+	# Unique route arches are retained. Geological terrain, rock walls and
+	# skyline formations are now built by CanyonScenery in one static batch.
 	if track_id==4:
 		canyon_arch(86,sandstone,warm)
-		for index in [18,113,143]:
-			var p: Vector3=route[index]
-			var n: Vector3=outward_at(index)
-			var location: Vector3=p+n*36.0
-			if canyon_clear(location,24.0):
-				rock_column(Vector3(location.x,-0.5,location.z),10.0,41.0,rust)
 	elif track_id==5:
-		var p: Vector3=route[106]
-		var normal: Vector3=outward_at(106)
-		var mesa: Vector3=p+normal*58.0
-		if canyon_clear(mesa,43.0):
-			rock_column(Vector3(mesa.x,-0.5,mesa.z),27.0,23.0,sandstone)
-			block(Vector3(mesa.x,23.0,mesa.z),Vector3(52,4.0,43),warm)
 		canyon_arch(139,rust,sandstone)
-	else:
-		for index in [77,101,148]:
-			var p: Vector3=route[index]
-			var forward: Vector3=flat(route[(index+1)%COUNT]-p).normalized()
-			var normal: Vector3=Vector3(forward.z,0,-forward.x)
-			for side in [-1.0,1.0]:
-				var pt: Vector3=p+normal*side*(road_half_width(index)+8.5)
-				rock_column(Vector3(pt.x,-0.5,pt.z),4.8,26.0 if index==101 else 20.0,dark_rock)
-	# Baked-looking trail markers and guard posts outside the safety edge.
+	# Track markers remain outside the driving envelope.
 	for index in range(0,COUNT,12):
 		var p: Vector3=route[index]
 		var outward: Vector3=outward_at(index)
@@ -692,9 +647,9 @@ func build_crimson_circuit() -> void:
 	var edge: StandardMaterial3D=material("ffd096",true)
 	var road_mat: StandardMaterial3D=material("464348")
 	road_mat.roughness=0.87
-	block(Vector3(0,-2.1,0),Vector3(660,3.2,400),sand)
 	for index in range(COUNT):
 		route.append(route_position(index))
+	CanyonScenery.populate(self,route,track_id)
 	var road := SurfaceTool.new()
 	road.begin(Mesh.PRIMITIVE_TRIANGLES)
 	var walls := SurfaceTool.new()

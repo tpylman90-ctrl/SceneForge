@@ -20,6 +20,13 @@ func check() -> void:
 		assert(scene.route.size()==scene.COUNT)
 		assert(scene.get_node_or_null("CrimsonDriveSurface")!=null)
 		assert(scene.get_node_or_null("CrimsonDeckSides")!=null)
+		for name in ["CrimsonTerrain","CrimsonStratifiedCliffs","CrimsonDistantRidgeline"]:
+			var scenic: MeshInstance3D=scene.get_node_or_null(name)
+			assert(scenic!=null and scenic.mesh!=null,"Missing canyon scenery: "+name)
+			assert(scenic.mesh.get_surface_count()==1,"Scenery must stay batched")
+		var rock: MeshInstance3D=scene.get_node("CrimsonStratifiedCliffs")
+		assert(rock.mesh.surface_get_array_len(0)>2000)
+		assert(rock.mesh.surface_get_array_len(0)<80000,"Too much canyon geometry for Android")
 		assert(scene.jump_start_index()==44 and scene.jump_end_index()==48)
 		assert(scene.is_jump_gap(44) and scene.is_jump_gap(47))
 		assert(not scene.is_jump_gap(48))
