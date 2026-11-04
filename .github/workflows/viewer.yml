@@ -134,6 +134,10 @@ jobs:
               timeout 120 xvfb-run -a godot --audio-driver Dummy --path game --rendering-method gl_compatibility --resolution 1280x720 -- --capture --craft-2 2>&1 | tee build/viewer-foundry-shrike.log
               test -s build/Foundry-shrike.png
               grep -q SCENEFORGE_SHRIKE_UPLOADED_SHOWROOM_OK build/viewer-foundry-shrike.log
+              # New reversible windshield-only driver inspection captures.
+              grep -q SCENEFORGE_SHRIKE_WINDSCREEN_SEPARATED build/viewer-cockpit.log
+              timeout 120 xvfb-run -a godot --audio-driver Dummy --path game --rendering-method gl_compatibility --resolution 1280x720 -- --capture --craft-2 --seat-view 2>&1 | tee build/viewer-foundry-shrike-seat.log
+              test -s build/Foundry-shrike-seat.png
             else
               grep -q SCENEFORGE_SHRIKE_HUD_IN_COCKPIT_OK build/viewer-cockpit.log
             fi
@@ -170,6 +174,7 @@ jobs:
           path: |
             build/Fleet-*.png
             build/Foundry-shrike.png
+            build/Foundry-shrike-seat.png
             build/SelectedCraft.glb
             build/fleet-report.json
             build/viewer-*.log

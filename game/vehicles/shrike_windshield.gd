@@ -8,20 +8,19 @@ extends RefCounted
 # interior reconstruction.
 const MIN_FACES := 12
 
-static func is_front_windscreen(a: Vector3, b: Vector3, c: Vector3, eye: Vector3) -> bool:
+static func is_front_windscreen(a: Vector3, b: Vector3, c: Vector3, eye: Vector3, tint: Color) -> bool:
 	var center: Vector3=(a+b+c)/3.0
 	var forward: float=center.z-eye.z
-	if forward<0.24 or forward>2.20:
+	# Coordinates verified against the unchanged uploaded Shrike GLB:
+	# forward glazing is sloped and often has near-horizontal or sideways
+	# tessellation normals. A normal-only filter missed the center of the pane.
+	if forward<0.20 or forward>2.33:
 		return false
-	if absf(center.x)>1.17 or center.y<eye.y-0.30 or center.y>eye.y+1.30:
+	if absf(center.x)>1.17 or center.y<eye.y-0.24 or center.y>2.08:
 		return false
-	# Sloped forward-facing sheet, rather than the horizontal roof/bonnet or
-	# the side shoulder. Use absolute Z to cover backfaces of the baked mesh.
-	var face_normal: Vector3=(b-a).cross(c-a)
-	if face_normal.length_squared()<0.0000001:
-		return false
-	face_normal=face_normal.normalized()
-	return absf(face_normal.z)>0.20 and absf(face_normal.x)<0.80
+	# Identify the dark baked glass, not neighboring silver body panels.
+	# Original GLB stores one 2048px base-color map for every part.
+	return (tint.r+tint.g+tint.b)/3.0<0.375
 
 static func isolate(craft: Node3D, eye: Vector3) -> Dictionary:
 	var hull: Node=craft.find_child("Kestrel_Hull",true,false)
@@ -48,6 +47,16 @@ static func isolate(craft: Node3D, eye: Vector3) -> Dictionary:
 				continue
 			var original_arrays: Array=source.surface_get_arrays(surface)
 			var vertices: PackedVector3Array=original_arrays[Mesh.ARRAY_VERTEX]
+			var uvs: PackedVector2Array=original_arrays[Mesh.ARRAY_TEX_UV]
+			var active: Material=node.get_active_material(surface)
+			var color_image: Image=null
+			if active is BaseMaterial3D:
+				var texture: Texture2D=(active as BaseMaterial3D).albedo_texture
+				if texture!=null:
+					color_image=texture.get_image()
+					if color_image!=null and color_image.is_compressed():
+						if color_image.decompress()!=OK:
+							color_image=null
 			var indices: PackedInt32Array=original_arrays[Mesh.ARRAY_INDEX]
 			if indices.is_empty():
 				indices=PackedInt32Array()
@@ -65,7 +74,13 @@ static func isolate(craft: Node3D, eye: Vector3) -> Dictionary:
 				var a: Vector3=vertex_to_craft*vertices[ia]
 				var b: Vector3=vertex_to_craft*vertices[ib]
 				var c: Vector3=vertex_to_craft*vertices[ic]
-				if is_front_windscreen(a,b,c,eye):
+				var tint := Color.WHITE
+				if color_image!=null and not uvs.is_empty():
+					var center_uv: Vector2=(uvs[ia]+uvs[ib]+uvs[ic])/3.0
+					var ix: int=clampi(roundi(center_uv.x*float(color_image.get_width()-1)),0,color_image.get_width()-1)
+					var iy: int=clampi(roundi(center_uv.y*float(color_image.get_height()-1)),0,color_image.get_height()-1)
+					tint=color_image.get_pixel(ix,iy)
+				if is_front_windscreen(a,b,c,eye,tint):
 					window.append(ia)
 					window.append(ib)
 					window.append(ic)
@@ -73,7 +88,6 @@ static func isolate(craft: Node3D, eye: Vector3) -> Dictionary:
 					keep.append(ia)
 					keep.append(ib)
 					keep.append(ic)
-			var active: Material=node.get_active_material(surface)
 			if not keep.is_empty():
 				var opaque_arrays: Array=original_arrays.duplicate(true)
 				opaque_arrays[Mesh.ARRAY_INDEX]=keep
