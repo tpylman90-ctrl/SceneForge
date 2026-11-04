@@ -1273,15 +1273,10 @@ func reset_car() -> void:
 		results_panel.hide()
 
 func toggle_camera() -> void:
-	if feedback.showroom_upload:
-		# Painted/baked opaque glass cannot be used as a driver's windshield.
-		# Offer two genuinely useful chase views instead of placing the camera
-		# inside an opaque Tripo shell. Racing and HUD remain fully functional.
-		cockpit=false
-		near_chase=not near_chase
-		feedback.set_cockpit(false)
-		return
+	# The approved Shrike's painted glass is kept outside but detached for
+	# cockpit view. Match the other craft's true eye-level camera position.
 	cockpit = not cockpit
+	near_chase=false
 	feedback.set_cockpit(cockpit)
 
 func closest_segment(pos: Vector3, cursor: int = -1) -> Dictionary:

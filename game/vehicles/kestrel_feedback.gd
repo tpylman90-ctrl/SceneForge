@@ -19,6 +19,9 @@ var visual_pitch := 0.0
 var motion_clock := 0.0
 var last_drive := 0.0
 var showroom_upload := false
+var windshield_prepared := false
+var windshield_faces := 0
+var windshield_windows: Array[MeshInstance3D] = []
 
 func configure(definition: Resource) -> void:
 	chassis = definition
@@ -50,12 +53,10 @@ func configure(definition: Resource) -> void:
 		# Kestrel's synthetic cockpit, repulsor rings, HUD or exhaust.
 		build_component_mounts()
 		build_audio()
-		# Exterior presentation and playable third-person racing use the
-		# imported original shell. Do not attach the old Shrike cockpit HUD.
-		# Exterior inspection only. The uploaded Tripo-derived car is already
-		# textured, including its opaque window area; adding our procedural
-		# Shrike cockpit, tinted-glass override, and hover rings would obscure it.
-		# No driver camera or racing physics depend on this showroom path.
+		# Original baked surface remains intact in exterior view. On first
+		# cockpit entry, isolate a conservative painted-windscreen patch so it
+		# can be hidden without modifying the rest of the approved vehicle.
+		# Do not install a synthetic interior in this windshield-only trial.
 		print("SCENEFORGE_SHRIKE_UPLOADED_SHOWROOM_OK")
 		return
 	var details: Node3D
@@ -381,6 +382,16 @@ func build_exhaust() -> void:
 		build_repulsor_footprints()
 
 func set_cockpit(enabled: bool) -> void:
+	if showroom_upload:
+		if enabled and not windshield_prepared:
+			windshield_prepared=true
+			var cut: Dictionary=preload("res://vehicles/shrike_windshield.gd").isolate(self,chassis.cockpit_eye)
+			windshield_faces=int(cut["faces"])
+			windshield_windows.assign(cut["windows"])
+		for window in windshield_windows:
+			window.visible=not enabled
+		display_clock=1.0
+		return
 	for entry in glass:
 		var mesh: MeshInstance3D = entry["mesh"]
 		mesh.set_surface_override_material(entry["surface"],entry["inside"] if enabled else entry["outside"])
@@ -388,9 +399,8 @@ func set_cockpit(enabled: bool) -> void:
 
 func update_feedback(delta: float, signed_speed: float, drive: float, steering: float, acceleration: float, slip: float, cockpit: bool, boosting: bool = false, charge: float = 100.0, flight_pitch: float = 0.0) -> void:
 	if showroom_upload:
-		# This is the actual user-approved 164K-triangle Shrike.
-		# It can race with third-person controls; the painted-in glass
-		# requires a different cockpit camera design in a later pass.
+		# Original Shrike with a cockpit-only reversible windshield cutout.
+		# This pass does not invent or replace the missing interior.
 		last_drive=drive
 		motion_clock+=delta
 		var fraction:=clampf(absf(signed_speed)/chassis.max_forward_speed,0.0,1.0)

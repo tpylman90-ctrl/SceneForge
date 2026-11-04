@@ -26,13 +26,11 @@ func check() -> void:
 			assert(lot.driver_door!=null and not lot.door_button.disabled)
 		lot.inspection_preset("seat")
 		lot.update_orbit()
-		if index==2 and lot.lot_feedback!=null and lot.lot_feedback.showroom_upload:
-			assert(not lot.seat_mode, "Tripo textured showroom windows must remain exterior-only")
-			assert(lot.lot_feedback.get_node("ComponentMounts").get_child_count()==8)
-			print("FOUNDRY_SHRIKE_UPLOADED_EXTERIOR_OK")
-		else:
-			var eye: Vector3=lot.lot_feedback.to_global(lot.chassis.cockpit_eye) if index>0 else lot.chassis.cockpit_eye
-			assert(lot.camera.global_position.distance_to(eye)<.001)
+		var eye: Vector3=lot.lot_feedback.to_global(lot.chassis.cockpit_eye) if index>0 else lot.chassis.cockpit_eye
+		assert(lot.camera.global_position.distance_to(eye)<.001)
+		if index==2 and lot.lot_feedback.showroom_upload:
+			assert(lot.seat_mode and lot.lot_feedback.windshield_faces>=12)
+			print("FOUNDRY_SHRIKE_WINDSCREEN_VIEW_OK")
 		lot.inspection_preset("tail")
 		lot.set_inspection(false)
 		assert(not lot.seat_mode and not lot.orbit_mode)

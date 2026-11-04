@@ -77,10 +77,12 @@ func check() -> void:
 				assert(scene.feedback.showroom_upload,"Racing Shrike must use uploaded master, not procedural fallback")
 			assert(scene.feedback.get_node("ComponentMounts").get_child_count()==8)
 			scene.toggle_camera()
+			assert(scene.cockpit,"Cockpit should be accessible to every craft")
 			if definition.chassis_id=="shrike":
-				assert(scene.near_chase and not scene.cockpit,"Baked Shrike glass must use a usable chase view")
-			else:
-				assert(scene.cockpit)
+				assert(scene.feedback.windshield_faces>=12,"Shrike glass cutout must isolate actual faces")
+				assert(scene.feedback.windshield_windows.size()>0)
+				for canopy in scene.feedback.windshield_windows:
+					assert(not canopy.visible,"Painted Shrike glazing must hide only in cockpit view")
 			scene.reset_car()
 			scene.throttle=true
 			for frame in range(3600):
@@ -94,11 +96,13 @@ func check() -> void:
 				if scene.lap>1:break
 			assert(scene.lap==2 and scene.jump_landings==1 and scene.jump_recoveries==0,"Fleet circuit failed")
 			assert(scene.feedback.telemetry.craft_name==definition.display_name)
+			assert(scene.camera.position.distance_to(scene.feedback.to_global(definition.cockpit_eye))<.01)
 			if definition.chassis_id=="shrike":
-				assert(not scene.cockpit and scene.near_chase)
+				scene.toggle_camera()
+				assert(not scene.cockpit)
+				for canopy in scene.feedback.windshield_windows:
+					assert(canopy.visible,"Shrike's original exterior glass must return in chase mode")
 				print("FLEET_SHRIKE_UPLOADED_DRIVE_OK ",circuit)
-			else:
-				assert(scene.camera.position.distance_to(scene.feedback.to_global(definition.cockpit_eye))<.01)
 			print("FLEET_LAP_OK ",definition.chassis_id," / ",circuit)
 			scene.feedback.stop_audio()
 			scene.free()
@@ -111,13 +115,11 @@ func check() -> void:
 		assert(hangar.selected==index and not hangar.busy)
 		assert(hangar.visual.chassis.chassis_id==Fleet.IDS[index])
 		hangar.action("COCKPIT")
+		assert(hangar.cockpit)
 		if index==2 and hangar.visual.showroom_upload:
-			# A race-ready exterior vehicle; driver-seat glass will follow.
-			assert(not hangar.cockpit)
+			assert(hangar.visual.windshield_faces>=12)
 			assert(hangar.visual.get_node_or_null("ComponentMounts")!=null)
-			print("FLEET_SHRIKE_UPLOADED_EXTERIOR_OK")
-		else:
-			assert(hangar.cockpit)
+			print("FLEET_SHRIKE_WINDSCREEN_VIEW_OK")
 		hangar.action("FRONT")
 		assert(not hangar.cockpit)
 	print("FLEET_SELECTION_OK")

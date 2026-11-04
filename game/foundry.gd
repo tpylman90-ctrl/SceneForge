@@ -216,7 +216,9 @@ func _ready() -> void:
 	var args := OS.get_cmdline_user_args()
 	if "--vehicle-tail" in args:
 		inspection_preset("tail")
-	if "--cockpit-view" in args or "--door-open" in args:
+	if "--seat-view" in args:
+		inspection_preset("seat")
+	elif "--cockpit-view" in args or "--door-open" in args:
 		inspection_preset("cockpit")
 	if "--rear-view" in args or "--road-closeup" in args:
 		set_inspection(false)
@@ -528,9 +530,6 @@ func set_inspection(enabled: bool) -> void:
 		camera.rotation = Vector3(pitch, 0, 0)
 
 func inspection_preset(which: String) -> void:
-	if which=="cockpit" and lot_feedback!=null and lot_feedback.showroom_upload:
-		help_label.text="Uploaded Shrike is exterior-only until canopy glass is separated."
-		return
 	cancel_comparison()
 	set_inspection(true)
 	cockpit_locked = which == "cockpit"
@@ -546,9 +545,6 @@ func inspection_preset(which: String) -> void:
 		orbit_radius = 4.5
 
 func set_seat_view(enabled: bool) -> void:
-	if enabled and lot_feedback!=null and lot_feedback.showroom_upload:
-		help_label.text="Shrike uploaded showroom model: driver-seat view awaits glass separation"
-		return
 	seat_mode = enabled
 	if lot_feedback!=null:lot_feedback.set_cockpit(enabled)
 	camera.fov = 78.0 if enabled else 70.0

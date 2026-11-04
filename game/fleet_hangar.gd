@@ -242,9 +242,6 @@ func select_craft(index: int) -> void:
 
 func action(label: String) -> void:
 	if busy:return
-	if label=="COCKPIT" and visual.showroom_upload:
-		info.text=Fleet.NOTES[selected]+"\nPlayable in third person. Canopy glass separation is needed for cockpit view."
-		return
 	if label=="DRIVE" or label=="FOUNDRY":
 		busy=true
 		visual.stop_audio()
