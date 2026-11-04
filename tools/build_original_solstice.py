@@ -276,11 +276,14 @@ def smoothstep(t):
 def sail_point(side,u,v):
     z=-1.15-1.83*v
     root=shell_point(z,side*(.82-.065*v))
-    bridge=smoothstep(v)
-    inner_x=side*(.52+(abs(root[0])-.52)*bridge-.028*bridge)
-    inner_y=1.96+(root[1]-1.96)*bridge+.085*math.sin(math.pi*v)+.025*bridge
-    return (inner_x*(1-u)+root[0]*u,
-            inner_y*(1-u)+root[1]*u+.055*math.sin(math.pi*u)*math.sin(math.pi*v),
+    # Two closely related blend rails form a narrow, rolled transition.
+    # The previous full-width sail produced a tall triangular fin at the
+    # cockpit; taper both sides to the roof and rear body instead.
+    early=.025+.975*smoothstep(v)
+    late=.98*smoothstep(max(0.,(v-.16)/.84))
+    t=late*(1-u)+early*u
+    return (side*.52+(root[0]-side*.52)*t,
+            1.96+(root[1]-1.96)*t+.035*math.sin(math.pi*v)*math.sin(math.pi*u),
             z)
 for side,label in [(-1,"Port"),(1,"Starboard")]:
     sail=patch("SOLSTICE_"+label+"_Roof_to_Haunch_Buttress",
@@ -310,8 +313,10 @@ def spline_tube(name,points,radius,mat):
     path = bpy.data.curves.new(name+"_Path","CURVE")
     path.dimensions="3D"
     path.bevel_depth=radius
-    path.bevel_resolution=3
-    path.resolution_u=16
+    # Small piping below 3 cm radius does not need screen-space invisible
+    # 16x8 tessellation on an Android-scale vehicle review model.
+    path.bevel_resolution=2
+    path.resolution_u=10
     spline=path.splines.new("BEZIER")
     spline.bezier_points.add(len(points)-1)
     for handle,p in zip(spline.bezier_points,points):
@@ -397,7 +402,7 @@ rounded_block("SOLSTICE_Flight_Instruments",(0,1.28,.72),(.70,.045,.13),ice,.015
 rounded_block("SOLSTICE_Control_Yoke",(0,1.15,.44),(.53,.055,.075),metal,.03)
 
 def torus(name,x,y,z,r,minor,mat,vertical=False):
-    bpy.ops.mesh.primitive_torus_add(major_segments=30,minor_segments=8,
+    bpy.ops.mesh.primitive_torus_add(major_segments=24,minor_segments=6,
         location=cv((x,y,z)),major_radius=r,minor_radius=minor)
     obj=bpy.context.object
     obj.name=name
@@ -425,7 +430,7 @@ for z,position_name in [(2.32,"Front"),(-2.52,"Rear")]:
         x=side*(1.08 if z>0 else 1.17)
         prefix="SOLSTICE_"+position_name+"_"+label
         # A true half-buried fairing bridges the recessed field to the body.
-        bpy.ops.mesh.primitive_uv_sphere_add(segments=24,ring_count=12,
+        bpy.ops.mesh.primitive_uv_sphere_add(segments=20,ring_count=10,
                                             location=cv((x,.42,z)))
         pod=bpy.context.object
         pod.name=prefix+"_Integrated_Hover_Fairing"
