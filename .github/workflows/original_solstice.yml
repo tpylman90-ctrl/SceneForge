@@ -51,6 +51,8 @@ jobs:
           assert 8000 < v["triangles"] < 75000
           assert v["open_cockpit_quads"]>250
           assert v["recessed_scoop_quads"]>50
+          assert v["front_extractor_quads"]>50
+          assert v["formed_lip_segments"]>60
           assert v["body_nonmanifold_edges"]==0
           assert v["structural_cradle_count"]==8
           assert v["rear_intake_louvre_count"]==6
