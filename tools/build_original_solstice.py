@@ -432,6 +432,18 @@ for z,position_name in [(2.32,"Front"),(-2.52,"Rear")]:
         pod.scale=(.53,.79,.17)  # X, Blender longitudinal Y, vertical Z
         pod.data.materials.append(paint)
         for face in pod.data.polygons:face.use_smooth=True
+        # Formed cradle webs are tied to the underside and terminate inside
+        # the partly embedded ovoid fairing, replacing an isolated disc look.
+        for direction,bracket in [(-1,"Aft"),(1,"Forward")]:
+            arm=patch(prefix+"_"+bracket+"_Structural_Cradle",3,12,
+                lambda u,v,cx=x,cz=z,side_sign=side,d=direction: (
+                    side_sign*(.67+(abs(cx)-.67)*v),
+                    .51-.160*v+.036*math.sin(math.pi*v)-.018*math.sin(math.pi*u),
+                    cz+d*(.47-.19*v)+(u-.5)*(.31-.08*v)
+                ),dark)
+            wall=arm.modifiers.new("Forged cradle wall","SOLIDIFY")
+            wall.thickness=.037
+            wall.offset=-1.
         cylinder(prefix+"_Magnetic_Deck",x,.325,z,.39,.065,dark)
         torus(prefix+"_Machined_Retainer",x,.304,z,.35,.038,metal)
         torus(prefix+"_Flux_Ring",x,.267,z,.285,.032,glow)
@@ -442,6 +454,15 @@ for side,label in [(-1,"Port"),(1,"Starboard")]:
     cylinder("SOLSTICE_"+label+"_Rear_Thruster",x,.78,-3.91,.35,.27,dark,"FORWARD")
     torus("SOLSTICE_"+label+"_Rear_Nozzle_Lip",x,.78,-4.12,.29,.032,metal,True)
     cylinder("SOLSTICE_"+label+"_Plasma_Core",x,.78,-4.14,.205,.015,glow,"FORWARD")
+# The rear intakes have real pockets. Small metal louvers are fitted inside
+# the cavities instead of black shader stripes painted across the side.
+for side,label in [(-1,"Port"),(1,"Starboard")]:
+    for blade in range(3):
+        z=-2.56+blade*.30
+        x,y,_=shell_point(z,side*1.40)
+        rounded_block("SOLSTICE_"+label+"_Intake_Louvre_"+str(blade),
+            (x-side*.19,y-.035,z),(.037,.075,.22),metal,.018)
+
 # Flush, not floating: exterior lighting follows the vehicle's functional edges.
 rounded_block("SOLSTICE_Thin_Tail_Lightbar",(0,1.07,-4.11),
               (1.19,.035,.025),ice,.014)
@@ -460,6 +481,9 @@ assert ambiguous_edges==0, "Primary body has overlapping/nonmanifold topology"
 assert boundary_edges<150, "Unexpected disconnected body seams"
 bm.free()
 assert aperture_quads>250, "Actual cockpit opening was not generated"
+assert "SOLSTICE_Port_Formed_A_Pillar" in bpy.data.objects
+assert "SOLSTICE_Starboard_Roof_to_Haunch_Buttress" in bpy.data.objects
+assert "SOLSTICE_Front_Port_Aft_Structural_Cradle" in bpy.data.objects
 assert len(hull.data.vertices)==NZ*NR+sum((k1-k0+1)*(j1-j0+1) for k0,k1,j0,j1 in scoops), "Unexpected body cage vertices"
 assert scoop_quads>50, "Integrated shoulder intake geometry missing"
 assert all(face.loop_total in (3,4,NR) for face in hull.data.polygons)
@@ -512,6 +536,8 @@ views=[
     ("front",(0,2.55,11.5),5.9),
     ("rear",(0,2.6,-11.5),5.9),
     ("top",(0,11.3,0),15.2),
+    ("greenhouse",(4.5,4.15,3.35),6.7),
+    ("rear-mechanics",(-5.2,2.8,-6.9),7.0),
 ]
 for name,pos,scale in views:
     stage_camera(pos,scale=scale)
@@ -574,6 +600,9 @@ report={
     "recessed_scoop_quads":scoop_quads,
     "body_boundary_edges":boundary_edges,
     "body_nonmanifold_edges":ambiguous_edges,
+    "greenhouse_seam_tolerance_mm":.01,
+    "structural_cradle_count":8,
+    "rear_intake_louvre_count":6,
     "glazing":"independent mesh surfaces",
     "views":[x[0] for x in views]+["clay"],
 }
