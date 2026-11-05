@@ -82,6 +82,11 @@ for craft in ${CAPTURE_FLEET:-}; do
       test -s build/Fleet-solstice-cockpit.png
       grep -q SCENEFORGE_SOLSTICE_PLAYABLE_BODY_OK build/fleet-solstice-rear-render.log
       capture_fleet "solstice-driving-render" res://city_loop.tscn -- --capture --craft-9 --track-action
+      # city_loop currently uses NeonLoop-action.png for non-Shrike/AEROLITH
+      # race screenshots. Retain that source behavior and give this selected
+      # craft's review artifact its own permanent name.
+      test -s build/NeonLoop-action.png
+      cp build/NeonLoop-action.png build/NeonLoop-solstice-driving.png
       test -s build/NeonLoop-solstice-driving.png
       grep -q SCENEFORGE_SOLSTICE_PLAYABLE_BODY_OK build/solstice-driving-render.log
       ;;

@@ -48,3 +48,13 @@ The first packaging attempt created the model but failed reporting because
 an empty list in asset-only mode; the actual Blender geometry, UVs,
 materials and GLB are identical in both modes. The signed Android build
 must re-run from this fix and pass Godot/Fleet/Foundry tests.
+
+## Screenshot naming issue corrected
+SOLSTICE passed Godot imports, Fleet driving on circuits 0–2, cockpit
+material switching, component mounts and Foundry selection. The first
+release packaging run stopped at the last selective screenshot due to
+`city_loop.gd` using its generic `NeonLoop-action.png` name outside its
+two special cases. The capture script now verifies that source PNG and
+copies it to the clearly labeled `NeonLoop-solstice-driving.png` in build
+artifacts. This is a capture-only correction, with no changes to model,
+handling, source scene or graphics.
