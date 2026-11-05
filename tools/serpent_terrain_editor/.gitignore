@@ -1,0 +1,7 @@
+# Local C++ Terrain3D editor plugin and generated editing session data.
+# Do not ship GDExtension binaries in the SceneForge Android runtime.
+addons/terrain_3d/
+terrain_data/
+heightmaps/
+serpent_route.json
+.godot/

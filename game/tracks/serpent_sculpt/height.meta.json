@@ -1,0 +1,21 @@
+{
+  "schema": "sceneforge.sculpt-heightmap.v1",
+  "track_id": 4,
+  "track": "Crimson Serpent",
+  "format": "raw unsigned 16-bit little endian, row-major",
+  "width": 1024,
+  "height": 512,
+  "origin_x": -512,
+  "origin_z": -256,
+  "meters_per_pixel": 1,
+  "height_min_m": -32,
+  "height_max_m": 128,
+  "record": "Seed of the editable Terrain3D source. Sculpted changes are committed to this raw map only after exported EXR conversion and validation.",
+  "import_terrain3d": {
+    "r16_min_height": -32,
+    "r16_max_height": 128,
+    "import_position_x": -512,
+    "import_position_z": -256
+  },
+  "preserves_road_surface": true
+}

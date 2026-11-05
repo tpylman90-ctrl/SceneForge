@@ -1,0 +1,13 @@
+config_version=5
+
+[application]
+config/name="Crimson Serpent Terrain3D Authoring"
+run/main_scene="res://SerpentAuthoring.tscn"
+config/features=PackedStringArray("4.5", "GL Compatibility")
+
+[rendering]
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"
+
+[editor_plugins]
+enabled=PackedStringArray("res://addons/terrain_3d/plugin.cfg")

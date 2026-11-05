@@ -9,6 +9,16 @@ const GRID_Z = 92
 const HALF_X = 340.0
 const HALF_Z = 222.0
 const ROAD_CLEARANCE = 16.7
+# Terrain3D-edited source, compiled into 16-bit static heights for Android.
+# The Terrain3D GDExtension is NEVER shipped in the racing game.
+const SCULPT_PATH = "res://tracks/serpent_sculpt/height.r16"
+const SCULPT_W = 1024
+const SCULPT_H = 512
+const SCULPT_MIN = -32.0
+const SCULPT_MAX = 128.0
+const SCULPT_X0 = -512.0
+const SCULPT_Z0 = -256.0
+static var _sculpt_bytes: PackedByteArray = PackedByteArray()
 const ROCK_PALETTE = [
 	Color("85503e"), Color("9c6049"), Color("ae7053"),
 	Color("ba8060"), Color("9e654e")
@@ -44,6 +54,31 @@ static func _nearest(route: PackedVector3Array, x: float, z: float) -> Vector3:
 			nearest_index=index
 			road_y=lerpf(p.y,q.y,t)
 	return Vector3(sqrt(closest),float(nearest_index),road_y)
+
+static func _sample_sculpt_height(x: float, z: float) -> float:
+	# PackedByteArray.decode_u16 reads little-endian ushort values directly.
+	# Bilinear reconstruction keeps the editor's 1 m brush details smooth.
+	var u: float=clampf(x-SCULPT_X0,0.0,float(SCULPT_W-1))
+	var v: float=clampf(z-SCULPT_Z0,0.0,float(SCULPT_H-1))
+	var ix: int=floori(u)
+	var iz: int=floori(v)
+	var jx: int=mini(ix+1,SCULPT_W-1)
+	var jz: int=mini(iz+1,SCULPT_H-1)
+	var f: float=u-float(ix)
+	var g: float=v-float(iz)
+	var h00: float=float(_sculpt_bytes.decode_u16((iz*SCULPT_W+ix)*2))
+	var h10: float=float(_sculpt_bytes.decode_u16((iz*SCULPT_W+jx)*2))
+	var h01: float=float(_sculpt_bytes.decode_u16((jz*SCULPT_W+ix)*2))
+	var h11: float=float(_sculpt_bytes.decode_u16((jz*SCULPT_W+jx)*2))
+	var encoded: float=lerpf(lerpf(h00,h10,f),lerpf(h01,h11,f),g)
+	return SCULPT_MIN+encoded*(SCULPT_MAX-SCULPT_MIN)/65535.0
+
+static func _height(nearest: Vector3, noise: FastNoiseLite, x: float, z: float) -> float:
+	if _sculpt_bytes.size()==SCULPT_W*SCULPT_H*2:
+		return _sample_sculpt_height(x,z)
+	# Protect developer edit sessions with no authoring image, but production
+	# CI asserts the file exists and the Android export explicitly includes it.
+	return _ground(nearest,noise,x,z)
 
 static func _ground(nearest: Vector3, noise: FastNoiseLite, x: float, z: float) -> float:
 	var distance: float=nearest.x
@@ -140,7 +175,7 @@ static func _cliff_mesh(owner: Node3D, route: PackedVector3Array, noise: FastNoi
 		for iz in range(GRID_Z+1):
 			var z: float=-HALF_Z+2.0*HALF_Z*float(iz)/float(GRID_Z)
 			var nearest: Vector3=_nearest(route,x,z)
-			var height: float=_ground(nearest,noise,x,z)
+			var height: float=_height(nearest,noise,x,z)
 			strip.append(Vector3(x,height,z))
 			colors.append(_color(height,nearest.x,x,z,noise))
 		points.append(strip)
@@ -211,8 +246,8 @@ static func _road_shoulder(owner: Node3D, route: PackedVector3Array, noise: Fast
 			var b: Vector3=q+side_next*sign*(w_next+1.5)-Vector3.UP*0.55
 			var c: Vector3=q+side_next*sign*(w_next+5.6)
 			var d: Vector3=p+side*sign*(w+5.6)
-			c.y=_ground(_nearest(route,c.x,c.z),noise,c.x,c.z)
-			d.y=_ground(_nearest(route,d.x,d.z),noise,d.x,d.z)
+			c.y=_height(_nearest(route,c.x,c.z),noise,c.x,c.z)
+			d.y=_height(_nearest(route,d.x,d.z),noise,d.x,d.z)
 			# Skip the gap, keeping a visible leap instead of a soil bridge.
 			if index>=44 and index<48:
 				continue
@@ -278,7 +313,7 @@ static func _talus(owner: Node3D, route: PackedVector3Array, noise: FastNoiseLit
 			continue
 		var r: float=rng.randf_range(0.55,1.65)
 		var h: float=rng.randf_range(0.35,0.9)
-		var ground: float=_ground(nearest,noise,x,z)
+		var ground: float=_height(nearest,noise,x,z)
 		var orientation: Basis=Basis(Vector3.UP,rng.randf_range(-PI,PI)).scaled(Vector3(r,h,r*0.78))
 		placements.append(Transform3D(orientation,Vector3(x,ground+h*0.35,z)))
 		colors.append(Color("a76e54").lerp(Color("ca8a62"),rng.randf_range(0.0,1.0)))
@@ -297,6 +332,9 @@ static func _talus(owner: Node3D, route: PackedVector3Array, noise: FastNoiseLit
 	owner.add_child(instance)
 
 static func populate(owner: Node3D, route: PackedVector3Array) -> void:
+	_sculpt_bytes=FileAccess.get_file_as_bytes(SCULPT_PATH)
+	if _sculpt_bytes.size()!=SCULPT_W*SCULPT_H*2:
+		push_error("Crimson Serpent authored heightmap missing or wrong size; using procedural fallback")
 	var noise: FastNoiseLite=_noise()
 	_cliff_mesh(owner,route,noise)
 	_road_shoulder(owner,route,noise)

@@ -7,6 +7,15 @@ class CapturePlanTests(unittest.TestCase):
     def test_scenery_only_skips_approved_fleet(self):
         self.assertEqual(choose_captures(["game/tracks/canyon_scenery.gd"]), (False, CRIMSON, ()))
 
+    def test_sculpted_serpent_isolated(self):
+        self.assertEqual(
+            choose_captures(["game/tracks/serpent_canyon.gd", "game/tracks/serpent_sculpt/height.r16"]),
+            (False, (4,), ()),
+        )
+
+    def test_canyon_documentation_skips_images(self):
+        self.assertEqual(choose_captures(["game/tracks/CRIMSON_DIVIDE.md"]), (False, (), ()))
+
     def test_shrike_only(self):
         self.assertEqual(choose_captures(["game/vehicles/shrike_windshield.gd"]), (False, (), (2,)))
 

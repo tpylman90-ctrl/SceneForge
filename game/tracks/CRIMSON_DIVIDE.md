@@ -105,3 +105,31 @@ track controls, jump gap, crafting systems, garage and fleet are unchanged.
 - Darkened the rock base and added irregular weathered sediment coloring, plus a 256×256 procedurally generated world-triplanar albedo-grain texture. No new geometry density or imported paid assets.
 - Disabled terrain casting oversized jagged shadows onto the racing surface, retaining natural cliff lighting and vehicle shadows. Added a second inexpensive far ridge in the same draw surface.
 - Scoped completely to track 4; Red Mesa / Devil's Gate remain unchanged. CI tests guard the no-terrain-shadow performance policy. Android FPS needs verifying on-device for this revision.
+
+## Crimson Serpent — Terrain3D authoring bridge
+
+The continuous Serpent rock basin is now sourced from
+`res://tracks/serpent_sculpt/height.r16`, a checked-in **1024×512**
+single-meter editor heightmap. SceneForge's existing 136×92 static mesh
+builder samples it bilinearly, so Android keeps the Compatibility renderer
+without Terrain3D or any extra geometry.
+
+The initial height source is seeded from the previous canyon with four broad
+sculpt-brush incisions in the outer rock wall. A real, editable Terrain3D
+studio now lives in `tools/serpent_terrain_editor/`. Install the pinned
+MIT-licensed Terrain3D v1.1.0-stable plugin in this **separate Godot project**
+and use its sculpting / paint tools against the matching 192-sample road
+guide. After editing, export a 32-bit height EXR from the Terrain3D importer
+and run `game/tools/import_serpent_heightmap.gd` headlessly. The converter
+verifies height range and road clearance before replacing the Android-safe
+`height.r16` source.
+
+Only **track 4** reads this map. Tracks 5/6 and all fleet assets are intact.
+No Terrain3D binaries are shipped in Android, and the runtime's 136×92
+terrain mesh budget is retained. Sculpting cannot form overhangs, which will
+require isolated, optimized Blender meshes later.
+
+**Verification:** The Godot editor studio is prepared in the repository,
+but interactive Terrain3D brush editing has not yet been performed here.
+The initial heightmap is an authored seed, not a claimed finished sculpt.
+Game load, preview and handset FPS must be verified after CI.
