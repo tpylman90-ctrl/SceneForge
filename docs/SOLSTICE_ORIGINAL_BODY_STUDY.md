@@ -262,3 +262,24 @@ The build report now explicitly measures the compression amount, aft
 hover overhang and lamp/housing count, and a GLB node assertion confirms
 both lamps survive export. The existing Blender generation, surface
 checks, PBR renders and Godot glTF import gate remain mandatory.
+
+## S-01.10 — approved rear-haunch peak refinement
+
+The user's side-profile guideline calls for a flatter shoulder crest just
+ahead of a much steeper final drop into the already upright rear fascia.
+The earlier Gaussian haunch crest fell progressively over the entire aft
+quarter; it still looked nose-like despite the shorter rear overhang.
+
+The actual unified Blender body now receives an eight-control-point,
+continuously blended rear-shoulder height correction, localized around
+the 0.76-radian shoulder line on both sides. It reduces the earlier front
+side of the haunch bulge, holds an almost level line closer to the tail,
+then drops decisively in the last part of the rear quarter. No external
+fender pieces, rendered concept replacements, or new decorative details.
+
+The model intentionally leaves the nose, greenhouse, central trunk line,
+lower body, thruster, rear closing ring, tail lights and approved overall
+length alone. Blender CI now checks the real generated hull at three
+sampled stations: a less than 9 cm height difference along the rear
+shoulder shelf, and a greater than 19 cm drop near the end.
+Godot compatibility import remains mandatory for export approval.
