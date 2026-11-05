@@ -58,7 +58,9 @@ jobs:
           # Strict on script failures and unknown native errors, while allowing
           # Godot's known one-time dummy-renderer RID teardown warning.
           if grep -E 'SCRIPT ERROR:|TERRAIN3D_BRUSH_ERROR:' build/terrain3d-brush.log; then exit 1; fi
-          if grep -E '^ERROR:' build/terrain3d-brush.log | grep -v -E 'RID allocations of type'; then exit 1; fi
+          # In a headless session there is no EditorPlugin to record undo.
+          # These _store_undo warnings are not sculpt/heightmap failures.
+          if grep -E '^ERROR:' build/terrain3d-brush.log | grep -v -E 'RID allocations of type|_store_undo:'; then exit 1; fi
           grep TERRAIN3D_BRUSH_SCULPT_OK build/terrain3d-brush.log
           test -s tools/serpent_terrain_editor/heightmaps/serpent_sculpt.exr
       - name: Bake and validate playable canyon clearance

@@ -99,10 +99,9 @@ func _sculpt() -> void:
 	if editor==null:
 		_fail("Terrain3DEditor native brush tool unavailable")
 		return
-	# A headless authoring session has no live EditorPlugin. Use a lightweight
-	# non-null undo sink so Terrain3D's native brush can complete safely.
-	var undo_sink := RefCounted.new()
-	terrain.call("set_plugin",undo_sink)
+	# Leave the editor plugin unset in command-line authoring mode. The
+	# native Terrain3DEditor still applies brushes; an unrelated fake plugin
+	# causes a C++ crash inside operate() rather than providing undo history.
 	terrain.call("set_editor",editor)
 	editor.call("set_terrain",terrain)
 	var brush: Image=_make_brush()
