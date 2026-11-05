@@ -4,7 +4,3 @@ build/
 *.jks
 *.blend1
 .env
-
-# Source is the Python deterministic baker. CI creates both PNGs before import.
-/game/tracks/serpent_textures/*.png
-/game/tracks/serpent_textures/*.png.import

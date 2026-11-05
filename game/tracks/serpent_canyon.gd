@@ -126,15 +126,41 @@ static func _color(y: float, distance: float, x: float, z: float, noise: FastNoi
 	return color.lerp(Color("a27b6a"),clampf((distance-125.0)/210.0,0.0,0.24))
 
 static func _material(use_grain: bool=false) -> StandardMaterial3D:
-	# The 2K rock material lives in an editable .tres resource. Never
-	# synthesize millions of pixels on the player's Android phone.
-	if use_grain:
-		return load("res://tracks/serpent_textures/sandstone_cliff_2k.tres") as StandardMaterial3D
 	var mat := StandardMaterial3D.new()
 	mat.albedo_color=Color.WHITE
 	mat.vertex_color_use_as_albedo=true
 	mat.roughness=0.97
 	mat.metallic=0.0
+	if use_grain:
+		# A heightfield only has an upward-facing skin. Steep roadside faces
+		# can be viewed from the underside at driving height, especially when
+		# the camera is just below a sharp ledge. Compatibility's default
+		# backface culling made those surfaces become transparent. Keep the
+		# canyon wall opaque from either side; retain depth writing.
+		mat.cull_mode=BaseMaterial3D.CULL_DISABLED
+		# Tiny baked-on-load tiling grain, only one texture rather than a
+		# costly stack of PBR maps. World triplanar prevents stretching over
+		# cliffs without demanding dense geometry or external paid textures.
+		var image := Image.create(256,256,false,Image.FORMAT_RGB8)
+		var micro := FastNoiseLite.new()
+		micro.seed=918733
+		micro.frequency=0.072
+		micro.noise_type=FastNoiseLite.TYPE_SIMPLEX_SMOOTH
+		for x in range(256):
+			for y in range(256):
+				var n: float=micro.get_noise_2d(float(x),float(y))
+				var chips: float=micro.get_noise_2d(float(x)*1.9+37.0,float(y)*1.9-13.0)
+				var drift: float=micro.get_noise_2d(float(x)*0.23+87.0,float(y)*0.23)
+				var bedding: float=0.5+0.5*sin(TAU*(float(y)/32.0+0.012*drift))
+				var seam: float=pow(1.0-bedding,13.0)*0.17
+				var crack: float=pow(maxf(0.0,0.5-absf(chips)),5.0)*0.37
+				var v: float=clampf(0.91+0.14*n+0.04*chips-seam-crack,0.63,1.0)
+				image.set_pixel(x,y,Color(v,v*0.987,v*0.978))
+		image.generate_mipmaps()
+		mat.albedo_texture=ImageTexture.create_from_image(image)
+		mat.uv1_triplanar=true
+		mat.uv1_world_triplanar=true
+		mat.uv1_scale=Vector3(0.105,0.105,0.105)
 	return mat
 
 static func _vertex(st: SurfaceTool, point: Vector3, normal: Vector3, tint: Color) -> void:
@@ -227,9 +253,6 @@ static func _cliff_mesh(owner: Node3D, route: PackedVector3Array, noise: FastNoi
 			_tri(st,a,c,b,na,nc,nb,ca,cc,cb)
 			_tri(st,a,d,c,na,nd,nc,ca,cd,cc)
 	_close_cliff_boundary(st,points,shades)
-	# Godot normal-mapped geometry requires tangents as well as normals.
-	# Calculate once when the static cliff mesh is first constructed.
-	st.generate_tangents()
 	var mesh := MeshInstance3D.new()
 	mesh.name="CrimsonStratifiedCliffs"
 	mesh.mesh=st.commit()

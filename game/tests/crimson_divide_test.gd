@@ -36,13 +36,6 @@ func check() -> void:
 			var cliff_material: StandardMaterial3D=rock.material_override as StandardMaterial3D
 			assert(cliff_material!=null)
 			assert(cliff_material.cull_mode==BaseMaterial3D.CULL_DISABLED,"Close-view backfaces must remain opaque")
-			assert(cliff_material.albedo_texture!=null,"2K cliff albedo missing")
-			assert(cliff_material.normal_enabled and cliff_material.normal_texture!=null,"2K cliff normal missing")
-			assert(cliff_material.albedo_texture.get_width()==2048)
-			assert(cliff_material.albedo_texture.get_height()==2048)
-			assert(cliff_material.normal_texture.get_width()==2048)
-			assert(cliff_material.normal_texture.get_height()==2048)
-			assert(rock.mesh.surface_get_arrays(0)[Mesh.ARRAY_TANGENT].size()>0,"Normal maps need generated tangents")
 			var map_path: String="res://tracks/serpent_sculpt/height.r16"
 			assert(FileAccess.file_exists(map_path),"Sculpted Serpent source must be present")
 			assert(FileAccess.get_file_as_bytes(map_path).size()==1024*512*2,"Sculpted heightmap must retain full precision")

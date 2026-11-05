@@ -146,14 +146,6 @@ jobs:
           test -s game/assets/fleet/aerolith.glb
           test -s game/assets/showroom/aerolith.glb
           test "$(grep -c SCENEFORGE_AEROLITH_ASSET_OK build/aerolith-install.log)" = 2
-      - name: Bake Crimson Serpent 2K sandstone textures
-        shell: bash
-        run: |
-          set -euo pipefail
-          python3 tools/bake_serpent_textures.py --output game/tracks/serpent_textures | tee build/serpent-texture-bake.log
-          test -s game/tracks/serpent_textures/serpent_sandstone_albedo.png
-          test -s game/tracks/serpent_textures/serpent_sandstone_normal.png
-          test "$(grep -c SERPENT_TEXTURE_BAKE_OK build/serpent-texture-bake.log)" = 2
       - name: Import and smoke test
         shell: bash
         run: |
