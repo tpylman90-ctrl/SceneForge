@@ -283,3 +283,35 @@ length alone. Blender CI now checks the real generated hull at three
 sampled stations: a less than 9 cm height difference along the rear
 shoulder shelf, and a greater than 19 cm drop near the end.
 Godot compatibility import remains mandatory for export approval.
+
+## S-02 — approved large red rear signatures and playable SceneForge (November 2026)
+
+This is an implemented change to Blender geometry, not an image edit.
+The real `build_original_solstice.py` now builds large, sculpted boomerang
+rear lamps following the existing haunch. Each assembly includes a broad
+graphite housing, smoked-ruby lens, illuminated red lightbed, three parallel
+swept LED guide ribs and a slender outward finishing tube. Geometric checks
+require a minimum lens span of 0.72 metres and 0.31 metres of designed
+additional height. No approved exterior body, cockpit or thrust geometry
+is replaced by reference art.
+
+SOLSTICE is added as the tenth playable craft (`solstice`, Fleet index 9).
+Its dynamic handling uses the shared physics, collision, reverse, boost,
+lap timers and upgrade rules. The `kestrel_feedback.gd` runtime loads the
+original GLB intact, with a bespoke path rather than assuming a Kestrel
+yoke and five-tail rig. Four real repulsor mounts, vector-drive core and
+power core locations are defined. Interior cockpit camera and separate
+windshield materials support first-person inspection and driving.
+
+Dynamic rear brake LED brightness responds to deceleration; the real
+modeled magnetic and thrust emitters respond to speed, acceleration and
+boost. These are runtime material overrides, not additional render meshes.
+The Godot Fleet, Foundry and track tests must demonstrate actual selection,
+mode changes and completion of a circuit.
+
+The Android workflow regenerates exactly the same original GLB source
+in `SCENEFORGE_SOLSTICE_ASSET_ONLY=1` mode, without the expensive studio
+PNG render pass. A separately cached build artifact is copied to
+`game/assets/fleet/solstice.glb` before Godot import and Android export.
+Racing triangle budget remains capped at 75,000 by the Blender script.
+Signed APK and on-device FPS must be verified before declaring release ready.
