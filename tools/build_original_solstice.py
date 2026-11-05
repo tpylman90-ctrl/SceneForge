@@ -47,9 +47,40 @@ CABIN_ROOF_REAR_Z = -1.32
 CABIN_WINDSCREEN_BASE_Z = 1.30
 CABIN_REAR_SCREEN_END_Z = -1.85
 
+# S-01.9 body-packaging study: the supplied automotive profiles establish
+# that a convincing vehicle needs a controlled rear overhang, not another
+# elongated wedge after the rear suspension/hover module. We compress only
+# the rearmost 1.62 m, smoothly (first derivative stays continuous).
+# This affects EVERY authored rear feature through the coordinate transform:
+# body skin, duct, light housings, nacelles, skirts, closure seams and rails.
+# The approved long hood and low cabin do not move.
+TAIL_COMPRESSION_START_Z = -2.20
+TAIL_COMPRESSION_METERS = .58
+TAIL_UNCOMPRESSED_END_Z = STATIONS[0][0]
+
+def compact_rear_z(z):
+    if z >= TAIL_COMPRESSION_START_Z:
+        return z
+    u=max(0.,min(1.,(TAIL_COMPRESSION_START_Z-z)/
+                    (TAIL_COMPRESSION_START_Z-TAIL_UNCOMPRESSED_END_Z)))
+    easing=u*u*(3.-2.*u)
+    return z+TAIL_COMPRESSION_METERS*easing
+
 def cv(p):
     """Godot (x, up, forward) to Blender (x, -forward, up)."""
-    return (p[0], -p[2], p[1])
+    return (p[0], -compact_rear_z(p[2]), p[1])
+
+# Assert that this is a monotonic geometric deformation with no folded
+# polygons and exactly retained body geometry ahead of the rear shoulder.
+assert abs(compact_rear_z(1.3)-1.3)<1e-9
+assert abs(compact_rear_z(-2.2)+2.2)<1e-9
+assert all(compact_rear_z(TAIL_UNCOMPRESSED_END_Z+
+           i*(TAIL_COMPRESSION_START_Z-TAIL_UNCOMPRESSED_END_Z)/200.)
+           < compact_rear_z(TAIL_UNCOMPRESSED_END_Z+
+           (i+1)*(TAIL_COMPRESSION_START_Z-TAIL_UNCOMPRESSED_END_Z)/200.)
+           for i in range(200))
+assert compact_rear_z(TAIL_UNCOMPRESSED_END_Z)>-3.30
+
 
 def gaussian(value, center, sigma):
     return math.exp(-((value - center) / sigma) ** 2)
@@ -692,16 +723,42 @@ for side,label in [(-1,"Port"),(1,"Starboard")]:
             (x-side*.014,y-.056,z),(.11,.013,.085),dark,.004)
 
 # Flush, not floating: exterior lighting follows the vehicle's functional edges.
-# Distinctive but restrained rear signatures: two recessed dark lamp
-# sockets sit high inside the newly formed vertical rear fascia. Their slim
-# illuminated horizontal cores cannot be mistaken for front headlamps.
-tail_red=material("SOLSTICE_Red_Rear_LED",(.85,.045,.025),.11,.24,glow=1.05)
+# The red marks in the annotated approval show the lamps belong on the
+# HIGH REAR SHOULDERS, not low and inward beside the engine duct.
+# These are modeled as fitted, curving glass housings with a recessed
+# graphite backing and illuminated lens. Their center paths sample the
+# actual shell surface at the rear cutoff, so future fender changes carry
+# the fixtures with them. Each lamp wraps towards the outside haunch.
+tail_red=material("SOLSTICE_Red_Rear_LED",(.88,.027,.017),.08,.27,glow=1.30)
+tail_red_lens=material("SOLSTICE_Smoked_Ruby_Lens",(.24,.024,.029),.18,.16)
+def rear_corner_lamp_point(side,u,v,depth=0.):
+    # u: inboard to outer shoulder; v: narrow height across the lamp.
+    angle=side*(.60+.55*u)
+    x,y,_=shell_point(rear_end_z,angle)
+    y+=.095*(v-.5)+.018
+    # One integrated lamp seam follows the 3D shell's stern shape.
+    z=rear_end_z-.044-.015*u-depth
+    return (x,y,z)
+
 for side,label in [(-1,"Port"),(1,"Starboard")]:
-    rounded_block("SOLSTICE_"+label+"_Rear_Lamp_Obsidian_Slot",
-        (side*.868,.808,rear_end_z-.098),(.482,.044,.021),dark,.015)
-    rounded_block("SOLSTICE_"+label+"_Rear_Lamp_Red_Signature",
-        (side*.868,.810,rear_end_z-.115),(.426,.015,.012),tail_red,.007)
-    # Very small turquoise emitter dots inside the lower rear panel.
+    backing=patch("SOLSTICE_"+label+"_High_Shoulder_Lamp_Recess",
+        24,4,lambda u,v,s=side: rear_corner_lamp_point(s,u,v),dark)
+    lip=backing.modifiers.new("Lamp pocket hem","SOLIDIFY")
+    lip.thickness=.014
+    lip.offset=1.
+    patch("SOLSTICE_"+label+"_Smoked_Ruby_Rear_Lens",
+        24,3,lambda u,v,s=side:
+        rear_corner_lamp_point(s,.045+.91*u,.14+.72*v,.019),
+        tail_red_lens)
+    patch("SOLSTICE_"+label+"_Upper_Red_Rear_Signature",
+        24,2,lambda u,v,s=side:
+        rear_corner_lamp_point(s,.080+.84*u,.40+.20*v,.025),
+        tail_red)
+    # The far outboard tip forms a tiny L-shaped directional marker.
+    spline_tube("SOLSTICE_"+label+"_Rear_Light_Endcap",
+        [rear_corner_lamp_point(side,u,.49,.036)
+         for u in (.89,.94,.97,1.)],.012,tail_red)
+    # Tiny reverse/position marker is distinct from the red brake lamps.
     rounded_block("SOLSTICE_"+label+"_Tail_Optic",
         (side*.943,.506,rear_end_z-.100),(.020,.031,.011),ice,.008)
 
@@ -848,8 +905,10 @@ assert "SOLSTICE_FRONT_WINDSCREEN" in nodes
 assert "SOLSTICE_STRUCTURAL_ROOF" in nodes
 assert "SOLSTICE_Front_Port_Flux_Ring" in nodes
 assert "SOLSTICE_Thrust_Amber_Capsule" in nodes
-assert "SOLSTICE_Port_Rear_Lamp_Red_Signature" in nodes
-assert "SOLSTICE_Starboard_Rear_Lamp_Red_Signature" in nodes
+assert "SOLSTICE_Port_Upper_Red_Rear_Signature" in nodes
+assert "SOLSTICE_Starboard_Upper_Red_Rear_Signature" in nodes
+assert "SOLSTICE_Port_High_Shoulder_Lamp_Recess" in nodes
+assert "SOLSTICE_Starboard_High_Shoulder_Lamp_Recess" in nodes
 assert "SOLSTICE_Rear_Deck_Transverse_Shutline" in nodes
 assert "SOLSTICE_Thrust_Diffuser_Vane_00" in nodes
 assert not any("Rear_Nozzle_Lip" in n for n in nodes if n)
@@ -874,12 +933,19 @@ report={
     "status":"original, prototype only; not yet playable",
     "source":"Procedurally modeled in Blender from original analytic surface curves",
     "body_topology":"single connected quad hull with 28mm solidify and cockpit aperture",
-    "length_m":STATIONS[-1][0]-rear_end_z,
+    "length_m":round(STATIONS[-1][0]-compact_rear_z(rear_end_z),4),
     "estimated_width_m":3.40,
-    "rear_end_z_m":rear_end_z,
+    "rear_end_z_m":round(compact_rear_z(rear_end_z),4),
+    "rear_end_z_original_m":rear_end_z,
+    "rear_overhang_compression_m":round(
+         compact_rear_z(rear_end_z)-rear_end_z,4),
+    "aft_hover_overhang_m":round(
+         compact_rear_z(-2.52)-compact_rear_z(rear_end_z),4),
     "rear_deck_end_height_m":STATIONS[0][3],
     "rear_tail_width_ratio":round(STATIONS[0][1]/STATIONS[1][1],4),
     "red_rear_lamp_count":2,
+    "rear_lamp_placement":"high body shoulder, wrapped to rear corners",
+    "high_rear_lamp_housing_count":2,
     "rear_thrust":{"type":"single recessed oval ducted-vector drive",
                    "mouth_width_m":2*.704,
                    "mouth_height_m":2*.174,
@@ -914,4 +980,11 @@ print("SCENEFORGE_SOLSTICE_REAR_THRUST_OK",rear_thrust_band_faces,
 print("SCENEFORGE_SOLSTICE_UPRIGHT_REAR_FASCIA_OK",
       len(rear_ring_specs),round(STATIONS[0][1],3),
       round(STATIONS[0][3],3))
+assert compact_rear_z(rear_end_z)-rear_end_z>=.55
+assert compact_rear_z(-2.52)-compact_rear_z(rear_end_z)<.90
+assert "SOLSTICE_Port_Upper_Red_Rear_Signature" in bpy.data.objects
+assert "SOLSTICE_Starboard_Upper_Red_Rear_Signature" in bpy.data.objects
+print("SCENEFORGE_SOLSTICE_COMPACT_REAR_AND_CORNER_LIGHTS_OK",
+      round(compact_rear_z(rear_end_z),3),
+      round(compact_rear_z(-2.52)-compact_rear_z(rear_end_z),3))
 print("SCENEFORGE_SOLSTICE_EXPORT_OK",triangles,len(raw))

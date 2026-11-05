@@ -231,3 +231,34 @@ it is NOT substituted for the real geometry or an approved game render.
 seam GLB nodes, 75K prototype triangle cap, original body topology and Godot
 4.5 Compatibility glTF import. Independent Android drive frame-rate testing
 is still required before integrating SOLSTICE into the selectable roster.
+
+## S-01.9 — actual rear-overhang and shoulder lamp correction
+
+The supplied ten-body blueprint sheet provides side-view proportional
+principles: a sports/GT body must visually resolve its rear overhang promptly
+after the aft suspension position, with a differentiated front and rear.
+Literal road-car wheelbase or wheel diameters are not applied to hovercraft.
+
+The author's approved main nose/cabin/rear haunch is preserved. A smooth,
+monotonic, rear-zone-only model-space deformation now compresses the last
+1.62 m of the craft by up to 580 mm. Coordinates at and forward of model
+Z=-2.20 m are unchanged. Blender authored nodes, parametric splines,
+body shell, actual recessed drive, rear hover assemblies, side scoops and
+trunk shutlines all pass through **the same deformation**, avoiding the
+mismatched static decals that would result from editing the hull alone.
+The updated stern is at approximately Z=-3.24 m (instead of -3.82 m),
+with the rear hover module still near its original position. The full model
+is approximately 7.32 m long; this is a stylized grand tourer, not a
+literal 4.5 m road sports car.
+
+Red body-markup locations are translated into a new pair of real 3D rear
+lights at the *upper rear shoulder corners*. Each has a curved graphite
+housing, smoked ruby lens, bright red inset strip and outboard endcap;
+all sampled from the existing monocoque's rear section. The lower inner
+facia lamps are removed. Aft thrust unit, bronze surround and cockpit
+retain their existing materials and shape.
+
+The build report now explicitly measures the compression amount, aft
+hover overhang and lamp/housing count, and a GLB node assertion confirms
+both lamps survive export. The existing Blender generation, surface
+checks, PBR renders and Godot glTF import gate remain mandatory.
