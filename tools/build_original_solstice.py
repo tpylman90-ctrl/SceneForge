@@ -112,6 +112,21 @@ def hermite_station(z, channel):
             (-2*t**3+3*t*t)*right[channel] +
             (t**3-t*t)*h*m1)
 
+HAUNCH_CREST_PROFILE = [(-3.82, 0.), (-3.69, .11), (-3.57, .22), (-3.42, .15), (-3.15, .02), (-2.90, -.04), (-2.71, -.08), (-2.47, 0.)]
+HAUNCH_CREST_ANGLE = .76
+HAUNCH_CREST_SPREAD = .27
+
+def haunch_crest_height_offset(z):
+    if z <= HAUNCH_CREST_PROFILE[0][0] or z >= HAUNCH_CREST_PROFILE[-1][0]:
+        return 0.
+    keys = [item[0] for item in HAUNCH_CREST_PROFILE]
+    index = bisect.bisect_right(keys, z) - 1
+    z0,v0 = HAUNCH_CREST_PROFILE[index]
+    z1,v1 = HAUNCH_CREST_PROFILE[index+1]
+    t = (z-z0)/(z1-z0)
+    blend = t*t*(3.-2.*t)
+    return v0 + (v1-v0)*blend
+
 def shell_point(z, angle):
     width = hermite_station(z, 1)
     bottom = hermite_station(z, 2)
@@ -145,6 +160,10 @@ def shell_point(z, angle):
     # meets the short rear windshield and gently fades into the trunk.
     # The rear cab is no longer terminated by a flat vertical bulkhead.
     y += .38 * gaussian(z, -1.90, .93) * gaussian(a, 0., .61)
+    # Form a flatter rear shoulder peak, then a short decisive stern drop.
+    # The hood, cabin and original rear end ring remain unmodified.
+    y += haunch_crest_height_offset(z) * gaussian(
+        a, HAUNCH_CREST_ANGLE, HAUNCH_CREST_SPREAD)
     return (x, y, z)
 
 def material(name, rgb, metallic=.0, roughness=.5, alpha=1., glow=0.):
