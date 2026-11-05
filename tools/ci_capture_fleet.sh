@@ -10,7 +10,7 @@ capture_fleet() {
   if grep -E 'SCRIPT ERROR:|ERROR:' "build/$log.log"; then exit 1; fi
 }
 
-names=(kestrel piledriver shrike mantis aurora forge synapse tremor aerolith)
+names=(kestrel piledriver shrike mantis aurora forge synapse tremor aerolith solstice)
 for craft in ${CAPTURE_FLEET:-}; do
   name="${names[$craft]}"
   capture_fleet "fleet-$craft-render" res://fleet_hangar.tscn -- --capture --craft-"$craft"
@@ -72,6 +72,18 @@ for craft in ${CAPTURE_FLEET:-}; do
       capture_fleet "drive-8-render" res://city_loop.tscn -- --capture --craft-8 --track-action
       test -s build/NeonLoop-aerolith-driving.png
       grep -q SCENEFORGE_AEROLITH_DRIVE_MODEL_OK build/drive-8-render.log
+      ;;
+    9)
+      capture_fleet "fleet-solstice-hero-render" res://fleet_hangar.tscn -- --capture --craft-9 --fleet-hero --fleet-clean
+      capture_fleet "fleet-solstice-rear-render" res://fleet_hangar.tscn -- --capture --craft-9 --fleet-zoomed-rear --fleet-clean
+      capture_fleet "fleet-solstice-seat-render" res://fleet_hangar.tscn -- --capture --craft-9 --fleet-cockpit
+      test -s build/Fleet-solstice-hero-clean.png
+      test -s build/Fleet-solstice-zoomed-rear-clean.png
+      test -s build/Fleet-solstice-cockpit.png
+      grep -q SCENEFORGE_SOLSTICE_PLAYABLE_BODY_OK build/fleet-solstice-rear-render.log
+      capture_fleet "solstice-driving-render" res://city_loop.tscn -- --capture --craft-9 --track-action
+      test -s build/NeonLoop-solstice-driving.png
+      grep -q SCENEFORGE_SOLSTICE_PLAYABLE_BODY_OK build/solstice-driving-render.log
       ;;
   esac
 done

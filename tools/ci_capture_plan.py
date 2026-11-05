@@ -9,10 +9,10 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-FLEET = tuple(range(9))
+FLEET = tuple(range(10))
 TRACKS = tuple(range(7))
 CRIMSON = (4, 5, 6)
-ACTIVE_CRAFT = (2, 7)  # Shrike windshield and Tremor SUV bodywork
+ACTIVE_CRAFT = (2, 7, 9)  # Shrike windshield and Tremor SUV bodywork
 NAMES = {
     0: ("kestrel",),
     1: ("piledriver", "pyldriver"),
@@ -23,6 +23,7 @@ NAMES = {
     6: ("synapse",),
     7: ("tremor",),
     8: ("aerolith",),
+    9: ("solstice",),
 }
 
 

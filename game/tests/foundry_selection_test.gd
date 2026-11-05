@@ -28,6 +28,10 @@ func check() -> void:
 		lot.update_orbit()
 		var eye: Vector3=lot.lot_feedback.to_global(lot.chassis.cockpit_eye) if index>0 else lot.chassis.cockpit_eye
 		assert(lot.camera.global_position.distance_to(eye)<.001)
+		if Fleet.IDS[index]=="solstice":
+			assert(lot.lot_feedback.glass.size()>=4)
+			assert(lot.lot_feedback.find_child("SOLSTICE_Thrust_Amber_Capsule",true,false)!=null)
+			print("FOUNDRY_SOLSTICE_REAL_CRAFT_OK")
 		if index==2 and lot.lot_feedback.showroom_upload:
 			assert(lot.seat_mode and lot.lot_feedback.windshield_faces>=12)
 			print("FOUNDRY_SHRIKE_WINDSCREEN_VIEW_OK")

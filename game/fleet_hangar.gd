@@ -68,12 +68,12 @@ func _ready() -> void:
 	fleet_panel=panel
 	panel.color=Color(.025,.05,.075,.94)
 	panel.position=Vector2(20,20)
-	panel.size=Vector2(325,570)
+	panel.size=Vector2(325,588)
 	ui.add_child(panel)
 	var list := VBoxContainer.new()
 	fleet_list=list
 	list.position=Vector2(36,38)
-	list.add_theme_constant_override("separation",6 if Fleet.IDS.size()>8 else 12)
+	list.add_theme_constant_override("separation",4 if Fleet.IDS.size()>9 else (6 if Fleet.IDS.size()>8 else 12))
 	ui.add_child(list)
 	var heading := Label.new()
 	heading.text="SCENEFORGE / FLEET"
@@ -82,7 +82,7 @@ func _ready() -> void:
 	for i in range(Fleet.IDS.size()):
 		var button := Button.new()
 		button.text=Fleet.NAMES[i]
-		button.custom_minimum_size=Vector2(285,48 if Fleet.IDS.size()>8 else 62)
+		button.custom_minimum_size=Vector2(285,43 if Fleet.IDS.size()>9 else (48 if Fleet.IDS.size()>8 else 62))
 		button.add_theme_font_size_override("font_size",23)
 		button.pressed.connect(select_craft.bind(i))
 		list.add_child(button)

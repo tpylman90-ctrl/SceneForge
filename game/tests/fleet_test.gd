@@ -64,6 +64,16 @@ func check() -> void:
 				for slot in ["repulsor_fl","repulsor_fr","repulsor_rl","repulsor_rr"]:
 					assert(scene.chassis.mount_points[slot].y<0,"Synapse repulsors must sit beneath the low hull")
 				assert(scene.chassis.cockpit_eye.y<1.0 and scene.chassis.cockpit_eye.z<0.0,"Synapse cockpit camera must sit inside the fitted canopy")
+			elif definition.chassis_id=="solstice":
+				assert(scene.feedback.has_node("SOLSTICE_Original_Body"),"Original SOLSTICE GLB missing")
+				assert(scene.feedback.glass.size()>=4,"SOLSTICE needs actual glass")
+				assert(scene.feedback.footprint_positions.size()==4)
+				assert(scene.feedback.solstice_brake_lamps.size()>=8,"Modeled LED layers missing")
+				assert(scene.feedback.solstice_engine_materials.size()>=5,"Original lift and thrust fields missing")
+				assert(scene.feedback.tails.is_empty(),"SOLSTICE must not depend on Kestrel tail rigs")
+				assert(scene.chassis.cockpit_eye.y<1.65)
+				assert(scene.chassis.mount_points["propulsion"].z< -3.0)
+				print("FLEET_SOLSTICE_ORIGINAL_DRIVE_MODEL_OK")
 			elif definition.chassis_id=="aerolith":
 				assert(scene.feedback.has_node("Aerolith_Original_Body"),"Original Assetwright model did not instantiate in racing scene")
 				assert(scene.feedback.synapse_thrusters.size()==2,"AEROLITH must use two real vectored thruster positions")
@@ -78,6 +88,10 @@ func check() -> void:
 			assert(scene.feedback.get_node("ComponentMounts").get_child_count()==8)
 			scene.toggle_camera()
 			assert(scene.cockpit,"Cockpit should be accessible to every craft")
+			if definition.chassis_id=="solstice":
+				for pane in scene.feedback.glass:
+					assert(pane["mesh"].get_surface_override_material(pane["surface"])==pane["inside"],
+						"SOLSTICE glass must use cockpit interior material")
 			if definition.chassis_id=="shrike":
 				assert(scene.feedback.windshield_faces>=12,"Shrike glass cutout must isolate actual faces")
 				assert(scene.feedback.windshield_windows.size()>0)
