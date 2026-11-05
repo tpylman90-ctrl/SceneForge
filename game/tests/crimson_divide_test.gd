@@ -30,7 +30,12 @@ func check() -> void:
 		assert(rock_vertices<100000,"Too much canyon geometry for Android")
 		if circuit==4:
 			# The new continuous gorge is exclusive to Crimson Serpent.
-			assert(rock_vertices>50000 and rock_vertices<85000)
+			# 75k terrain vertices + a cheap closed perimeter and underside.
+			assert(rock_vertices>77000 and rock_vertices<81000)
+			assert(rock.mesh.get_aabb().position.y<=-37.9,"Canyon edge must be capped below the road")
+			var cliff_material: StandardMaterial3D=rock.material_override as StandardMaterial3D
+			assert(cliff_material!=null)
+			assert(cliff_material.cull_mode==BaseMaterial3D.CULL_DISABLED,"Close-view backfaces must remain opaque")
 			var map_path: String="res://tracks/serpent_sculpt/height.r16"
 			assert(FileAccess.file_exists(map_path),"Sculpted Serpent source must be present")
 			assert(FileAccess.get_file_as_bytes(map_path).size()==1024*512*2,"Sculpted heightmap must retain full precision")

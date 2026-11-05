@@ -133,3 +133,24 @@ require isolated, optimized Blender meshes later.
 but interactive Terrain3D brush editing has not yet been performed here.
 The initial heightmap is an authored seed, not a claimed finished sculpt.
 Game load, preview and handset FPS must be verified after CI.
+
+## Near-wall disappearance fix — November 4
+
+- Diagnosed the likely cause of the camera-close transparent walls: the
+  sculpted canyon is an upward-facing heightfield with one-sided default
+  backface culling. Steep escarpment faces seen from underneath can be
+  culled as the camera passes the lip.
+- Changed **only the sculpted Crimson Serpent cliff material** to render
+  both faces, keeping it opaque with depth testing. This is deliberately
+  limited to the cliff, not the entire scene, because double-sided shading
+  has a mobile fill cost.
+- Closed all four outer terrain boundaries down to `y=-38` with textured
+  rock skirts and a single bottom cap, in the **same terrain mesh/surface**.
+  The 136×92 top terrain is unchanged; ~2.7k extra vertices are a small
+  fixed static cost, not extra draw calls.
+- Expanded Crimson Serpent CI tests to check the terrain bottom AABB,
+  near-view culling mode, and the capped vertex count. Other courses, road
+  collision, fleet and game physics remain unchanged.
+- Godot CI can validate geometry/material properties but cannot prove
+  handset near-wall visual correctness or 60+ FPS; those remain phone-review
+  criteria.

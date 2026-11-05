@@ -9,6 +9,9 @@ const GRID_Z = 92
 const HALF_X = 340.0
 const HALF_Z = 222.0
 const ROAD_CLEARANCE = 16.7
+# Bottom plane and perimeter skirts make the heightfield a closed visual shell.
+# Above-ground cliffs remain purely decorative, with no racing collisions.
+const CLIFF_BASE_Y = -38.0
 # Terrain3D-edited source, compiled into 16-bit static heights for Android.
 # The Terrain3D GDExtension is NEVER shipped in the racing game.
 const SCULPT_PATH = "res://tracks/serpent_sculpt/height.r16"
@@ -129,6 +132,12 @@ static func _material(use_grain: bool=false) -> StandardMaterial3D:
 	mat.roughness=0.97
 	mat.metallic=0.0
 	if use_grain:
+		# A heightfield only has an upward-facing skin. Steep roadside faces
+		# can be viewed from the underside at driving height, especially when
+		# the camera is just below a sharp ledge. Compatibility's default
+		# backface culling made those surfaces become transparent. Keep the
+		# canyon wall opaque from either side; retain depth writing.
+		mat.cull_mode=BaseMaterial3D.CULL_DISABLED
 		# Tiny baked-on-load tiling grain, only one texture rather than a
 		# costly stack of PBR maps. World triplanar prevents stretching over
 		# cliffs without demanding dense geometry or external paid textures.
@@ -164,6 +173,35 @@ static func _tri(st: SurfaceTool, a: Vector3, b: Vector3, c: Vector3, na: Vector
 	_vertex(st,a,na,ca)
 	_vertex(st,b,nb,cb)
 	_vertex(st,c,nc,cc)
+
+static func _cliff_skirt_segment(st: SurfaceTool, a: Vector3, b: Vector3, tint_a: Color, tint_b: Color, outward: Vector3) -> void:
+	# Close the vertical outline down into the bedrock instead of allowing
+	# the world mesh to end with a razor-thin edge against the background.
+	var low_a := Vector3(a.x,CLIFF_BASE_Y,a.z)
+	var low_b := Vector3(b.x,CLIFF_BASE_Y,b.z)
+	var foot := Color("634a42")
+	_tri(st,a,b,low_b,outward,outward,outward,tint_a,tint_b,foot)
+	_tri(st,a,low_b,low_a,outward,outward,outward,tint_a,foot,foot)
+
+static func _close_cliff_boundary(st: SurfaceTool, points: Array, colors: Array) -> void:
+	# All four outer edges of the sculpted heightfield are capped. The rocky
+	# terrain itself stays a single surface and draw call (~3.6% extra verts).
+	for ix in range(GRID_X):
+		_cliff_skirt_segment(st,points[ix][0],points[ix+1][0],colors[ix][0],colors[ix+1][0],Vector3(0,0,-1))
+		_cliff_skirt_segment(st,points[ix+1][GRID_Z],points[ix][GRID_Z],colors[ix+1][GRID_Z],colors[ix][GRID_Z],Vector3(0,0,1))
+	for iz in range(GRID_Z):
+		_cliff_skirt_segment(st,points[0][iz+1],points[0][iz],colors[0][iz+1],colors[0][iz],Vector3(-1,0,0))
+		_cliff_skirt_segment(st,points[GRID_X][iz],points[GRID_X][iz+1],colors[GRID_X][iz],colors[GRID_X][iz+1],Vector3(1,0,0))
+	# Flat underside is out of view during normal racing, but stops the
+	# disconnected empty-world view from beneath the edge of a high plateau.
+	var a := Vector3(-HALF_X,CLIFF_BASE_Y,-HALF_Z)
+	var b := Vector3(HALF_X,CLIFF_BASE_Y,-HALF_Z)
+	var c := Vector3(HALF_X,CLIFF_BASE_Y,HALF_Z)
+	var d := Vector3(-HALF_X,CLIFF_BASE_Y,HALF_Z)
+	var n := Vector3.DOWN
+	var bedrock := Color("634a42")
+	_tri(st,a,b,c,n,n,n,bedrock,bedrock,bedrock)
+	_tri(st,a,c,d,n,n,n,bedrock,bedrock,bedrock)
 
 static func _cliff_mesh(owner: Node3D, route: PackedVector3Array, noise: FastNoiseLite) -> void:
 	var points: Array=[]
@@ -214,6 +252,7 @@ static func _cliff_mesh(owner: Node3D, route: PackedVector3Array, noise: FastNoi
 			# and saddle passes between neighboring serpentine road sections.
 			_tri(st,a,c,b,na,nc,nb,ca,cc,cb)
 			_tri(st,a,d,c,na,nd,nc,ca,cd,cc)
+	_close_cliff_boundary(st,points,shades)
 	var mesh := MeshInstance3D.new()
 	mesh.name="CrimsonStratifiedCliffs"
 	mesh.mesh=st.commit()
