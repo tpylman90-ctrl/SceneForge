@@ -1,8 +1,8 @@
 extends RefCounted
 
-const IDS := ["kestrel","piledriver","shrike","mantis","aurora","forge","synapse","tremor","aerolith"]
-const NAMES := ["KESTREL","PYLDRIVER","SHRIKE","MANTIS","AURORA","FORGE","SYNAPSE","TREMOR","AEROLITH"]
-const NOTES := ["Balanced raptor / slate and burnt orange", "Armored racer / purple and brass", "Wide-body interceptor / silver, lime and deep purple", "Stable utility racer / olive green", "Fast swept speedster / blue and copper", "Precision racer / graphite and amber", "AI racer / active four-point hover array and ion propulsion", "Tremor MK III / armored box SUV, tall roof and square hover pods", "Satin-titanium manta interceptor / twin vectored plasma turbines"]
+const IDS := ["kestrel","piledriver","shrike","mantis","aurora","forge","synapse","tremor","aerolith","solstice"]
+const NAMES := ["KESTREL","PYLDRIVER","SHRIKE","MANTIS","AURORA","FORGE","SYNAPSE","TREMOR","AEROLITH","SOLSTICE"]
+const NOTES := ["Balanced raptor / slate and burnt orange", "Armored racer / purple and brass", "Wide-body interceptor / silver, lime and deep purple", "Stable utility racer / olive green", "Fast swept speedster / blue and copper", "Precision racer / graphite and amber", "AI racer / active four-point hover array and ion propulsion", "Tremor MK III / armored box SUV, tall roof and square hover pods", "Satin-titanium manta interceptor / twin vectored plasma turbines", "Low-canopy teal grand tourer / sculpted haunch, large ruby tails and vectored drive"]
 
 # The user-approved Shrike GLB is now the main drive model as well as the showroom model.
 # AEROLITH uses the optimized original LOD1 during races, and LOD0 in the garage.
@@ -29,7 +29,7 @@ static func definition(index: int, presentation_only: bool = false) -> Resource:
 		craft.mount_points["repulsor_fr"]=Vector3(-1,.58,2.1)
 		craft.mount_points["repulsor_rl"]=Vector3(1.12,.76,-.65)
 		craft.mount_points["repulsor_rr"]=Vector3(-1.12,.76,-.65)
-		craft.accent_color=[Color("66dcf0"),Color("b44dff"),Color("a6f018"),Color("91ed77"),Color("5d9fff"),Color("ff981c"),Color("9360ff"),Color("7dcaff"),Color("53cfe4")][index]
+		craft.accent_color=[Color("66dcf0"),Color("b44dff"),Color("a6f018"),Color("91ed77"),Color("5d9fff"),Color("ff981c"),Color("9360ff"),Color("7dcaff"),Color("53cfe4"),Color("58d1c8")][index]
 	if index==2:
 		# Shrike MK I cockpit is lower than Kestrel and inside its sculpted
 		# panoramic canopy. The eye looks forward through the windshield.
@@ -72,6 +72,20 @@ static func definition(index: int, presentation_only: bool = false) -> Resource:
 		craft.mount_points["power_core"]=Vector3(0,1.02,-.12)
 		craft.mount_points["aero_left"]=Vector3(-1.48,.73,-1.35)
 		craft.mount_points["aero_right"]=Vector3(1.48,.73,-1.35)
+	if index==9:
+		# SOLSTICE uses its original connected-body 7.32 m Blender model.
+		craft.display_name="SOLSTICE / S-01"
+		craft.footprint_stretch=1.05
+		craft.cockpit_eye=Vector3(0,1.48,-.44)
+		craft.cockpit_pitch=-.055
+		craft.mount_points["repulsor_fl"]=Vector3(1.08,.28,2.32)
+		craft.mount_points["repulsor_fr"]=Vector3(-1.08,.28,2.32)
+		craft.mount_points["repulsor_rl"]=Vector3(1.17,.28,-2.46)
+		craft.mount_points["repulsor_rr"]=Vector3(-1.17,.28,-2.46)
+		craft.mount_points["propulsion"]=Vector3(0,.595,-3.24)
+		craft.mount_points["power_core"]=Vector3(0,.76,-.10)
+		craft.mount_points["aero_left"]=Vector3(-1.42,.63,-2.10)
+		craft.mount_points["aero_right"]=Vector3(1.42,.63,-2.10)
 	if index==6:
 		craft.footprint_stretch=1.15
 		craft.cockpit_eye=Vector3(0,.91,-.62)
@@ -84,8 +98,8 @@ static func definition(index: int, presentation_only: bool = false) -> Resource:
 		craft.mount_points["power_core"]=Vector3(0,-.02,-.40)
 		craft.mount_points["aero_left"]=Vector3(-1.28,.28,-1.75)
 		craft.mount_points["aero_right"]=Vector3(1.28,.28,-1.75)
-	craft.max_forward_speed=[32.0,30.0,34.0,31.0,35.0,32.0,37.0,29.0,35.0][index]
-	craft.acceleration=[11.5,10.0,12.5,11.0,12.0,11.5,13.0,9.2,12.0][index]
-	craft.yaw_rate=[1.28,1.23,1.40,1.32,1.26,1.28,1.31,1.16,1.22][index]
-	craft.lateral_grip=[9.0,10.0,9.5,10.5,8.5,9.0,9.2,11.0,9.5][index]
+	craft.max_forward_speed=[32.0,30.0,34.0,31.0,35.0,32.0,37.0,29.0,35.0,34.5][index]
+	craft.acceleration=[11.5,10.0,12.5,11.0,12.0,11.5,13.0,9.2,12.0,11.9][index]
+	craft.yaw_rate=[1.28,1.23,1.40,1.32,1.26,1.28,1.31,1.16,1.22,1.23][index]
+	craft.lateral_grip=[9.0,10.0,9.5,10.5,8.5,9.0,9.2,11.0,9.5,9.7][index]
 	return craft
