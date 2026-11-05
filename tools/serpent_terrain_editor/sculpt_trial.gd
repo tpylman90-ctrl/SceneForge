@@ -119,7 +119,7 @@ func _sculpt() -> void:
 		var direction:=Vector2(float(b[0])-float(a[0]),float(b[2])-float(a[2])).normalized()
 		var side:=Vector2(direction.y,-direction.x)
 		for sign in [-1.0,1.0]:
-			var center:=Vector2(float(a[0]),float(a[2]))+side*sign*44.0
+			var center: Vector2=Vector2(float(a[0]),float(a[2]))+side*float(sign)*44.0
 			if _distance_to_route(center.x,center.y,route)<36.0:
 				continue
 			var center_pos:=Vector3(center.x,0,center.y)
