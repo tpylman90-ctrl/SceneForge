@@ -167,3 +167,36 @@ with the existing hero/clay/rear comparison angles. These constraints are
 design targets, **not** certification of exact body/roof G2 continuity.
 The playable fleet remains unaffected, and the actual Android FPS is not
 established by the isolated preview.
+
+
+## S-01.7 — Actual 3D tail and rear vectored thrust module
+
+**Source-of-truth modeling pass:** This is a Blender generator change, NOT
+an AI-produced concept image. Generated from `tools/build_original_solstice.py`
+and confirmed only after CI's Blender exports + Godot 4.5 Compatibility test.
+
+- Shortened rear overhang by 360 mm: stern moves from model Z -4.18 m to
+  -3.82 m; rear deck center height drops by 120 mm from 0.95 to 0.83 m.
+  Retains the forward nose, 4 magnetic hover pods and integrated low cabin.
+- Removed both bolted-on cylindrical rear propulsion nozzles.
+- Constructed **one recessed oval drive in the actual shared-index main
+  body tail**: replaces the old rear end-cap ngon with 4 sampled 72-segment
+  elliptical annular bands (288 structural quads) and one sealed bulkhead.
+- Multi-stage mouth: molded painted rim, 17 mm offset bronze bezel,
+  34 mm inset dark throat, recessed to 285 mm for convincing depth.
+- Fourteen physically modeled low-profile radial guide fins, an internal
+  bronze machine ring and a small amber central vector capsule. Amber is
+  the only luminous propulsion element; no exposed rocket flame.
+- The rear port is not a black decal or an external shell. The main
+  automotive surface really terminates around the port opening, and
+  the recess/duct uses connected geometry with dark inner material.
+- Replaced the former floating rear lightbar with two slender outboard
+  tail position markers that leave the central thrust chamber clear.
+- New real Blender review views `Solstice-thrust-inspection.png`,
+  `Solstice-rear-dead-on.png`, and physically-lit
+  `Solstice-studio-thrust.png`. The build checks GlTF node names,
+  body topology, 288 connected duct quads, 14 guide fins, rear geometry
+  parameters, total triangle cap, and Godot import.
+
+This prototype remains separate from the racing fleet; do not treat any
+earlier edited concept artwork as verification of the real 3D model.

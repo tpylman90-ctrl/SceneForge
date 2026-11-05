@@ -59,3 +59,4 @@ def shot(name,pos,scale):
 shot("hero",(6.8,3.5,8.7),9.7)
 shot("rear-quarter",(-6.8,3.5,-8.7),9.7)
 shot("profile",(11.4,2.35,-.1),9.2)
+shot("thrust",(-2.9,2.30,-7.1),6.5)

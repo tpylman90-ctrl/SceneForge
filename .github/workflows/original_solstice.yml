@@ -39,9 +39,10 @@ jobs:
           grep -q SCENEFORGE_SOLSTICE_GREENHOUSE_SEAMS_OK build/original-solstice/blender.log
           grep -q SCENEFORGE_SOLSTICE_INTEGRATED_CABIN_OK build/original-solstice/blender.log
           grep -q SCENEFORGE_SOLSTICE_EXPORT_OK build/original-solstice/blender.log
+          grep -q SCENEFORGE_SOLSTICE_REAR_THRUST_OK build/original-solstice/blender.log
           test -s build/original-solstice/Solstice_S01.glb
           test -s build/original-solstice/Solstice_S01_Master.blend
-          for view in hero rear-quarter front rear side top clay greenhouse rear-mechanics cabin-profile; do
+          for view in hero rear-quarter front rear side top clay greenhouse rear-mechanics cabin-profile thrust-inspection rear-dead-on; do
             test -s "build/original-solstice/Solstice-$view.png"
           done
           python - <<'PY'
@@ -59,6 +60,10 @@ jobs:
           assert v["rear_glass_slope"] < .70
           assert v["structural_cradle_count"]==8
           assert v["rear_intake_louvre_count"]==6
+          assert v["rear_thrust"]["integrated_quads"]==288
+          assert v["rear_thrust"]["stator_count"]==14
+          assert v["rear_thrust"]["recess_depth_m"]>=.25
+          assert v["rear_end_z_m"] > -4.0
           print("SOLSTICE_EXPORT_REPORT_VERIFIED",v["triangles"])
           PY
       - name: Render studio-lit PBR views in CPU Cycles
@@ -68,6 +73,7 @@ jobs:
           test -s build/original-solstice/Solstice-studio-hero.png
           test -s build/original-solstice/Solstice-studio-rear-quarter.png
           test -s build/original-solstice/Solstice-studio-profile.png
+          test -s build/original-solstice/Solstice-studio-thrust.png
           grep -q SCENEFORGE_SOLSTICE_STUDIO_RENDER_OK build/original-solstice/studio-render.log
       - name: Verify GLB in Godot 4.5 Compatibility
         run: |
