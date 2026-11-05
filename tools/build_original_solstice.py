@@ -866,7 +866,9 @@ print("SCENEFORGE_SOLSTICE_CONNECTED_BODY_OK",len(hull.data.vertices),
 
 authored=[o for o in bpy.data.objects if o.type in ("MESH","CURVE")]
 if not ASSET_ONLY:
-    # Render assets directly from Blender, not conceptual AI images.
+    # Original source used both by the gallery preview and the signed Android
+# pipeline. Asset-only mode skips studio renders, never vehicle geometry.
+# Render assets directly from Blender, not conceptual AI images.
     scene=bpy.context.scene
     world=bpy.data.worlds.new("Solstice Studio")
     scene.world=world

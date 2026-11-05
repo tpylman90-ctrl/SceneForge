@@ -135,6 +135,41 @@ jobs:
             build/asset-report.json
             build/fleet-report.json
           key: foundry-blender-4.5.3-${{ hashFiles('tools/build_neon_foundry.py', 'tools/kestrel_detail.py', 'tools/build_fleet.py', 'tools/piledriver_detail.py', 'tools/forge_detail.py', 'tools/shrike_smooth.py') }}
+      - name: Cache original SOLSTICE game asset
+        id: solstice
+        uses: actions/cache@v4
+        with:
+          path: game/assets/fleet/solstice.glb
+          key: sceneforge-solstice-race-4.5.3-${{ hashFiles('tools/build_original_solstice.py', 'tools/solstice_pbr.py') }}
+      - name: Build original SOLSTICE for gameplay
+        if: steps.solstice.outputs.cache-hit != 'true'
+        env:
+          SCENEFORGE_SOLSTICE_ASSET_ONLY: '1'
+          SCENEFORGE_ORIGINAL_OUT: build/solstice-production
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ ! -x /tmp/blender-4.5.3-linux-x64/blender ]; then
+            curl -fL --retry 3 https://download.blender.org/release/Blender4.5/blender-4.5.3-linux-x64.tar.xz -o /tmp/blender.tar.xz
+            tar -xf /tmp/blender.tar.xz -C /tmp
+          fi
+          /tmp/blender-4.5.3-linux-x64/blender --background --threads 4 --python tools/build_original_solstice.py 2>&1 | tee build/solstice-production.log
+          grep -q SCENEFORGE_SOLSTICE_TAILLIGHT_GEOMETRY_OK build/solstice-production.log
+          grep -q SCENEFORGE_SOLSTICE_EXPORT_OK build/solstice-production.log
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          report=json.loads(Path("build/solstice-production/geometry-report.json").read_text())
+          assert 8000 < report["triangles"] < 75000
+          assert report["red_rear_lamp_min_width_m"] > .72
+          assert report["red_rear_lamp_max_height_m"] >= .30
+          assert report["red_rear_lamp_led_ribs_per_side"] == 3
+          assert report["body_nonmanifold_edges"] == 0
+          print("SCENEFORGE_SOLSTICE_PRODUCTION_MODEL_OK",report["triangles"])
+          PY
+          cp build/solstice-production/Solstice_S01.glb game/assets/fleet/solstice.glb
+      - name: Require original SOLSTICE before Godot import
+        run: test -s game/assets/fleet/solstice.glb
       - name: Install playable uploaded Shrike
         # SHA-validated uploaded original retained separately from Blender cache.
         run: python tools/install_showroom_shrike.py --required
@@ -211,10 +246,13 @@ jobs:
           grep FLEET_AEROLITH_ORIGINAL_DRIVE_MODEL_OK build/fleet-test.log
           grep FLEET_SHRIKE_UPLOADED_DRIVE_OK build/fleet-test.log
           grep -q 'FLEET_LAP_OK tremor' build/fleet-test.log
+          grep FLEET_SOLSTICE_ORIGINAL_DRIVE_MODEL_OK build/fleet-test.log
+          grep -q 'FLEET_LAP_OK solstice' build/fleet-test.log
           timeout 120 godot --headless --path game --script res://tests/foundry_selection_test.gd 2>&1 | tee build/foundry-selection.log
           if grep -E 'SCRIPT ERROR:|ERROR:' build/foundry-selection.log; then exit 1; fi
           grep FOUNDRY_FLEET_OK build/foundry-selection.log
           grep -q 'FOUNDRY_SELECTION_OK tremor' build/foundry-selection.log
+          grep FOUNDRY_SOLSTICE_REAL_CRAFT_OK build/foundry-selection.log
       - name: Capture Foundry only when affected
         if: env.CAPTURE_FOUNDRY == '1'
         env:
