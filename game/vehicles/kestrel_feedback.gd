@@ -22,6 +22,8 @@ var showroom_upload := false
 var windshield_prepared := false
 var windshield_faces := 0
 var windshield_windows: Array[MeshInstance3D] = []
+var solstice_brake_lamps: Array[StandardMaterial3D] = []
+var solstice_engine_materials: Array[StandardMaterial3D] = []
 
 func configure(definition: Resource) -> void:
 	chassis = definition
@@ -30,6 +32,9 @@ func configure(definition: Resource) -> void:
 		return
 	if chassis.chassis_id=="aerolith":
 		configure_aerolith(definition)
+		return
+	if chassis.chassis_id=="solstice":
+		configure_solstice(definition)
 		return
 	showroom_upload=chassis.chassis_id=="shrike" and chassis.visual_scene.ends_with("/showroom/shrike_uploaded.glb")
 	var source: Node3D = load(chassis.visual_scene).instantiate()
@@ -126,6 +131,61 @@ func configure(definition: Resource) -> void:
 	build_component_mounts()
 	build_exhaust()
 	build_audio()
+
+# SOLSTICE has its own genuine parametric Blender mesh and embedded engine.
+# It intentionally does not depend on the legacy Kestrel tail/yoke rig.
+func configure_solstice(definition: Resource) -> void:
+	var body: Node3D=load(definition.visual_scene).instantiate()
+	body.name="SOLSTICE_Original_Body"
+	add_child(body)
+	telemetry.craft_name=definition.display_name
+	for candidate in body.find_children("*","MeshInstance3D",true,false):
+		var mesh_node: MeshInstance3D=candidate as MeshInstance3D
+		if mesh_node.mesh==null:
+			continue
+		var lower: String=str(mesh_node.name).to_lower()
+		var is_glass: bool=lower.contains("windscreen") or lower.ends_with("_glazing")
+		var is_lamp: bool=lower.contains("upper_red_rear_signature") or lower.contains("rear_led_rib") or lower.contains("rear_light_endcap")
+		var is_drive: bool=lower.contains("thrust_amber_capsule") or lower.contains("_flux_ring")
+		if not (is_glass or is_lamp or is_drive):
+			continue
+		for surface in range(mesh_node.mesh.get_surface_count()):
+			var imported: Material=mesh_node.get_active_material(surface)
+			if not imported is StandardMaterial3D:
+				continue
+			var active: StandardMaterial3D=(imported as StandardMaterial3D).duplicate()
+			if is_glass:
+				active.transparency=BaseMaterial3D.TRANSPARENCY_ALPHA
+				active.albedo_color.a=.42
+				active.cull_mode=BaseMaterial3D.CULL_DISABLED
+				var inside: StandardMaterial3D=active.duplicate()
+				inside.albedo_color.a=.085
+				inside.metallic=0.0
+				mesh_node.set_surface_override_material(surface,active)
+				glass.append({"mesh":mesh_node,"surface":surface,
+					"outside":active,"inside":inside})
+			elif is_lamp:
+				active.emission_enabled=true
+				active.emission=Color(.96,.025,.013)
+				active.emission_energy_multiplier=1.6
+				mesh_node.set_surface_override_material(surface,active)
+				solstice_brake_lamps.append(active)
+			else:
+				active.emission_enabled=true
+				active.emission=Color(.94,.39,.10)
+				active.emission_energy_multiplier=1.1
+				mesh_node.set_surface_override_material(surface,active)
+				solstice_engine_materials.append(active)
+	assert(body.find_child("SOLSTICE_UNIFIED_OUTER_SKIN",true,false)!=null)
+	assert(body.find_child("SOLSTICE_Port_Upper_Red_Rear_Signature",true,false)!=null)
+	assert(body.find_child("SOLSTICE_Starboard_Upper_Red_Rear_Signature",true,false)!=null)
+	assert(glass.size()>=4,"SOLSTICE must retain independent transparent cabin glazing")
+	assert(solstice_brake_lamps.size()>=8,"SOLSTICE LED mesh layers missing")
+	assert(solstice_engine_materials.size()>=5,"SOLSTICE hover and engine fields missing")
+	build_component_mounts()
+	build_repulsor_footprints()
+	build_audio()
+	print("SCENEFORGE_SOLSTICE_PLAYABLE_BODY_OK")
 
 # AEROLITH is a completely original Blender craft from Assetwright.
 # Unlike the legacy vehicle exporters, its mesh has no "Kestrel_*" rig.
@@ -413,6 +473,27 @@ func update_feedback(delta: float, signed_speed: float, drive: float, steering: 
 			sound.volume_db=-80 if muted else -28+fraction*6+drive*4
 		display_clock+=delta
 		if display_clock>=.35:
+			display_clock=0.0
+			telemetry.update(signed_speed,drive,steering,slip,boosting,charge)
+		return
+	if chassis.chassis_id=="solstice":
+		last_drive=drive
+		motion_clock+=delta
+		var fraction: float=clampf(absf(signed_speed)/chassis.max_forward_speed,0.0,1.0)
+		visual_roll=lerpf(visual_roll,steering*.095*fraction,1-exp(-delta*7.0))
+		visual_pitch=lerpf(visual_pitch,flight_pitch+clampf(acceleration*.0014,-.025,.022),1-exp(-delta*5.0))
+		rotation=Vector3(visual_pitch,0,visual_roll)
+		position.y=sin(motion_clock*3.15)*.013*fraction
+		var braking: bool=acceleration< -2.0 or drive< -.15
+		for lamp in solstice_brake_lamps:
+			lamp.emission_energy_multiplier=3.1 if braking else 1.4
+		for emitter in solstice_engine_materials:
+			emitter.emission_energy_multiplier=1.0+drive*.65+fraction*.45+(1.0 if boosting else 0.0)
+		if sound!=null:
+			sound.pitch_scale=.82+fraction*.55+drive*.13
+			sound.volume_db=-80 if muted else -27+fraction*5+drive*5
+		display_clock+=delta
+		if display_clock>=(.1 if cockpit else .45):
 			display_clock=0.0
 			telemetry.update(signed_speed,drive,steering,slip,boosting,charge)
 		return
