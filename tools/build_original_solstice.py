@@ -813,6 +813,18 @@ assert aperture_quads>250, "Actual cockpit opening was not generated"
 assert "SOLSTICE_Port_Formed_A_Pillar" in bpy.data.objects
 assert "SOLSTICE_Starboard_Roof_to_Haunch_Buttress" in bpy.data.objects
 assert "SOLSTICE_Front_Port_Aft_Structural_Cradle" in bpy.data.objects
+rear_haunch_angle = .72
+crest_early = shell_point(-3.22, rear_haunch_angle)[1]
+crest_late = shell_point(-3.48, rear_haunch_angle)[1]
+crest_drop = shell_point(-3.75, rear_haunch_angle)[1]
+haunch_shelf_delta = abs(crest_early-crest_late)
+haunch_short_drop = crest_late-crest_drop
+assert haunch_shelf_delta < .09, "Haunch crest is still too sloped"
+assert haunch_short_drop > .19, "Haunch misses the steep final rear drop"
+assert haunch_crest_height_offset(rear_end_z) == 0.
+assert haunch_crest_height_offset(-2.30) == 0.
+print("SCENEFORGE_SOLSTICE_HAUNCH_PEAK_RESHAPED_OK",
+      round(haunch_shelf_delta, 4), round(haunch_short_drop, 4))
 expected_recess_vertices=sum(
     (k1-k0+1)*(j1-j0+1)+2*((k1-k0)+(j1-j0))
     for (k0,k1,j0,j1),kind in recesses)
@@ -962,6 +974,11 @@ report={
          compact_rear_z(-2.52)-compact_rear_z(rear_end_z),4),
     "rear_deck_end_height_m":STATIONS[0][3],
     "rear_tail_width_ratio":round(STATIONS[0][1]/STATIONS[1][1],4),
+    "rear_haunch_profile":{
+        "shelf_height_change_m":round(haunch_shelf_delta,4),
+        "short_rear_drop_m":round(haunch_short_drop,4),
+        "original_end_ring_preserved":True,
+    },
     "red_rear_lamp_count":2,
     "rear_lamp_placement":"high body shoulder, wrapped to rear corners",
     "high_rear_lamp_housing_count":2,
