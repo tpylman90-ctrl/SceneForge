@@ -520,8 +520,11 @@ def spline_tube(name,points,radius,mat):
     path.bevel_depth=radius
     # Small piping below 3 cm radius does not need screen-space invisible
     # 16x8 tessellation on an Android-scale vehicle review model.
-    path.bevel_resolution=2
-    path.resolution_u=10
+    # Small formed piping should not consume hero-car silhouette triangles.
+    # This retains smooth enough shading at 720p and makes room for the
+    # broad rear lamp geometry without raising the mobile triangle budget.
+    path.bevel_resolution=1
+    path.resolution_u=6
     spline=path.splines.new("BEZIER")
     spline.bezier_points.add(len(points)-1)
     for handle,p in zip(spline.bezier_points,points):
@@ -773,22 +776,22 @@ def rear_corner_lamp_point(side,u,v,depth=0.):
 
 for side,label in [(-1,"Port"),(1,"Starboard")]:
     backing=patch("SOLSTICE_"+label+"_High_Shoulder_Lamp_Recess",
-        32,10,lambda u,v,s=side: rear_corner_lamp_point(s,u,v),dark)
+        24,8,lambda u,v,s=side: rear_corner_lamp_point(s,u,v),dark)
     rim=backing.modifiers.new("Stamped taillamp housing wall","SOLIDIFY")
     rim.thickness=.022
     rim.offset=-1.
     patch("SOLSTICE_"+label+"_Smoked_Ruby_Rear_Lens",
-        32,9,lambda u,v,s=side:
+        24,7,lambda u,v,s=side:
         rear_corner_lamp_point(s,.026+.948*u,.055+.885*v,.021),
         tail_red_lens)
     patch("SOLSTICE_"+label+"_Upper_Red_Rear_Signature",
-        32,7,lambda u,v,s=side:
+        24,5,lambda u,v,s=side:
         rear_corner_lamp_point(s,.054+.900*u,.22+.61*v,.033),
         tail_red)
     for row in range(3):
         fraction=.24+row*.25
         points=[rear_corner_lamp_point(side,u,fraction,.045)
-                for u in (.075,.14,.23,.34,.47,.61,.74,.85,.93)]
+                for u in (.075,.19,.33,.48,.63,.79,.93)]
         spline_tube("SOLSTICE_"+label+"_Rear_LED_Rib_%d"%row,
                     points,.010 if row==0 else .008,tail_red)
     spline_tube("SOLSTICE_"+label+"_Rear_Light_Endcap",
