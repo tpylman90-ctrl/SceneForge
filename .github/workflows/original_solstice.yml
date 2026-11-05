@@ -42,6 +42,7 @@ jobs:
           grep -q SCENEFORGE_SOLSTICE_REAR_THRUST_OK build/original-solstice/blender.log
           grep -q SCENEFORGE_SOLSTICE_UPRIGHT_REAR_FASCIA_OK build/original-solstice/blender.log
           grep -q SCENEFORGE_SOLSTICE_COMPACT_REAR_AND_CORNER_LIGHTS_OK build/original-solstice/blender.log
+          grep -q SCENEFORGE_SOLSTICE_HAUNCH_PEAK_RESHAPED_OK build/original-solstice/blender.log
           test -s build/original-solstice/Solstice_S01.glb
           test -s build/original-solstice/Solstice_S01_Master.blend
           for view in hero rear-quarter front rear side top clay greenhouse rear-mechanics cabin-profile thrust-inspection rear-dead-on rear-fascia; do
@@ -71,6 +72,9 @@ jobs:
           assert v["rear_lamp_placement"].startswith("high body shoulder")
           assert .55 <= v["rear_overhang_compression_m"] <= .60
           assert v["aft_hover_overhang_m"]<.9
+          assert v["rear_haunch_profile"]["shelf_height_change_m"]<.09
+          assert v["rear_haunch_profile"]["short_rear_drop_m"]>.19
+          assert v["rear_haunch_profile"]["original_end_ring_preserved"]
           assert v["rear_thrust"]["stator_count"]==14
           assert v["rear_thrust"]["recess_depth_m"]>=.25
           assert v["rear_end_z_m"] > -4.0
