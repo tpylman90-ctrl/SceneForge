@@ -76,7 +76,14 @@ func _sculpt() -> void:
 		return
 	terrain.set("collision_mode",0)
 	terrain.set("region_size",256)
+	terrain.set("free_editor_textures",false)
+	var editor_camera := Camera3D.new()
+	editor_camera.position=Vector3(0,180,170)
+	root.add_child(editor_camera)
+	editor_camera.current=true
+	terrain.set("clipmap_target",editor_camera)
 	root.add_child(terrain)
+	terrain.call("set_camera",editor_camera)
 	await process_frame
 	await process_frame
 	var data: Object=terrain.get("data")
@@ -92,6 +99,10 @@ func _sculpt() -> void:
 	if editor==null:
 		_fail("Terrain3DEditor native brush tool unavailable")
 		return
+	# A headless authoring session has no live EditorPlugin. Use a lightweight
+	# non-null undo sink so Terrain3D's native brush can complete safely.
+	var undo_sink := RefCounted.new()
+	terrain.call("set_plugin",undo_sink)
 	terrain.call("set_editor",editor)
 	editor.call("set_terrain",terrain)
 	var brush: Image=_make_brush()

@@ -55,7 +55,10 @@ jobs:
         run: |
           set -euo pipefail
           timeout 200 xvfb-run -a godot --headless --path tools/serpent_terrain_editor --script res://sculpt_trial.gd 2>&1 | tee build/terrain3d-brush.log
-          if grep -E 'SCRIPT ERROR:|ERROR:|TERRAIN3D_BRUSH_ERROR:' build/terrain3d-brush.log; then exit 1; fi
+          # Strict on script failures and unknown native errors, while allowing
+          # Godot's known one-time dummy-renderer RID teardown warning.
+          if grep -E 'SCRIPT ERROR:|TERRAIN3D_BRUSH_ERROR:' build/terrain3d-brush.log; then exit 1; fi
+          if grep -E '^ERROR:' build/terrain3d-brush.log | grep -v -E 'RID allocations of type'; then exit 1; fi
           grep TERRAIN3D_BRUSH_SCULPT_OK build/terrain3d-brush.log
           test -s tools/serpent_terrain_editor/heightmaps/serpent_sculpt.exr
       - name: Bake and validate playable canyon clearance
