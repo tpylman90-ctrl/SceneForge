@@ -40,6 +40,7 @@ jobs:
         run: |
           set -euo pipefail
           python3 tools/serpent_terrain_editor/setup.py --install-terrain3d
+          mkdir -p tools/serpent_terrain_editor/terrain_data
           test -f tools/serpent_terrain_editor/addons/terrain_3d/plugin.cfg
           find tools/serpent_terrain_editor/addons/terrain_3d -name '*.gdextension' | grep .
       - name: Initialize editor and native sculpt tools
