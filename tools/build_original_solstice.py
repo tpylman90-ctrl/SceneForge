@@ -16,6 +16,7 @@ from mathutils import Vector
 
 OUT = Path(os.environ.get("SCENEFORGE_ORIGINAL_OUT", "build/original-solstice"))
 OUT.mkdir(parents=True, exist_ok=True)
+ASSET_ONLY=os.environ.get("SCENEFORGE_SOLSTICE_ASSET_ONLY","0")=="1"
 bpy.ops.object.select_all(action="SELECT")
 bpy.ops.object.delete(use_global=False)
 
@@ -748,38 +749,58 @@ for side,label in [(-1,"Port"),(1,"Starboard")]:
 # graphite backing and illuminated lens. Their center paths sample the
 # actual shell surface at the rear cutoff, so future fender changes carry
 # the fixtures with them. Each lamp wraps towards the outside haunch.
-tail_red=material("SOLSTICE_Red_Rear_LED",(.88,.027,.017),.08,.27,glow=1.30)
-tail_red_lens=material("SOLSTICE_Smoked_Ruby_Lens",(.24,.024,.029),.18,.16)
+tail_red=material("SOLSTICE_Red_Rear_LED",(.96,.018,.012),.06,.23,glow=1.85)
+tail_red_lens=material("SOLSTICE_Smoked_Ruby_Lens",(.25,.018,.021),.20,.16)
+
+# Broad formed boomerang lamp pockets occupy both upper rear haunches:
+# a ruby lens, wide LED bed and three original swept light-guide ribs.
+# Coordinates follow the approved real monocoque; silhouette is unchanged.
+REAR_LAMP_INNER_ANGLE=.35
+REAR_LAMP_OUTER_ANGLE=1.43
+REAR_LAMP_MAX_HEIGHT=.31
+rear_lamp_sampled_widths=[]
+
 def rear_corner_lamp_point(side,u,v,depth=0.):
-    # u: inboard to outer shoulder; v: narrow height across the lamp.
-    angle=side*(.60+.55*u)
-    x,y,_=shell_point(rear_end_z,angle)
-    y+=.095*(v-.5)+.018
-    # One integrated lamp seam follows the 3D shell's stern shape.
-    z=rear_end_z-.044-.015*u-depth
+    angle=side*(REAR_LAMP_INNER_ANGLE+
+               (REAR_LAMP_OUTER_ANGLE-REAR_LAMP_INNER_ANGLE)*u)
+    x,shoulder_y,_=shell_point(rear_end_z,angle)
+    fullness=max(0.,math.sin(math.pi*u))**.72
+    height=.075+REAR_LAMP_MAX_HEIGHT*fullness
+    upper_y=shoulder_y+.025+.024*fullness
+    y=upper_y-height*(1.-v)
+    z=rear_end_z-.086+.064*u*u-depth
     return (x,y,z)
 
 for side,label in [(-1,"Port"),(1,"Starboard")]:
     backing=patch("SOLSTICE_"+label+"_High_Shoulder_Lamp_Recess",
-        24,4,lambda u,v,s=side: rear_corner_lamp_point(s,u,v),dark)
-    lip=backing.modifiers.new("Lamp pocket hem","SOLIDIFY")
-    lip.thickness=.014
-    lip.offset=1.
+        32,10,lambda u,v,s=side: rear_corner_lamp_point(s,u,v),dark)
+    rim=backing.modifiers.new("Stamped taillamp housing wall","SOLIDIFY")
+    rim.thickness=.022
+    rim.offset=-1.
     patch("SOLSTICE_"+label+"_Smoked_Ruby_Rear_Lens",
-        24,3,lambda u,v,s=side:
-        rear_corner_lamp_point(s,.045+.91*u,.14+.72*v,.019),
+        32,9,lambda u,v,s=side:
+        rear_corner_lamp_point(s,.026+.948*u,.055+.885*v,.021),
         tail_red_lens)
     patch("SOLSTICE_"+label+"_Upper_Red_Rear_Signature",
-        24,2,lambda u,v,s=side:
-        rear_corner_lamp_point(s,.080+.84*u,.40+.20*v,.025),
+        32,7,lambda u,v,s=side:
+        rear_corner_lamp_point(s,.054+.900*u,.22+.61*v,.033),
         tail_red)
-    # The far outboard tip forms a tiny L-shaped directional marker.
+    for row in range(3):
+        fraction=.24+row*.25
+        points=[rear_corner_lamp_point(side,u,fraction,.045)
+                for u in (.075,.14,.23,.34,.47,.61,.74,.85,.93)]
+        spline_tube("SOLSTICE_"+label+"_Rear_LED_Rib_%d"%row,
+                    points,.010 if row==0 else .008,tail_red)
     spline_tube("SOLSTICE_"+label+"_Rear_Light_Endcap",
-        [rear_corner_lamp_point(side,u,.49,.036)
-         for u in (.89,.94,.97,1.)],.012,tail_red)
-    # Tiny reverse/position marker is distinct from the red brake lamps.
+        [rear_corner_lamp_point(side,u,.49,.043)
+         for u in (.88,.92,.96,.985)],.012,tail_red)
     rounded_block("SOLSTICE_"+label+"_Tail_Optic",
         (side*.943,.506,rear_end_z-.100),(.020,.031,.011),ice,.008)
+    first=rear_corner_lamp_point(side,.02,.5)
+    last=rear_corner_lamp_point(side,.98,.5)
+    rear_lamp_sampled_widths.append(abs(last[0]-first[0]))
+assert min(rear_lamp_sampled_widths)>.72
+assert REAR_LAMP_MAX_HEIGHT>=.30
 
 # A physical, fine trunk-closure seam tracks the sampled 3D shell surface:
 # one cross-body edge and two swept side returns toward the low rear glass.
@@ -844,70 +865,71 @@ print("SCENEFORGE_SOLSTICE_CONNECTED_BODY_OK",len(hull.data.vertices),
       "recessed_scoop_quads",scoop_quads)
 
 authored=[o for o in bpy.data.objects if o.type in ("MESH","CURVE")]
-# Render assets directly from Blender, not conceptual AI images.
-scene=bpy.context.scene
-world=bpy.data.worlds.new("Solstice Studio")
-scene.world=world
-world.use_nodes=True
-world.node_tree.nodes["Background"].inputs["Color"].default_value=(.13,.18,.21,1)
-world.node_tree.nodes["Background"].inputs["Strength"].default_value=.8
-scene.render.resolution_x=1100
-scene.render.resolution_y=680
-scene.render.resolution_percentage=100
-scene.render.image_settings.file_format="PNG"
-scene.render.film_transparent=False
-scene.render.engine="BLENDER_WORKBENCH"
-studio=scene.display.shading
-studio.light="STUDIO"
-studio.color_type="MATERIAL"
-studio.show_shadows=True
-studio.show_cavity=True
-studio.background_type="WORLD"
+if not ASSET_ONLY:
+    # Render assets directly from Blender, not conceptual AI images.
+    scene=bpy.context.scene
+    world=bpy.data.worlds.new("Solstice Studio")
+    scene.world=world
+    world.use_nodes=True
+    world.node_tree.nodes["Background"].inputs["Color"].default_value=(.13,.18,.21,1)
+    world.node_tree.nodes["Background"].inputs["Strength"].default_value=.8
+    scene.render.resolution_x=1100
+    scene.render.resolution_y=680
+    scene.render.resolution_percentage=100
+    scene.render.image_settings.file_format="PNG"
+    scene.render.film_transparent=False
+    scene.render.engine="BLENDER_WORKBENCH"
+    studio=scene.display.shading
+    studio.light="STUDIO"
+    studio.color_type="MATERIAL"
+    studio.show_shadows=True
+    studio.show_cavity=True
+    studio.background_type="WORLD"
 
-camdata=bpy.data.cameras.new("Studio Orthographic Lens")
-camera=bpy.data.objects.new("Studio_Camera",camdata)
-bpy.context.collection.objects.link(camera)
-scene.camera=camera
-camdata.type="ORTHO"
-camdata.ortho_scale=10.5
+    camdata=bpy.data.cameras.new("Studio Orthographic Lens")
+    camera=bpy.data.objects.new("Studio_Camera",camdata)
+    bpy.context.collection.objects.link(camera)
+    scene.camera=camera
+    camdata.type="ORTHO"
+    camdata.ortho_scale=10.5
 
-def stage_camera(pos,focus=(0,1.05,0),scale=10.5):
-    camera.location=cv(pos)
-    target=Vector(cv(focus))
-    camera.rotation_euler=(target-camera.location).to_track_quat("-Z","Y").to_euler()
-    camdata.ortho_scale=scale
+    def stage_camera(pos,focus=(0,1.05,0),scale=10.5):
+        camera.location=cv(pos)
+        target=Vector(cv(focus))
+        camera.rotation_euler=(target-camera.location).to_track_quat("-Z","Y").to_euler()
+        camdata.ortho_scale=scale
 
-# Save full editable vehicle, including bevel/solidify and spline controls.
-bpy.ops.wm.save_as_mainfile(filepath=str((OUT/"Solstice_S01_Master.blend").resolve()))
-views=[
-    ("hero",(6.6,3.65,8.7),9.8),
-    ("rear-quarter",(-6.7,3.6,-8.6),9.8),
-    ("side",(11.4,2.45,0),9.5),
-    ("front",(0,2.55,11.5),5.9),
-    ("rear",(0,2.6,-11.5),5.9),
-    ("top",(0,11.3,0),15.2),
-    ("greenhouse",(4.5,4.15,3.35),6.7),
-    ("rear-mechanics",(-5.2,2.8,-6.9),7.0),
-    ("cabin-profile",(8.6,2.35,-.10),7.8),
-    ("thrust-inspection",(-2.6,2.25,-6.8),6.6),
-    ("rear-dead-on",(0,1.38,-8.25),5.4),
-    ("rear-fascia",(-2.0,1.92,-5.55),5.25),
-]
-for name,pos,scale in views:
-    stage_camera(pos,scale=scale)
-    scene.render.filepath=str((OUT/("Solstice-"+name+".png")).resolve())
+    # Save full editable vehicle, including bevel/solidify and spline controls.
+    bpy.ops.wm.save_as_mainfile(filepath=str((OUT/"Solstice_S01_Master.blend").resolve()))
+    views=[
+        ("hero",(6.6,3.65,8.7),9.8),
+        ("rear-quarter",(-6.7,3.6,-8.6),9.8),
+        ("side",(11.4,2.45,0),9.5),
+        ("front",(0,2.55,11.5),5.9),
+        ("rear",(0,2.6,-11.5),5.9),
+        ("top",(0,11.3,0),15.2),
+        ("greenhouse",(4.5,4.15,3.35),6.7),
+        ("rear-mechanics",(-5.2,2.8,-6.9),7.0),
+        ("cabin-profile",(8.6,2.35,-.10),7.8),
+        ("thrust-inspection",(-2.6,2.25,-6.8),6.6),
+        ("rear-dead-on",(0,1.38,-8.25),5.4),
+        ("rear-fascia",(-2.0,1.92,-5.55),5.25),
+    ]
+    for name,pos,scale in views:
+        stage_camera(pos,scale=scale)
+        scene.render.filepath=str((OUT/("Solstice-"+name+".png")).resolve())
+        bpy.ops.render.render(write_still=True)
+        assert Path(scene.render.filepath).stat().st_size>2000
+        print("SCENEFORGE_SOLSTICE_RENDER_OK",name)
+    # Same geometry, flat grey paint as a true surfacing diagnostic.
+    original_colors=[(m,m.diffuse_color[:]) for m in [paint,metal,dark]]
+    for m,c in original_colors:
+        m.diffuse_color=(.55,.58,.61,1.)
+    studio.color_type="MATERIAL"
+    stage_camera((6.6,3.65,8.7),scale=9.8)
+    scene.render.filepath=str((OUT/"Solstice-clay.png").resolve())
     bpy.ops.render.render(write_still=True)
-    assert Path(scene.render.filepath).stat().st_size>2000
-    print("SCENEFORGE_SOLSTICE_RENDER_OK",name)
-# Same geometry, flat grey paint as a true surfacing diagnostic.
-original_colors=[(m,m.diffuse_color[:]) for m in [paint,metal,dark]]
-for m,c in original_colors:
-    m.diffuse_color=(.55,.58,.61,1.)
-studio.color_type="MATERIAL"
-stage_camera((6.6,3.65,8.7),scale=9.8)
-scene.render.filepath=str((OUT/"Solstice-clay.png").resolve())
-bpy.ops.render.render(write_still=True)
-for m,c in original_colors:m.diffuse_color=c
+    for m,c in original_colors:m.diffuse_color=c
 
 # Export only the actual vehicle. Convert editable manufacturing curves to
 # evaluated mesh objects on the export copy (Blend master already saved).
@@ -938,6 +960,9 @@ assert "SOLSTICE_Front_Port_Flux_Ring" in nodes
 assert "SOLSTICE_Thrust_Amber_Capsule" in nodes
 assert "SOLSTICE_Port_Upper_Red_Rear_Signature" in nodes
 assert "SOLSTICE_Starboard_Upper_Red_Rear_Signature" in nodes
+assert "SOLSTICE_Port_Rear_LED_Rib_0" in nodes
+assert "SOLSTICE_Port_Rear_LED_Rib_2" in nodes
+assert "SOLSTICE_Starboard_Rear_LED_Rib_2" in nodes
 assert "SOLSTICE_Port_High_Shoulder_Lamp_Recess" in nodes
 assert "SOLSTICE_Starboard_High_Shoulder_Lamp_Recess" in nodes
 assert "SOLSTICE_Rear_Deck_Transverse_Shutline" in nodes
@@ -961,7 +986,7 @@ assert triangles<75000, "Prototype triangle cap exceeded: %d" % triangles
 assert triangles>8000, "Main hull/detail geometry missing"
 report={
     "name":"SOLSTICE S-01",
-    "status":"original, prototype only; not yet playable",
+    "status":"original, playable fleet source model; Android acceptance pending",
     "source":"Procedurally modeled in Blender from original analytic surface curves",
     "body_topology":"single connected quad hull with 28mm solidify and cockpit aperture",
     "length_m":round(STATIONS[-1][0]-compact_rear_z(rear_end_z),4),
@@ -980,6 +1005,9 @@ report={
         "original_end_ring_preserved":True,
     },
     "red_rear_lamp_count":2,
+    "red_rear_lamp_min_width_m":round(min(rear_lamp_sampled_widths),4),
+    "red_rear_lamp_max_height_m":REAR_LAMP_MAX_HEIGHT,
+    "red_rear_lamp_led_ribs_per_side":3,
     "rear_lamp_placement":"high body shoulder, wrapped to rear corners",
     "high_rear_lamp_housing_count":2,
     "rear_thrust":{"type":"single recessed oval ducted-vector drive",
@@ -1023,4 +1051,6 @@ assert "SOLSTICE_Starboard_Upper_Red_Rear_Signature" in bpy.data.objects
 print("SCENEFORGE_SOLSTICE_COMPACT_REAR_AND_CORNER_LIGHTS_OK",
       round(compact_rear_z(rear_end_z),3),
       round(compact_rear_z(-2.52)-compact_rear_z(rear_end_z),3))
+print("SCENEFORGE_SOLSTICE_TAILLIGHT_GEOMETRY_OK",
+      round(min(rear_lamp_sampled_widths),3),REAR_LAMP_MAX_HEIGHT)
 print("SCENEFORGE_SOLSTICE_EXPORT_OK",triangles,len(raw))
