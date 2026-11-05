@@ -16,6 +16,13 @@ class CapturePlanTests(unittest.TestCase):
     def test_canyon_documentation_skips_images(self):
         self.assertEqual(choose_captures(["game/tracks/CRIMSON_DIVIDE.md"]), (False, (), ()))
 
+    def test_sandstone_texture_is_serpent_only(self):
+        self.assertEqual(
+            choose_captures(["game/tracks/serpent_textures/sandstone_cliff_2k.tres",
+                             "tools/bake_serpent_textures.py"]),
+            (False, (4,), ()),
+        )
+
     def test_shrike_only(self):
         self.assertEqual(choose_captures(["game/vehicles/shrike_windshield.gd"]), (False, (), (2,)))
 

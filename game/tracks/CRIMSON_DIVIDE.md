@@ -154,3 +154,18 @@ Game load, preview and handset FPS must be verified after CI.
 - Godot CI can validate geometry/material properties but cannot prove
   handset near-wall visual correctness or 60+ FPS; those remain phone-review
   criteria.
+
+## 2K rock materials — mobile visual-quality trial
+
+- Introduced `tracks/serpent_textures/sandstone_cliff_2k.tres`, a real
+  editable Godot StandardMaterial3D backed by original 2048² albedo and
+  2048² OpenGL normal texture source. Source code is deterministic and baked
+  **in CI before Godot import**, not generated on the phone.
+- Macro rock colors remain vertex-painted; subtle microstrata, weathering,
+  shallow cracks and normal-map relief improve rock faces without raising
+  the sculpted canyon polygon budget. Tangents are built once at load.
+- Opaque, double-sided wall fix remains intact. Godot test checks both
+  maps' 2K dimensions and the tangent vertex channel. Selective CI capture
+  remains Serpent-only for material changes; other canyons untouched.
+- 59–61 FPS is the **previous handset baseline only**. Actual new shader
+  performance must be verified before treating this material as accepted.
