@@ -1,0 +1,104 @@
+name: Crimson Serpent Terrain3D Brush Trial
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/serpent-terrain3d.yml
+      - tools/serpent_terrain_editor/sculpt_trial.gd
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: serpent-terrain3d-brush-trial
+  cancel-in-progress: false
+
+jobs:
+  sculpt:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Install pinned Godot 4.5.1 authoring editor
+        shell: bash
+        run: |
+          set -euo pipefail
+          base="https://github.com/godotengine/godot/releases/download/4.5.1-stable"
+          curl --fail --location --retry 3 "$base/Godot_v4.5.1-stable_linux.x86_64.zip" -o /tmp/godot.zip
+          unzip -q /tmp/godot.zip -d /tmp/godot
+          sudo install /tmp/godot/Godot_v4.5.1-stable_linux.x86_64 /usr/local/bin/godot
+          sudo apt-get update -qq
+          sudo apt-get install -y xvfb libgl1-mesa-dri
+          godot --version
+      - name: Install actual Terrain3D native editor plugin (authoring only)
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tools/serpent_terrain_editor/setup.py --install-terrain3d
+          test -f tools/serpent_terrain_editor/addons/terrain_3d/plugin.cfg
+          find tools/serpent_terrain_editor/addons/terrain_3d -name '*.gdextension' | grep .
+      - name: Initialize editor and native sculpt tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p build
+          timeout 180 xvfb-run -a godot --headless --editor --path tools/serpent_terrain_editor --import 2>&1 | tee build/terrain3d-editor-import.log
+          if grep -E 'SCRIPT ERROR:|ERROR:' build/terrain3d-editor-import.log; then exit 1; fi
+      - name: Sculpt Crimson Serpent using Terrain3DEditor brushes
+        shell: bash
+        run: |
+          set -euo pipefail
+          timeout 200 xvfb-run -a godot --headless --path tools/serpent_terrain_editor --script res://sculpt_trial.gd 2>&1 | tee build/terrain3d-brush.log
+          if grep -E 'SCRIPT ERROR:|ERROR:|TERRAIN3D_BRUSH_ERROR:' build/terrain3d-brush.log; then exit 1; fi
+          grep TERRAIN3D_BRUSH_SCULPT_OK build/terrain3d-brush.log
+          test -s tools/serpent_terrain_editor/heightmaps/serpent_sculpt.exr
+      - name: Bake and validate playable canyon clearance
+        shell: bash
+        run: |
+          set -euo pipefail
+          godot --headless --path game --script res://tools/import_serpent_heightmap.gd -- --source "$PWD/tools/serpent_terrain_editor/heightmaps/serpent_sculpt.exr" 2>&1 | tee build/serpent-validate.log
+          if grep -E 'SCRIPT ERROR:|ERROR:|SERPENT_SCULPT_IMPORT_ERROR:' build/serpent-validate.log; then exit 1; fi
+          grep SERPENT_SCULPT_BAKE_OK build/serpent-validate.log
+          test "$(stat -c %s game/tracks/serpent_sculpt/height.r16)" = 1048576
+          python3 - <<'PY'
+          from pathlib import Path
+          import struct
+          previous=Path("tools/serpent_terrain_editor/heightmaps/serpent_seed.r16").read_bytes()
+          revised=Path("game/tracks/serpent_sculpt/height.r16").read_bytes()
+          differences=sum(1 for (a,),(b,) in zip(struct.iter_unpack("<H",previous),struct.iter_unpack("<H",revised)) if a != b)
+          print(f"TERRAIN3D_EDITED_PIXELS={differences}")
+          if differences<150: raise SystemExit("Terrain3D brush output did not materially change map")
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: CrimsonSerpent-Terrain3D-Brush-Trial
+          path: |
+            tools/serpent_terrain_editor/heightmaps/serpent_sculpt.exr
+            game/tracks/serpent_sculpt/height.r16
+            build/terrain3d*.log
+            build/serpent-validate.log
+          retention-days: 14
+          if-no-files-found: warn
+      - name: Commit successful brush sculpt (road-safe only)
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "sceneforge-terrain-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add game/tracks/serpent_sculpt/height.r16
+          git diff --cached --quiet && { echo "No sculpted changes found"; exit 1; }
+          git commit -m "sculpt(serpent): apply Terrain3D editor canyon brush strokes"
+          git push origin HEAD:main
+      - name: Dispatch Android validation on new sculpt commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          gh workflow run android.yml --ref main -f capture_scope=auto
+          echo "TERRAIN3D_SCULPT_ANDROID_DISPATCHED" >> "$GITHUB_STEP_SUMMARY"
