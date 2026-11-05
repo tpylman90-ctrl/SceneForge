@@ -200,3 +200,34 @@ and confirmed only after CI's Blender exports + Godot 4.5 Compatibility test.
 
 This prototype remains separate from the racing fleet; do not treat any
 earlier edited concept artwork as verification of the real 3D model.
+
+## S-01.8 — Approved upright rear design implemented in real body mesh
+
+The user rejected the previous swept aft surface because it still resembled
+another front nose. The approved image reference is a visual design brief;
+it is NOT substituted for the real geometry or an approved game render.
+
+**Source modifications**
+- The connected primary body now preserves rear half-width: 1.43 m at the
+  rear cut against 1.53 m one station forward. This removes the original
+  spear-like taper (0.90 vs 1.28 m), with a broader true stern and a firm
+  rear shoulder termination. The tail's central upper deck now measures
+  1.10 m high instead of 0.83 m, creating a taller near-upright aft face.
+- Reworked the integral rear mesh from four oval bands to **seven 72-quad
+  annular bands** (504 shared-index quads) transitioning from a rounded
+  rectangle into the same existing recessed oval duct. Bands provide
+  painted rear cut-off, slender bronze perimeter, dark graphite rear fascia,
+  machined engine bezel and the original deep duct throat.
+- Added left and right thin red rear LED signatures in real modeled graphite
+  pockets, small position optics, and a 3D-traced rear deck shutline.
+- Preserved central 14-vane thrust unit, low integrated greenhouse, existing
+  hover cells, paint and performance-focused modeling tools.
+- Added direct physical rear-elevation Cycles render and closer rear fascia
+  workbench inspection, checking front/rear silhouette consistency in the
+  actual model rather than generated concept imagery.
+
+**Validation gates** assert the broad rear width ratio, rear deck height,
+504 integrated annulus quads, the named red rear light meshes, the duct and
+seam GLB nodes, 75K prototype triangle cap, original body topology and Godot
+4.5 Compatibility glTF import. Independent Android drive frame-rate testing
+is still required before integrating SOLSTICE into the selectable roster.

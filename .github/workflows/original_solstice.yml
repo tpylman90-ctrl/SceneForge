@@ -40,9 +40,10 @@ jobs:
           grep -q SCENEFORGE_SOLSTICE_INTEGRATED_CABIN_OK build/original-solstice/blender.log
           grep -q SCENEFORGE_SOLSTICE_EXPORT_OK build/original-solstice/blender.log
           grep -q SCENEFORGE_SOLSTICE_REAR_THRUST_OK build/original-solstice/blender.log
+          grep -q SCENEFORGE_SOLSTICE_UPRIGHT_REAR_FASCIA_OK build/original-solstice/blender.log
           test -s build/original-solstice/Solstice_S01.glb
           test -s build/original-solstice/Solstice_S01_Master.blend
-          for view in hero rear-quarter front rear side top clay greenhouse rear-mechanics cabin-profile thrust-inspection rear-dead-on; do
+          for view in hero rear-quarter front rear side top clay greenhouse rear-mechanics cabin-profile thrust-inspection rear-dead-on rear-fascia; do
             test -s "build/original-solstice/Solstice-$view.png"
           done
           python - <<'PY'
@@ -60,7 +61,11 @@ jobs:
           assert v["rear_glass_slope"] < .70
           assert v["structural_cradle_count"]==8
           assert v["rear_intake_louvre_count"]==6
-          assert v["rear_thrust"]["integrated_quads"]==288
+          assert v["rear_thrust"]["integrated_quads"]==504
+          assert v["rear_thrust"]["rear_fascia_width_m"]>2.5
+          assert v["rear_thrust"]["rear_fascia_shape"].startswith("rounded rectangular")
+          assert v["rear_tail_width_ratio"]>.9
+          assert v["red_rear_lamp_count"]==2
           assert v["rear_thrust"]["stator_count"]==14
           assert v["rear_thrust"]["recess_depth_m"]>=.25
           assert v["rear_end_z_m"] > -4.0
@@ -74,6 +79,7 @@ jobs:
           test -s build/original-solstice/Solstice-studio-rear-quarter.png
           test -s build/original-solstice/Solstice-studio-profile.png
           test -s build/original-solstice/Solstice-studio-thrust.png
+          test -s build/original-solstice/Solstice-studio-rear-elevation.png
           grep -q SCENEFORGE_SOLSTICE_STUDIO_RENDER_OK build/original-solstice/studio-render.log
       - name: Verify GLB in Godot 4.5 Compatibility
         run: |

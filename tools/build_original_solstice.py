@@ -24,7 +24,9 @@ bpy.ops.object.delete(use_global=False)
 # separate objects or joined islands. Smooth piecewise Hermite interpolation
 # avoids Catmull-Rom overshoot near the nose and tail.
 STATIONS = [
-    (-3.82, .90, .35, .83), (-3.50, 1.28, .32, 1.04),
+    # Full-width high rear shoulder terminates at a deliberately blunt
+    # cross-section. The old .90m half-width contracted into a second nose.
+    (-3.82, 1.43, .32, 1.10), (-3.50, 1.53, .32, 1.17),
     (-2.65, 1.64, .35, 1.21), (-1.45, 1.26, .37, 1.17),
     (-.20, 1.19, .36, 1.15), (1.26, 1.29, .34, 1.17),
     (2.42, 1.59, .33, 1.11), (3.31, 1.26, .30, .97),
@@ -260,24 +262,35 @@ for (k0,k1,j0,j1),kind in recesses:
 # The outer stern is 36cm shorter and its upper deck drops by 12cm.
 rear_end_z=STATIONS[0][0]
 rear_duct_y=.595
+# The first three annular bands form a nearly upright, rounded-rectangle
+# rear fascia. Only the inner chamber changes from that fascia to an oval.
+# No second pointed nose: the haunch mass is retained to the cut-off end.
+# (half-width, half-height, center_y, z, material slot, exponent)
 rear_ring_specs=[
-    # radius X, radius Y, longitudinal Godot Z, material index for the
-    # band connecting the previous ring to this ring.
-    (.704,.174,rear_end_z-.006,0),  # rolled painted tail border
-    (.666,.154,rear_end_z-.023,2),  # thin champagne-bronze bezel
-    (.612,.132,rear_end_z+.034,1),  # flush recessed throat
-    (.571,.118,rear_end_z+.285,1),  # deep graphite interior
+    (1.285,.302,.680,rear_end_z-.056,0,4.2), # painted rear cut-off face
+    (1.197,.253,.660,rear_end_z-.077,2,4.7), # champagne machined perimeter
+    (1.129,.222,.648,rear_end_z-.064,1,4.9), # graphite rear fascia panel
+    (.766,.177,.602,rear_end_z-.070,1,3.3),  # body-to-drive transition
+    (.680,.153,rear_duct_y,rear_end_z-.094,2,2.0), # oval drive bezel
+    (.616,.131,rear_duct_y,rear_end_z+.040,1,2.0), # dark duct mouth
+    (.571,.118,rear_duct_y,rear_end_z+.285,1,2.0), # deep duct bulkhead
 ]
+def signed_power(q,exponent):
+    return math.copysign(abs(q)**exponent,q)
+def rear_profile_point(rx,ry,cy,z,sharpness,angle):
+    power=2.0/sharpness
+    return (rx*signed_power(math.sin(angle),power),
+            cy+ry*signed_power(math.cos(angle),power),z)
 outer_ring=list(range(NR))
 prior_ring=outer_ring
 rear_thrust_band_faces=0
 rear_thrust_ring_vertex_count=0
-for radius_x,radius_y,z_center,material_slot in rear_ring_specs:
+for radius_x,radius_y,y_center,z_center,material_slot,sharpness in rear_ring_specs:
     inner_ring=[]
     for j,ang in enumerate(angles):
         inner_ring.append(len(hull_pts))
-        hull_pts.append((radius_x*math.sin(ang),
-                         rear_duct_y+radius_y*math.cos(ang),z_center))
+        hull_pts.append(rear_profile_point(
+            radius_x,radius_y,y_center,z_center,sharpness,ang))
         uv_seed[inner_ring[-1]]=(j/NR,.003)
     for j in range(NR):
         nxt=(j+1)%NR
@@ -594,6 +607,9 @@ for z,position_name in [(2.32,"Front"),(-2.52,"Rear")]:
         torus(prefix+"_Machined_Retainer",x,.304,z,.35,.038,metal)
         torus(prefix+"_Flux_Ring",x,.267,z,.285,.032,glow)
         cylinder(prefix+"_Field_Emitter",x,.265,z,.19,.010,ice)
+# S-01.8: The stern now terminates in a proper manufactured rear face.
+# Preserve the embedded single drive; trim and tail lamps live in that rear
+# fascia rather than on the top deck or in front-end-like fender crests.
 # S-01.7: ONE integrated ducted-vector drive, not twin bolt-on cylinders.
 # A thin asymmetric-section oval bezel follows the actual oval opening,
 # inside which radial flow straighteners surround a restrained energy core.
@@ -622,10 +638,10 @@ def thrust_point(r,angle,z):
             rear_duct_y+.115*r*math.cos(angle),z)
 
 # Subtle machined glints inside the actual end-cap chamfer.
-ellipse_tube("SOLSTICE_Thrust_Bezel_Bronze",.669,.154,
-             rear_end_z-.020,rear_duct_y,.011,metal)
+ellipse_tube("SOLSTICE_Thrust_Bezel_Bronze",.680,.153,
+             rear_end_z-.096,rear_duct_y,.011,metal)
 ellipse_tube("SOLSTICE_Thrust_Inner_Guide_Rail",.50,.105,
-             rear_end_z+.105,rear_duct_y,.012,metal)
+             rear_end_z+.130,rear_duct_y,.012,metal)
 
 # Tapered blades follow a radial diffuser, each behind the mouth rather
 # than protruding over the bodywork or obscuring the amber drive capsule.
@@ -652,8 +668,11 @@ ellipse_tube("SOLSTICE_Thrust_Amber_Capsule",.255,.048,
 rounded_block("SOLSTICE_Thrust_Center_Optical_Diffuser",
               (0.,rear_duct_y,rear_end_z+.093),
               (.406,.038,.022),dark,.016)
-assert rear_thrust_band_faces==4*NR
+assert rear_thrust_band_faces==len(rear_ring_specs)*NR
 assert rear_stator_count>=12
+assert len(rear_ring_specs)>=7
+assert STATIONS[0][1]>STATIONS[1][1]*.90, "Tail narrowed back into a front nose"
+assert STATIONS[0][3]>1.04, "Tail deck drops too far before the rear face"
 # The rear intakes have real pockets. Small metal louvers are fitted inside
 # the cavities instead of black shader stripes painted across the side.
 for side,label in [(-1,"Port"),(1,"Starboard")]:
@@ -673,10 +692,33 @@ for side,label in [(-1,"Port"),(1,"Starboard")]:
             (x-side*.014,y-.056,z),(.11,.013,.085),dark,.004)
 
 # Flush, not floating: exterior lighting follows the vehicle's functional edges.
-# Restrained narrow tail markers clear the oval thrust port.
+# Distinctive but restrained rear signatures: two recessed dark lamp
+# sockets sit high inside the newly formed vertical rear fascia. Their slim
+# illuminated horizontal cores cannot be mistaken for front headlamps.
+tail_red=material("SOLSTICE_Red_Rear_LED",(.85,.045,.025),.11,.24,glow=1.05)
 for side,label in [(-1,"Port"),(1,"Starboard")]:
-    rounded_block("SOLSTICE_"+label+"_Tail_Signature",
-        (side*.79,.64,rear_end_z-.012),(.030,.042,.026),ice,.010)
+    rounded_block("SOLSTICE_"+label+"_Rear_Lamp_Obsidian_Slot",
+        (side*.868,.808,rear_end_z-.098),(.482,.044,.021),dark,.015)
+    rounded_block("SOLSTICE_"+label+"_Rear_Lamp_Red_Signature",
+        (side*.868,.810,rear_end_z-.115),(.426,.015,.012),tail_red,.007)
+    # Very small turquoise emitter dots inside the lower rear panel.
+    rounded_block("SOLSTICE_"+label+"_Tail_Optic",
+        (side*.943,.506,rear_end_z-.100),(.020,.031,.011),ice,.008)
+
+# A physical, fine trunk-closure seam tracks the sampled 3D shell surface:
+# one cross-body edge and two swept side returns toward the low rear glass.
+# This must remain a seam, NOT a floating deck spoiler or extra rear body.
+rear_lid_seam_z=-3.52
+rear_deck_seam=[shell_point(rear_lid_seam_z,k*.95/15.)
+                for k in range(-15,16)]
+spline_tube("SOLSTICE_Rear_Deck_Transverse_Shutline",
+    [(x,y+.011,z) for (x,y,z) in rear_deck_seam],.007,dark)
+for side,label in [(-1,"Port"),(1,"Starboard")]:
+    points=[shell_point(z,side*a) for z,a in
+           [(-1.94,.71),(-2.37,.77),(-2.76,.83),
+            (-3.12,.89),(-3.52,.95)]]
+    spline_tube("SOLSTICE_"+label+"_Deck_Closure_Seam",
+                [(x,y+.011,z) for x,y,z in points],.007,dark)
 for side,label in [(-1,"Port"),(1,"Starboard")]:
     rounded_block("SOLSTICE_"+label+"_Front_Light",
                   (side*.69,.82,3.61),(.54,.040,.035),ice,.014)
@@ -698,9 +740,9 @@ assert "SOLSTICE_Front_Port_Aft_Structural_Cradle" in bpy.data.objects
 expected_recess_vertices=sum(
     (k1-k0+1)*(j1-j0+1)+2*((k1-k0)+(j1-j0))
     for (k0,k1,j0,j1),kind in recesses)
-assert len(hull.data.vertices)==NZ*NR+expected_recess_vertices+4*NR, "Unexpected body cage vertices"
-assert rear_thrust_ring_vertex_count==4*NR
-assert rear_thrust_band_faces==4*NR
+assert len(hull.data.vertices)==NZ*NR+expected_recess_vertices+len(rear_ring_specs)*NR, "Unexpected body cage vertices"
+assert rear_thrust_ring_vertex_count==len(rear_ring_specs)*NR
+assert rear_thrust_band_faces==len(rear_ring_specs)*NR
 assert "SOLSTICE_Thrust_Amber_Capsule" in bpy.data.objects
 assert not any("_Rear_Nozzle_Lip" in o.name for o in bpy.data.objects)
 assert scoop_quads>50, "Integrated shoulder intake geometry missing"
@@ -761,6 +803,7 @@ views=[
     ("cabin-profile",(8.6,2.35,-.10),7.8),
     ("thrust-inspection",(-2.6,2.25,-6.8),6.6),
     ("rear-dead-on",(0,1.38,-8.25),5.4),
+    ("rear-fascia",(-2.0,1.92,-5.55),5.25),
 ]
 for name,pos,scale in views:
     stage_camera(pos,scale=scale)
@@ -805,6 +848,9 @@ assert "SOLSTICE_FRONT_WINDSCREEN" in nodes
 assert "SOLSTICE_STRUCTURAL_ROOF" in nodes
 assert "SOLSTICE_Front_Port_Flux_Ring" in nodes
 assert "SOLSTICE_Thrust_Amber_Capsule" in nodes
+assert "SOLSTICE_Port_Rear_Lamp_Red_Signature" in nodes
+assert "SOLSTICE_Starboard_Rear_Lamp_Red_Signature" in nodes
+assert "SOLSTICE_Rear_Deck_Transverse_Shutline" in nodes
 assert "SOLSTICE_Thrust_Diffuser_Vane_00" in nodes
 assert not any("Rear_Nozzle_Lip" in n for n in nodes if n)
 paint_mat=next(m for m in glb["materials"] if m.get("name")=="SOLSTICE_Petrol_Teal_Clearcoat")
@@ -832,12 +878,17 @@ report={
     "estimated_width_m":3.40,
     "rear_end_z_m":rear_end_z,
     "rear_deck_end_height_m":STATIONS[0][3],
+    "rear_tail_width_ratio":round(STATIONS[0][1]/STATIONS[1][1],4),
+    "red_rear_lamp_count":2,
     "rear_thrust":{"type":"single recessed oval ducted-vector drive",
                    "mouth_width_m":2*.704,
                    "mouth_height_m":2*.174,
                    "recess_depth_m":.285,
                    "stator_count":rear_stator_count,
                    "integrated_quads":rear_thrust_band_faces,
+                   "rear_fascia_shape":"rounded rectangular upright multi-stage annulus",
+                   "rear_fascia_width_m":2*rear_ring_specs[0][0],
+                   "rear_fascia_height_m":2*rear_ring_specs[0][1],
                    "bezel_material":"champagne bronze",
                    "core_material":"restrained amber"},
     "triangles":triangles,"glb_bytes":len(raw),
@@ -860,4 +911,7 @@ report={
 (OUT/"geometry-report.json").write_text(json.dumps(report,indent=2))
 print("SCENEFORGE_SOLSTICE_REAR_THRUST_OK",rear_thrust_band_faces,
       rear_stator_count,round(rear_end_z,3))
+print("SCENEFORGE_SOLSTICE_UPRIGHT_REAR_FASCIA_OK",
+      len(rear_ring_specs),round(STATIONS[0][1],3),
+      round(STATIONS[0][3],3))
 print("SCENEFORGE_SOLSTICE_EXPORT_OK",triangles,len(raw))
