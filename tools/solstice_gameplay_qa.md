@@ -41,3 +41,10 @@ large high-mounted red LED proportions, rear haunch reflections, camera
 height, collision feedback and control responsiveness. All ten craft
 retain their previous playable state; SOLSTICE is added rather than
 replacing an approved model.
+
+## Fast-mode export bug resolved
+The first packaging attempt created the model but failed reporting because
+`views` was defined only in the preview-render branch. The report now emits
+an empty list in asset-only mode; the actual Blender geometry, UVs,
+materials and GLB are identical in both modes. The signed Android build
+must re-run from this fix and pass Godot/Fleet/Foundry tests.

@@ -1041,7 +1041,7 @@ report={
     "structural_cradle_count":8,
     "rear_intake_louvre_count":6,
     "glazing":"independent mesh surfaces",
-    "views":[x[0] for x in views]+["clay"],
+    "views":([x[0] for x in views]+["clay"]) if not ASSET_ONLY else [],
 }
 (OUT/"geometry-report.json").write_text(json.dumps(report,indent=2))
 print("SCENEFORGE_SOLSTICE_REAR_THRUST_OK",rear_thrust_band_faces,
