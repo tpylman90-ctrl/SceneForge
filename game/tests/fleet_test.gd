@@ -89,7 +89,13 @@ func check() -> void:
 				var imported: MeshInstance3D=scene.feedback.kestrel_upgrade.find_child(
 					"Kestrel_User_Upgrade_Exterior",true,false) as MeshInstance3D
 				assert(imported!=null and imported.mesh!=null)
-				assert(imported.mesh.surface_get_array_index_len(0)==118392)
+				assert(imported.mesh.get_surface_count()==2)
+				assert(imported.mesh.surface_get_array_index_len(0)/3>30000)
+				assert(imported.mesh.surface_get_array_index_len(1)/3>4000)
+				assert(scene.feedback.kestrel_real_glass!=null)
+				assert(scene.feedback.kestrel_real_glass.transparency==BaseMaterial3D.TRANSPARENCY_ALPHA)
+				assert(imported.get_surface_override_material(1)==scene.feedback.kestrel_real_glass)
+				print("FLEET_KESTREL_GEOMETRY_GLASS_REPAIR_OK")
 				assert(scene.feedback.kestrel_upgrade.visible)
 				assert(not scene.feedback.yoke.visible)
 				print("FLEET_KESTREL_IMPORTED_BODY_OK")

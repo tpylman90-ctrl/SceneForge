@@ -29,6 +29,7 @@ var solstice_engine_materials: Array[StandardMaterial3D] = []
 const KESTREL_USER_UPGRADE_PATH := "res://assets/showroom/kestrel_user_upgrade.glb"
 var kestrel_upgrade: Node3D
 var kestrel_legacy_shell_meshes: Array[MeshInstance3D] = []
+var kestrel_real_glass: StandardMaterial3D
 
 func configure(definition: Resource) -> void:
 	chassis = definition
@@ -153,18 +154,29 @@ func configure_kestrel_uploaded_body() -> void:
 	add_child(kestrel_upgrade)
 	var exterior: MeshInstance3D=kestrel_upgrade.find_child("Kestrel_User_Upgrade_Exterior",true,false) as MeshInstance3D
 	assert(exterior!=null and exterior.mesh!=null,"Original imported Kestrel exterior mesh missing")
-	assert(exterior.mesh.get_surface_count()==1,"Kestrel original GLB changed primitive count")
-	assert(exterior.mesh.surface_get_array_index_len(0)==118392,
-		"Kestrel 39,464-triangle imported body changed unexpectedly")
-	# Original model came untextured. The prepared GLB has carefully sampled
-	# slate/carbon/rust vertex-color regions; the PBR override respects them.
+	assert(exterior.mesh.get_surface_count()==2,"Kestrel repaired body + glass surfaces missing")
+	assert(exterior.mesh.surface_get_array_index_len(0)/3>30000,
+		"Kestrel body geometry did not survive processing")
+	assert(exterior.mesh.surface_get_array_index_len(1)/3>4000,
+		"Kestrel independent tinted glass missing")
+	# The original model had no vertex normals and very dark vertex colors.
+	# The installer now calculates actual normals, separates the windshield,
+	# and raises the satin-slate palette; avoid a black metallic override.
 	var finish:=StandardMaterial3D.new()
 	finish.albedo_color=Color.WHITE
 	finish.vertex_color_use_as_albedo=true
-	finish.metallic=.65
-	finish.roughness=.30
+	finish.metallic=.27
+	finish.roughness=.40
 	finish.cull_mode=BaseMaterial3D.CULL_DISABLED
-	exterior.material_override=finish
+	exterior.set_surface_override_material(0,finish)
+	kestrel_real_glass=StandardMaterial3D.new()
+	kestrel_real_glass.transparency=BaseMaterial3D.TRANSPARENCY_ALPHA
+	kestrel_real_glass.albedo_color=Color(.27,.48,.57,.30)
+	kestrel_real_glass.metallic=.06
+	kestrel_real_glass.roughness=.21
+	kestrel_real_glass.cull_mode=BaseMaterial3D.CULL_DISABLED
+	kestrel_real_glass.vertex_color_use_as_albedo=false
+	exterior.set_surface_override_material(1,kestrel_real_glass)
 	# Keep original Kestrel source rig intact but visually suppressed in chase
 	# and garage views, avoiding double fenders and duplicate tail feathers.
 	for child in get_children():
@@ -177,7 +189,12 @@ func configure_kestrel_uploaded_body() -> void:
 		tail.visible=false
 	assert(kestrel_legacy_shell_meshes.size()>0,"Kestrel cockpit fallback shell missing")
 	assert(tails.size()==5 and yoke!=null,"Kestrel steering/yoke controls lost")
-	print("SCENEFORGE_KESTREL_USER_BODY_UPGRADE_OK",exterior.mesh.surface_get_array_index_len(0)/3)
+	print("SCENEFORGE_KESTREL_REPAIRED_SURFACES_OK",
+		exterior.mesh.surface_get_array_index_len(0)/3,
+		exterior.mesh.surface_get_array_index_len(1)/3)
+	print("SCENEFORGE_KESTREL_USER_BODY_UPGRADE_OK",
+		(exterior.mesh.surface_get_array_index_len(0)+
+		exterior.mesh.surface_get_array_index_len(1))/3)
 
 # SOLSTICE has its own genuine parametric Blender mesh and embedded engine.
 # It intentionally does not depend on the legacy Kestrel tail/yoke rig.

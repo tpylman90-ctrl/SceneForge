@@ -261,14 +261,23 @@ func configure_kestrel_foundry_upgrade(scenery: Node3D) -> void:
 	var mesh: MeshInstance3D=kestrel_foundry_upgrade.find_child(
 		"Kestrel_User_Upgrade_Exterior",true,false) as MeshInstance3D
 	assert(mesh!=null and mesh.mesh!=null)
-	assert(mesh.mesh.surface_get_array_index_len(0)==118392)
+	assert(mesh.mesh.get_surface_count()==2)
+	assert(mesh.mesh.surface_get_array_index_len(0)/3>30000)
+	assert(mesh.mesh.surface_get_array_index_len(1)/3>4000)
 	var finish:=StandardMaterial3D.new()
 	finish.vertex_color_use_as_albedo=true
 	finish.albedo_color=Color.WHITE
-	finish.metallic=.65
-	finish.roughness=.30
+	finish.metallic=.27
+	finish.roughness=.40
 	finish.cull_mode=BaseMaterial3D.CULL_DISABLED
-	mesh.material_override=finish
+	mesh.set_surface_override_material(0,finish)
+	var fitted_glass:=StandardMaterial3D.new()
+	fitted_glass.transparency=BaseMaterial3D.TRANSPARENCY_ALPHA
+	fitted_glass.albedo_color=Color(.27,.48,.57,.30)
+	fitted_glass.metallic=.06
+	fitted_glass.roughness=.21
+	fitted_glass.cull_mode=BaseMaterial3D.CULL_DISABLED
+	mesh.set_surface_override_material(1,fitted_glass)
 	for child in scenery.get_children():
 		if str(child.name).begins_with("Kestrel_") or str(child.name).begins_with("TailVector"):
 			if child is Node3D:
@@ -278,6 +287,9 @@ func configure_kestrel_foundry_upgrade(scenery: Node3D) -> void:
 	# The actual uploaded body has no detachable/animated driver door.
 	# For an open-door review we switch to the original working rig instead.
 	driver_door.visible=false
+	print("SCENEFORGE_FOUNDRY_KESTREL_GLASS_AND_BODY_OK",
+		mesh.mesh.surface_get_array_index_len(0)/3,
+		mesh.mesh.surface_get_array_index_len(1)/3)
 	print("SCENEFORGE_FOUNDRY_KESTREL_USER_UPGRADE_OK")
 
 func set_kestrel_foundry_exterior(visible: bool) -> void:

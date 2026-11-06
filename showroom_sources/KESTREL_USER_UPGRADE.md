@@ -53,3 +53,31 @@ open-door demonstration the uploaded single-piece shell hides and the
 original operating cockpit/door rig returns; the exterior is restored in
 closed-door chase/inspection views. Foundry tests verify both views and
 all ten selections.
+
+### Post-phone-review geometry repair
+
+The initial signed build used the decoded 39,464-triangle upload without any
+`NORMAL` attribute, without a transparent canopy surface, and with very dark
+vertex colors. The phone image showed harsh triangular surface artifacts,
+a black cockpit and oversized rear spike clusters. Merely raising world
+lighting cannot fix these source-level issues.
+
+`tools/refine_kestrel_upgrade.py` is now a reproducible standard-library
+processing step applied AFTER verifying the immutable original source and
+preparation SHAs. It prunes very small face-edge islands, computes
+area-weighted vertex normals, separates the existing user geometry's
+dark-canopy-tagged triangles into an independent material surface,
+brightens slate and graphite vertex colors while toning down the orange
+metal, and compresses the longest feather overhang (without replacing the
+body with generated imagery or procedural placeholders). The user's
+raw Meshopt upload and checked prepared GLB are retained unchanged.
+
+Both the racing viewer and Foundry use the same newly installed two-surface
+GLB. The opaque body has a satin rather than near-black highly metallic
+finish; the glass has its own alpha-blended shader. The existing original
+Kestrel working cockpit, door animation fallback, five-channel steering
+and racing model remain operational. The Android CI must verify both
+surfaces, glass, Kestrel laps and Foundry. Later genuinely professional
+surface reconstruction is still a separate job: this first pass is
+source-integrity and visual-repair work, not a claim that a coarse
+single-piece Tripo upload has CAD-quality panel topology.

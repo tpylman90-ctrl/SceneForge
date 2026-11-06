@@ -11,6 +11,7 @@ import json
 import lzma
 import struct
 from pathlib import Path
+from refine_kestrel_upgrade import refine
 
 ROOT = Path(__file__).resolve().parent.parent
 ARCHIVE = ROOT / "showroom_sources/Kestrel_User_Upgrade_GameReady.glb.xz"
@@ -70,9 +71,23 @@ def main() -> None:
     assert sha256(standard) == PREPARED_SHA256, (
         "Prepared Kestrel GLB was changed without review")
     report = inspect_gltf(standard)
+    # Repair shading and glass, but never overwrite or mutate the original
+    # user source, compressed input or its SHA-pinned game-ready baseline.
+    polished, quality = refine(standard)
+    assert 36000 < quality["triangles"] < EXPECTED_TRIANGLES
+    assert quality["glass_triangles"] > 4000
+    assert quality["source_islands"] >= 100
+    assert quality["rear_tip_z"] > -3.2
+    assert quality["smooth_vertex_normals"]
+    assert quality["transparent_glass_surface"]
+    repaired, _ = __import__("refine_kestrel_upgrade").unpack_glb(polished)
+    components = repaired["meshes"][0]["primitives"]
+    assert len(components) == 2
+    assert all("NORMAL" in part["attributes"] for part in components)
     DEST.parent.mkdir(parents=True, exist_ok=True)
-    DEST.write_bytes(standard)
-    assert DEST.stat().st_size > 500_000
+    DEST.write_bytes(polished)
+    assert DEST.stat().st_size > 600_000
+    print("SCENEFORGE_KESTREL_MESH_REFINEMENT_OK",quality)
     print("SCENEFORGE_KESTREL_USER_UPGRADE_OK", DEST, report)
 
 
