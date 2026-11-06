@@ -106,3 +106,25 @@ compatibility or mobile FPS; the Android CI still needs to confirm game import,
 Fleet and Foundry and signed APK publication. The source still contains many
 disconnected authored components and is not yet a complete production-quality
 quadrangulated automotive body.
+
+### S03 — Four-surface Kestrel factory paint
+
+The approved S02 silhouette is retained. Paint now uses four real PBR mesh
+material surfaces derived from *existing user-supplied vertex-color regions*:
+Stormsteel pearlescent blue-slate exterior (metallic .59 / roughness .255),
+matte blue-black graphite panels (.22 / .56), burnished copper accents
+(.66 / .32), and smoked cyan cockpit glazing with alpha blending.
+A production-ready preview was made from the actual S03 GLB in VTK.
+No triangle count increase, no new or duplicate floating geometry and no
+AI-generated imagery. The original source and S02 fairing remain recoverable.
+
+The installer performs `refine` -> `polish` -> `paint`. Both the playable
+Kestrel feedback system and the Foundry gallery use the same shared
+`game/vehicles/kestrel_paint.gd` shading routine, preventing one view from
+returning to the old near-black material. Four GLB surface slots are
+checked explicitly; the 4,439-triangle transparent canopy is the fourth.
+
+This is a true color/material pass; a microscopic woven-carbon texture and
+Android-specific metallic reflection grading remain potential later work,
+and only a successful Android run establishes that the current shader
+parameters work in the Godot GL Compatibility renderer.

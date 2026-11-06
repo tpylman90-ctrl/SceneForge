@@ -154,29 +154,18 @@ func configure_kestrel_uploaded_body() -> void:
 	add_child(kestrel_upgrade)
 	var exterior: MeshInstance3D=kestrel_upgrade.find_child("Kestrel_User_Upgrade_Exterior",true,false) as MeshInstance3D
 	assert(exterior!=null and exterior.mesh!=null,"Original imported Kestrel exterior mesh missing")
-	assert(exterior.mesh.get_surface_count()==2,"Kestrel repaired body + glass surfaces missing")
-	assert(exterior.mesh.surface_get_array_index_len(0)/3>30000,
-		"Kestrel body geometry did not survive processing")
-	assert(exterior.mesh.surface_get_array_index_len(1)/3>4000,
-		"Kestrel independent tinted glass missing")
-	# The original model had no vertex normals and very dark vertex colors.
-	# The installer now calculates actual normals, separates the windshield,
-	# and raises the satin-slate palette; avoid a black metallic override.
-	var finish:=StandardMaterial3D.new()
-	finish.albedo_color=Color.WHITE
-	finish.vertex_color_use_as_albedo=true
-	finish.metallic=.27
-	finish.roughness=.40
-	finish.cull_mode=BaseMaterial3D.CULL_DISABLED
-	exterior.set_surface_override_material(0,finish)
-	kestrel_real_glass=StandardMaterial3D.new()
-	kestrel_real_glass.transparency=BaseMaterial3D.TRANSPARENCY_ALPHA
-	kestrel_real_glass.albedo_color=Color(.27,.48,.57,.30)
-	kestrel_real_glass.metallic=.06
-	kestrel_real_glass.roughness=.21
-	kestrel_real_glass.cull_mode=BaseMaterial3D.CULL_DISABLED
-	kestrel_real_glass.vertex_color_use_as_albedo=false
-	exterior.set_surface_override_material(1,kestrel_real_glass)
+	assert(exterior.mesh.get_surface_count()==4,"Kestrel actual S03 paint layer split missing")
+	assert(exterior.mesh.surface_get_array_index_len(0)/3>20000)
+	assert(exterior.mesh.surface_get_array_index_len(1)/3>3000)
+	assert(exterior.mesh.surface_get_array_index_len(2)/3>3000)
+	assert(exterior.mesh.surface_get_array_index_len(3)/3>4000)
+	var finish_materials: Array[StandardMaterial3D]=preload("res://vehicles/kestrel_paint.gd").apply(exterior)
+	kestrel_real_glass=finish_materials[3]
+	assert(finish_materials[0].roughness<finish_materials[1].roughness)
+	print("SCENEFORGE_KESTREL_STORMSTEEL_PAINT_OK",
+		exterior.mesh.surface_get_array_index_len(0)/3,
+		exterior.mesh.surface_get_array_index_len(1)/3,
+		exterior.mesh.surface_get_array_index_len(2)/3)
 	# Keep original Kestrel source rig intact but visually suppressed in chase
 	# and garage views, avoiding double fenders and duplicate tail feathers.
 	for child in get_children():

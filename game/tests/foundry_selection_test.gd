@@ -39,8 +39,12 @@ func check() -> void:
 			assert(lot.kestrel_foundry_legacy.size()>0)
 			var repaired: MeshInstance3D=lot.kestrel_foundry_upgrade.find_child(
 				"Kestrel_User_Upgrade_Exterior",true,false) as MeshInstance3D
-			assert(repaired!=null and repaired.mesh.get_surface_count()==2)
-			assert(repaired.get_surface_override_material(1) is StandardMaterial3D)
+			assert(repaired!=null and repaired.mesh.get_surface_count()==4)
+			for surface in range(4):
+				assert(repaired.get_surface_override_material(surface) is StandardMaterial3D)
+			assert(repaired.get_surface_override_material(0).roughness < repaired.get_surface_override_material(1).roughness)
+			assert(repaired.get_surface_override_material(3).transparency==BaseMaterial3D.TRANSPARENCY_ALPHA)
+			print("FOUNDRY_KESTREL_S03_PAINT_OK")
 			print("FOUNDRY_KESTREL_QUALITY_FIX_OK")
 			lot.set_seat_view(false)
 			assert(lot.kestrel_foundry_upgrade.visible,

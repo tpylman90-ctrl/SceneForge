@@ -13,6 +13,7 @@ import struct
 from pathlib import Path
 from refine_kestrel_upgrade import refine
 from kestrel_surface_pass import polish
+from kestrel_paint_pass import paint
 
 ROOT = Path(__file__).resolve().parent.parent
 ARCHIVE = ROOT / "showroom_sources/Kestrel_User_Upgrade_GameReady.glb.xz"
@@ -85,6 +86,11 @@ def main() -> None:
     assert surfacing["rear_feather_vertices_adjusted"] > 300
     assert surfacing["rear_accent_vertices_toned"] > 50
     assert surfacing["two_original_material_surfaces_preserved"]
+    # Four physical PBR surfaces, no additional triangles or fake overlays.
+    polished, finish = paint(polished)
+    assert finish["total_triangles"] == quality["triangles"] == 39119
+    assert finish["surfaces"]==4 and finish["glass"]>4000
+    assert finish["paint"]>20000 and finish["carbon"]>3000 and finish["copper"]>3000
     assert 36000 < quality["triangles"] < EXPECTED_TRIANGLES
     assert quality["glass_triangles"] > 4000
     assert quality["source_islands"] >= 100
@@ -93,13 +99,15 @@ def main() -> None:
     assert quality["transparent_glass_surface"]
     repaired, _ = __import__("refine_kestrel_upgrade").unpack_glb(polished)
     components = repaired["meshes"][0]["primitives"]
-    assert len(components) == 2
+    assert len(components) == 4
     assert all("NORMAL" in part["attributes"] for part in components)
+    assert all("COLOR_0" in part["attributes"] for part in components[:3])
     DEST.parent.mkdir(parents=True, exist_ok=True)
     DEST.write_bytes(polished)
     assert DEST.stat().st_size > 600_000
     print("SCENEFORGE_KESTREL_MESH_REFINEMENT_OK",quality)
     print("SCENEFORGE_KESTREL_S02_SURFACE_PASS_OK",surfacing)
+    print("SCENEFORGE_KESTREL_S03_PAINT_OK",finish)
     print("SCENEFORGE_KESTREL_USER_UPGRADE_OK", DEST, report)
 
 

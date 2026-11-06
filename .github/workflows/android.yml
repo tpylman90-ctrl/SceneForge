@@ -177,6 +177,7 @@ jobs:
           python3 tools/install_kestrel_upgrade.py --required | tee build/kestrel-upgrade-install.log
           grep -q SCENEFORGE_KESTREL_USER_UPGRADE_OK build/kestrel-upgrade-install.log
           grep -q SCENEFORGE_KESTREL_S02_SURFACE_PASS_OK build/kestrel-upgrade-install.log
+          grep -q SCENEFORGE_KESTREL_S03_PAINT_OK build/kestrel-upgrade-install.log
           test -s game/assets/showroom/kestrel_user_upgrade.glb
       - name: Install playable uploaded Shrike
         # SHA-validated uploaded original retained separately from Blender cache.
