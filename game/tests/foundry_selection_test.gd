@@ -33,8 +33,16 @@ func check() -> void:
 			assert(lot.lot_feedback.find_child("SOLSTICE_Thrust_Amber_Capsule",true,false)!=null)
 			print("FOUNDRY_SOLSTICE_REAL_CRAFT_OK")
 		if index==0:
-			assert(lot.lot_feedback.kestrel_upgrade!=null,"Uploaded Kestrel absent from Foundry")
-			assert(lot.lot_feedback.kestrel_upgrade.visible)
+			assert(lot.kestrel_foundry_upgrade!=null,"Uploaded Kestrel absent from Foundry")
+			assert(not lot.kestrel_foundry_upgrade.visible,
+				"Fused user Kestrel must hide when the original driver seat is displayed")
+			assert(lot.kestrel_foundry_legacy.size()>0)
+			lot.set_seat_view(false)
+			assert(lot.kestrel_foundry_upgrade.visible,
+				"User Kestrel exterior must return for rear inspection")
+			assert(not lot.driver_door.visible,
+				"Original detached door should not overlap the fused user exterior")
+			lot.set_seat_view(true)
 			print("FOUNDRY_KESTREL_IMPORTED_BODY_OK")
 		if index==2 and lot.lot_feedback.showroom_upload:
 			assert(lot.seat_mode and lot.lot_feedback.windshield_faces>=12)

@@ -29,6 +29,12 @@ var orbit_angle := 0.58
 var orbit_elevation := 0.20
 var orbit_radius := 5.7
 var touch_points: Dictionary = {}
+# Kestrel's user-supplied single-mesh exterior for garage inspection.
+# In seat/door view the original rig returns because imported glass and
+# doors were not separate geometry in the uploaded mesh.
+const KESTREL_USER_UPGRADE_SCENE := "res://assets/showroom/kestrel_user_upgrade.glb"
+var kestrel_foundry_upgrade: Node3D
+var kestrel_foundry_legacy: Array[Node3D] = []
 var driver_door: Node3D
 var door_open := false
 var door_busy := false
@@ -112,6 +118,7 @@ func _ready() -> void:
 		driver_door = door_body
 
 		build_kestrel_details()
+		configure_kestrel_foundry_upgrade(scenery)
 
 	else:
 		glass_surfaces.clear()
@@ -239,6 +246,48 @@ func _ready() -> void:
 	if "--benchmark-smoke" in args:
 		start_comparison()
 
+
+# Use uploaded user's actual Kestrel exterior in the garage too;
+# the original animated door/cockpit remain available for inspection.
+func configure_kestrel_foundry_upgrade(scenery: Node3D) -> void:
+	if not ResourceLoader.exists(KESTREL_USER_UPGRADE_SCENE):
+		push_warning("Kestrel user exterior not installed in Foundry; original remains")
+		return
+	var upgrade_scene: PackedScene=load(KESTREL_USER_UPGRADE_SCENE)
+	assert(upgrade_scene!=null)
+	kestrel_foundry_upgrade=upgrade_scene.instantiate()
+	kestrel_foundry_upgrade.name="Foundry_Kestrel_User_Upgrade"
+	add_child(kestrel_foundry_upgrade)
+	var mesh: MeshInstance3D=kestrel_foundry_upgrade.find_child(
+		"Kestrel_User_Upgrade_Exterior",true,false) as MeshInstance3D
+	assert(mesh!=null and mesh.mesh!=null)
+	assert(mesh.mesh.surface_get_array_index_len(0)==118392)
+	var finish:=StandardMaterial3D.new()
+	finish.vertex_color_use_as_albedo=true
+	finish.albedo_color=Color.WHITE
+	finish.metallic=.65
+	finish.roughness=.30
+	finish.cull_mode=BaseMaterial3D.CULL_DISABLED
+	mesh.material_override=finish
+	for child in scenery.get_children():
+		if str(child.name).begins_with("Kestrel_") or str(child.name).begins_with("TailVector"):
+			if child is Node3D:
+				kestrel_foundry_legacy.append(child as Node3D)
+				child.visible=false
+	assert(kestrel_foundry_legacy.size()>0,"Original Kestrel cockpit rig must remain available")
+	# The actual uploaded body has no detachable/animated driver door.
+	# For an open-door review we switch to the original working rig instead.
+	driver_door.visible=false
+	print("SCENEFORGE_FOUNDRY_KESTREL_USER_UPGRADE_OK")
+
+func set_kestrel_foundry_exterior(visible: bool) -> void:
+	if kestrel_foundry_upgrade==null:
+		return
+	kestrel_foundry_upgrade.visible=visible
+	for child in kestrel_foundry_legacy:
+		child.visible=not visible
+	if driver_door!=null:
+		driver_door.visible=not visible
 
 func build_kestrel_details() -> void:
 	var instruments := preload("res://vehicles/kestrel_cockpit.gd").new()
@@ -546,6 +595,8 @@ func inspection_preset(which: String) -> void:
 
 func set_seat_view(enabled: bool) -> void:
 	seat_mode = enabled
+	if kestrel_foundry_upgrade!=null:
+		set_kestrel_foundry_exterior(not enabled and not door_open)
 	if lot_feedback!=null:lot_feedback.set_cockpit(enabled)
 	camera.fov = 78.0 if enabled else 70.0
 	camera.near = 0.03 if enabled else 0.05
@@ -581,6 +632,8 @@ func toggle_door() -> void:
 	door_busy = true
 	door_button.disabled = true
 	door_open = not door_open
+	if kestrel_foundry_upgrade!=null:
+		set_kestrel_foundry_exterior(not door_open and not seat_mode)
 	var kick := Vector3(0.52, 0.04, 0)
 	var slide := Vector3(0.52, 0.21, -1.65)
 	last_door_tween = create_tween()

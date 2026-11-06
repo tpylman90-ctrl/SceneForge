@@ -41,3 +41,15 @@ FPS, visual scale and actual race events.
 **Licensing:** User-supplied geometry, rights not independently verified.
 Do not relicense this source as CC0 or imply it was built from scratch.
 Its provided filename and original content SHA are retained for audit.
+
+### Kestrel garage integration
+The first CI run verified all three Kestrel racing laps and Fleet cockpit
+switching, but identified the special Foundry Kestrel display pipeline:
+Kestrel is part of the Foundry scenery instead of `lot_feedback`. The
+Foundry now loads the same user-submitted 39,464-triangle exterior with
+the same vertex-color PBR finish, temporarily concealing the original
+scenery's Kestrel parts and its animated door. In the driver-seat or
+open-door demonstration the uploaded single-piece shell hides and the
+original operating cockpit/door rig returns; the exterior is restored in
+closed-door chase/inspection views. Foundry tests verify both views and
+all ten selections.
