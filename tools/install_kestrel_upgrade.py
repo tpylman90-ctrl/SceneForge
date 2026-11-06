@@ -12,6 +12,7 @@ import lzma
 import struct
 from pathlib import Path
 from refine_kestrel_upgrade import refine
+from kestrel_surface_pass import polish
 
 ROOT = Path(__file__).resolve().parent.parent
 ARCHIVE = ROOT / "showroom_sources/Kestrel_User_Upgrade_GameReady.glb.xz"
@@ -74,6 +75,16 @@ def main() -> None:
     # Repair shading and glass, but never overwrite or mutate the original
     # user source, compressed input or its SHA-pinned game-ready baseline.
     polished, quality = refine(standard)
+    # S02: author the real body fairing, fin proportions and normalized
+    # material response on top of the verified original's first repair.
+    # The uploaded source and pinned compressed preparation stay immutable.
+    polished, surfacing = polish(polished)
+    assert surfacing["triangles"] == quality["triangles"] == 39119
+    assert surfacing["vertices"] == EXPECTED_VERTEX_COUNT
+    assert surfacing["interior_surface_iterations"] > 1000
+    assert surfacing["rear_feather_vertices_adjusted"] > 300
+    assert surfacing["rear_accent_vertices_toned"] > 50
+    assert surfacing["two_original_material_surfaces_preserved"]
     assert 36000 < quality["triangles"] < EXPECTED_TRIANGLES
     assert quality["glass_triangles"] > 4000
     assert quality["source_islands"] >= 100
@@ -88,6 +99,7 @@ def main() -> None:
     DEST.write_bytes(polished)
     assert DEST.stat().st_size > 600_000
     print("SCENEFORGE_KESTREL_MESH_REFINEMENT_OK",quality)
+    print("SCENEFORGE_KESTREL_S02_SURFACE_PASS_OK",surfacing)
     print("SCENEFORGE_KESTREL_USER_UPGRADE_OK", DEST, report)
 
 

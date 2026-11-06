@@ -81,3 +81,28 @@ surfaces, glass, Kestrel laps and Foundry. Later genuinely professional
 surface reconstruction is still a separate job: this first pass is
 source-integrity and visual-repair work, not a claim that a coarse
 single-piece Tripo upload has CAD-quality panel topology.
+
+### S02 — fairer body panels and an edited rear feather silhouette
+
+The phone review identified the same geometry problems even after shading
+repair: ragged overlaps around the bonnet, canopy and rear quarters, excessively
+tall copper rear feathers, and a cluttered rear deck.
+
+The S02 installer calls `tools/kestrel_surface_pass.py` on the 39,119-triangle,
+two-surface intermediate GLB (it does not edit the SHA-pinned user original).
+A three-iteration fairing pass samples only interior, manifold body vertices.
+Seams and material/glass boundaries are preserved, with a 1.8 cm upper bound
+on a single local smoothing displacement. The front nose tips receive a small
+targeted length correction and the oversized, high rear feather vertices are
+brought forward, down and toward the center, without transforming the main
+powertrain or lower rear body. Oversaturated rear copper is moderated to match
+the satin slate body. Both primitive material slots, mesh names, normals and
+UV-independent vertex colors are preserved.
+
+The S02 geometry has been rendered from the actual GLB at six orthographic
+studio viewpoints for review (front and rear three-quarters, side, front,
+rear, top). These VTK OpenGL previews are **not** evidence of Godot visual
+compatibility or mobile FPS; the Android CI still needs to confirm game import,
+Fleet and Foundry and signed APK publication. The source still contains many
+disconnected authored components and is not yet a complete production-quality
+quadrangulated automotive body.

@@ -12,7 +12,7 @@ from pathlib import Path
 FLEET = tuple(range(10))
 TRACKS = tuple(range(7))
 CRIMSON = (4, 5, 6)
-ACTIVE_CRAFT = (2, 7, 9)  # Shrike windshield and Tremor SUV bodywork
+ACTIVE_CRAFT = (0, 2, 7, 9)  # Current Kestrel fairing and other active bodywork
 NAMES = {
     0: ("kestrel",),
     1: ("piledriver", "pyldriver"),
@@ -63,6 +63,12 @@ def choose_captures(paths: list[str], scope: str = "auto") -> tuple[bool, tuple[
             craft.update(FLEET)
         if path.startswith("game/assets/") and not path.startswith("game/assets/fleet/"):
             foundry = True
+        if path in {"tools/kestrel_surface_pass.py", "tools/install_kestrel_upgrade.py",
+                    "tools/refine_kestrel_upgrade.py"}:
+            # A visible Kestrel body repair must be reviewed in the Foundry
+            # as well as the craft-only capture; skip unrelated fleet shots.
+            foundry = True
+            craft.add(0)
         is_specific_asset = path.startswith(("game/vehicles/", "tools/", "showroom_sources/", "game/assets/fleet/"))
         if is_specific_asset:
             found_match = False
