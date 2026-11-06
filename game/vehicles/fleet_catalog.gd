@@ -9,13 +9,31 @@ const NOTES := ["Balanced raptor / slate and burnt orange", "Armored racer / pur
 # Both are installed after procedural Blender asset generation with strict checksums.
 const SHRIKE_SHOWROOM_SCENE := "res://assets/showroom/shrike_uploaded.glb"
 const AEROLITH_SHOWROOM_SCENE := "res://assets/showroom/aerolith.glb"
+const KESTREL_USER_UPGRADE_SCENE := "res://assets/showroom/kestrel_user_upgrade.glb"
 
 static func definition(index: int, presentation_only: bool = false) -> Resource:
 	index=clampi(index,0,IDS.size()-1)
 	var craft: Resource=preload("res://vehicles/kestrel.tres").duplicate(true)
 	craft.chassis_id=IDS[index]
 	craft.display_name=NAMES[index]+(" / MK III" if index==7 else " / MK I")
-	if index==0:craft.footprint_stretch=1.7
+	if index==0:
+		craft.footprint_stretch=1.7
+		if ResourceLoader.exists(KESTREL_USER_UPGRADE_SCENE):
+			# Original Kestrel cockpit and race handling remain intact.
+			# The new user model is a +Z-forward 6.80 m exterior with larger
+			# side haunches and rear feathers; fit the real underbody mounts.
+			craft.mount_points=craft.mount_points.duplicate(true)
+			craft.cockpit_eye=Vector3(0,1.83,.40)
+			craft.cockpit_pitch=-.09
+			craft.mount_points["repulsor_fl"]=Vector3(1.22,.39,1.86)
+			craft.mount_points["repulsor_fr"]=Vector3(-1.22,.39,1.86)
+			craft.mount_points["repulsor_rl"]=Vector3(1.33,.45,-1.75)
+			craft.mount_points["repulsor_rr"]=Vector3(-1.33,.45,-1.75)
+			craft.mount_points["propulsion"]=Vector3(0,1.10,-3.18)
+			craft.mount_points["power_core"]=Vector3(0,1.16,-.24)
+			craft.mount_points["aero_left"]=Vector3(-1.46,1.26,-1.72)
+			craft.mount_points["aero_right"]=Vector3(1.46,1.26,-1.72)
+			craft.accent_color=Color("ca6b2b")
 	if index>0:
 		craft.visual_scene="res://assets/fleet/"+IDS[index]+".glb"
 		if index==2 and ResourceLoader.exists(SHRIKE_SHOWROOM_SCENE):

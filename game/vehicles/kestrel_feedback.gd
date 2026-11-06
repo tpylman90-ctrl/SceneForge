@@ -24,6 +24,11 @@ var windshield_faces := 0
 var windshield_windows: Array[MeshInstance3D] = []
 var solstice_brake_lamps: Array[StandardMaterial3D] = []
 var solstice_engine_materials: Array[StandardMaterial3D] = []
+# Fused user Kestrel exterior is separate from the original functioning cockpit
+# and articulated drive rig, so one does not erase the other.
+const KESTREL_USER_UPGRADE_PATH := "res://assets/showroom/kestrel_user_upgrade.glb"
+var kestrel_upgrade: Node3D
+var kestrel_legacy_shell_meshes: Array[MeshInstance3D] = []
 
 func configure(definition: Resource) -> void:
 	chassis = definition
@@ -131,6 +136,48 @@ func configure(definition: Resource) -> void:
 	build_component_mounts()
 	build_exhaust()
 	build_audio()
+	if chassis.chassis_id=="kestrel":
+		configure_kestrel_uploaded_body()
+
+# Upgrade Kestrel's EXTERIOR using the user's real high-detail imported GLB.
+# The uploaded asset is one fused mesh with no independent glazing or door;
+# retain the verified original cockpit/hologram and 5-channel flight rig.
+func configure_kestrel_uploaded_body() -> void:
+	if not ResourceLoader.exists(KESTREL_USER_UPGRADE_PATH):
+		push_warning("User Kestrel upgrade not installed; procedural Kestrel remains operational")
+		return
+	var source: PackedScene=load(KESTREL_USER_UPGRADE_PATH)
+	assert(source!=null,"Kestrel user upgrade GLB is not a PackedScene")
+	kestrel_upgrade=source.instantiate()
+	kestrel_upgrade.name="Kestrel_User_Upgrade"
+	add_child(kestrel_upgrade)
+	var exterior: MeshInstance3D=kestrel_upgrade.find_child("Kestrel_User_Upgrade_Exterior",true,false) as MeshInstance3D
+	assert(exterior!=null and exterior.mesh!=null,"Original imported Kestrel exterior mesh missing")
+	assert(exterior.mesh.get_surface_count()==1,"Kestrel original GLB changed primitive count")
+	assert(exterior.mesh.surface_get_array_index_len(0)==118392,
+		"Kestrel 39,464-triangle imported body changed unexpectedly")
+	# Original model came untextured. The prepared GLB has carefully sampled
+	# slate/carbon/rust vertex-color regions; the PBR override respects them.
+	var finish:=StandardMaterial3D.new()
+	finish.albedo_color=Color.WHITE
+	finish.vertex_color_use_as_albedo=true
+	finish.metallic=.65
+	finish.roughness=.30
+	finish.cull_mode=BaseMaterial3D.CULL_DISABLED
+	exterior.material_override=finish
+	# Keep original Kestrel source rig intact but visually suppressed in chase
+	# and garage views, avoiding double fenders and duplicate tail feathers.
+	for child in get_children():
+		if child is MeshInstance3D and str(child.name).begins_with("Kestrel_"):
+			kestrel_legacy_shell_meshes.append(child as MeshInstance3D)
+			child.visible=false
+	if yoke!=null:
+		yoke.visible=false
+	for tail in tails:
+		tail.visible=false
+	assert(kestrel_legacy_shell_meshes.size()>0,"Kestrel cockpit fallback shell missing")
+	assert(tails.size()==5 and yoke!=null,"Kestrel steering/yoke controls lost")
+	print("SCENEFORGE_KESTREL_USER_BODY_UPGRADE_OK",exterior.mesh.surface_get_array_index_len(0)/3)
 
 # SOLSTICE has its own genuine parametric Blender mesh and embedded engine.
 # It intentionally does not depend on the legacy Kestrel tail/yoke rig.
@@ -452,6 +499,15 @@ func set_cockpit(enabled: bool) -> void:
 			window.visible=not enabled
 		display_clock=1.0
 		return
+	if kestrel_upgrade!=null:
+		# A fused opaque shell cannot have only its glass hidden. In cockpit
+		# view we temporarily reveal the original transparent cockpit rig.
+		kestrel_upgrade.visible=not enabled
+		for legacy in kestrel_legacy_shell_meshes:
+			legacy.visible=enabled
+		yoke.visible=enabled
+		for tail in tails:
+			tail.visible=enabled
 	for entry in glass:
 		var mesh: MeshInstance3D = entry["mesh"]
 		mesh.set_surface_override_material(entry["surface"],entry["inside"] if enabled else entry["outside"])
@@ -559,6 +615,11 @@ func update_feedback(delta: float, signed_speed: float, drive: float, steering: 
 		var base := Vector3((i-2)*0.42,0.2+yy*sin(deg_to_rad(6))+1.125*cos(deg_to_rad(6)),0.8-yy*cos(deg_to_rad(6))+1.125*sin(deg_to_rad(6)))
 		if chassis.chassis_id=="piledriver":
 			base=Vector3((i-2)*.36,1.9201,-2.34)
+		if chassis.chassis_id=="kestrel" and kestrel_upgrade!=null:
+			# The uploaded raptor has its own longer rear body. Five exhaust
+			# field tails exit just behind the imported rear feather cluster.
+			base=Vector3((i-2)*.33,1.11,-3.15)
+			exhaust.visible=drive>.045 or absf(signed_speed)>5.0 or boosting
 		if chassis.chassis_id=="shrike":
 			# Drive exhaust through the five recessed rear induction outlets.
 			# Old Kestrel positions floated ABOVE the canopy as five white dots.

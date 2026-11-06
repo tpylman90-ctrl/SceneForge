@@ -83,11 +83,26 @@ func check() -> void:
 				print("FLEET_AEROLITH_ORIGINAL_DRIVE_MODEL_OK")
 			else:
 				assert(scene.feedback.tails.size()==5 and scene.feedback.yoke!=null)
+			if definition.chassis_id=="kestrel":
+				assert(scene.feedback.kestrel_upgrade!=null,"User Kestrel body missing from racer")
+				assert(scene.feedback.kestrel_legacy_shell_meshes.size()>0)
+				var imported: MeshInstance3D=scene.feedback.kestrel_upgrade.find_child(
+					"Kestrel_User_Upgrade_Exterior",true,false) as MeshInstance3D
+				assert(imported!=null and imported.mesh!=null)
+				assert(imported.mesh.surface_get_array_index_len(0)==118392)
+				assert(scene.feedback.kestrel_upgrade.visible)
+				assert(not scene.feedback.yoke.visible)
+				print("FLEET_KESTREL_IMPORTED_BODY_OK")
 			if definition.chassis_id=="shrike":
 				assert(scene.feedback.showroom_upload,"Racing Shrike must use uploaded master, not procedural fallback")
 			assert(scene.feedback.get_node("ComponentMounts").get_child_count()==8)
 			scene.toggle_camera()
 			assert(scene.cockpit,"Cockpit should be accessible to every craft")
+			if definition.chassis_id=="kestrel":
+				assert(not scene.feedback.kestrel_upgrade.visible,
+					"Kestrel fused uploaded canopy should not obstruct seat view")
+				assert(scene.feedback.yoke.visible,
+					"Original cockpit controls must return in seat view")
 			if definition.chassis_id=="solstice":
 				for pane in scene.feedback.glass:
 					assert(pane["mesh"].get_surface_override_material(pane["surface"])==pane["inside"],

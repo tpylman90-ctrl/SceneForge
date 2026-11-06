@@ -32,6 +32,10 @@ func check() -> void:
 			assert(lot.lot_feedback.glass.size()>=4)
 			assert(lot.lot_feedback.find_child("SOLSTICE_Thrust_Amber_Capsule",true,false)!=null)
 			print("FOUNDRY_SOLSTICE_REAL_CRAFT_OK")
+		if index==0:
+			assert(lot.lot_feedback.kestrel_upgrade!=null,"Uploaded Kestrel absent from Foundry")
+			assert(lot.lot_feedback.kestrel_upgrade.visible)
+			print("FOUNDRY_KESTREL_IMPORTED_BODY_OK")
 		if index==2 and lot.lot_feedback.showroom_upload:
 			assert(lot.seat_mode and lot.lot_feedback.windshield_faces>=12)
 			print("FOUNDRY_SHRIKE_WINDSCREEN_VIEW_OK")

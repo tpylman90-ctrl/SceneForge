@@ -170,6 +170,13 @@ jobs:
           cp build/solstice-production/Solstice_S01.glb game/assets/fleet/solstice.glb
       - name: Require original SOLSTICE before Godot import
         run: test -s game/assets/fleet/solstice.glb
+      - name: Install real user Kestrel upgrade
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tools/install_kestrel_upgrade.py --required | tee build/kestrel-upgrade-install.log
+          grep -q SCENEFORGE_KESTREL_USER_UPGRADE_OK build/kestrel-upgrade-install.log
+          test -s game/assets/showroom/kestrel_user_upgrade.glb
       - name: Install playable uploaded Shrike
         # SHA-validated uploaded original retained separately from Blender cache.
         run: python tools/install_showroom_shrike.py --required
@@ -247,12 +254,14 @@ jobs:
           grep FLEET_SHRIKE_UPLOADED_DRIVE_OK build/fleet-test.log
           grep -q 'FLEET_LAP_OK tremor' build/fleet-test.log
           grep FLEET_SOLSTICE_ORIGINAL_DRIVE_MODEL_OK build/fleet-test.log
+          grep FLEET_KESTREL_IMPORTED_BODY_OK build/fleet-test.log
           grep -q 'FLEET_LAP_OK solstice' build/fleet-test.log
           timeout 120 godot --headless --path game --script res://tests/foundry_selection_test.gd 2>&1 | tee build/foundry-selection.log
           if grep -E 'SCRIPT ERROR:|ERROR:' build/foundry-selection.log; then exit 1; fi
           grep FOUNDRY_FLEET_OK build/foundry-selection.log
           grep -q 'FOUNDRY_SELECTION_OK tremor' build/foundry-selection.log
           grep FOUNDRY_SOLSTICE_REAL_CRAFT_OK build/foundry-selection.log
+          grep FOUNDRY_KESTREL_IMPORTED_BODY_OK build/foundry-selection.log
       - name: Capture Foundry only when affected
         if: env.CAPTURE_FOUNDRY == '1'
         env:
