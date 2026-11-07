@@ -154,3 +154,28 @@ Game load, preview and handset FPS must be verified after CI.
 - Godot CI can validate geometry/material properties but cannot prove
   handset near-wall visual correctness or 60+ FPS; those remain phone-review
   criteria.
+
+## Crimson Serpent mobile-pass: four terrain chunks, distance LOD and 256px sandstone
+
+Only track 4 uses this change. The Terrain3D sculpted `height.r16` remains
+the authoritative source. The 136x92 terrain grid is partitioned into four
+68x46-cell near meshes, each with a prebuilt stride-2 far version; Godot
+GeometryInstance3D visibility ranges choose between them at 215 m from each
+chunk's local center. Near terrain faces retain full polygon resolution; far
+terrain faces use about 25% of the triangles. There is no per-frame geometry
+rebuild or automatic LOD generation. Original sealed outer cliffs and bedrock
+are preserved in each chunk; short internal skirts conceal small LOD edge gaps.
+Both LODs use the same resource to minimize shader/material switching.
+
+Original tileable `serpent_breakup_256.png` is a committed 256x256
+single-layer albedo map. Existing rock vertex colors provide macro tint and
+the map provides subtle strata/erosion color variation. Each triangle uses
+a basic face-oriented UV projection: one texture read, no triplanar, normal,
+splat-control texture, or runtime image-generation. The verified two-sided
+cliff material and zero cliff shadow casting stay intact. Road collision,
+terrain height, jump gap, route, other courses and vehicle assets are unchanged.
+
+**Benchmark gate:** previous phone tests were 59–61 FPS. Chunking trades
+one draw call for up to four visible terrain draw calls; a performance
+improvement is *not guaranteed*. Check near-wall continuity, LOD popping,
+texture seams and FPS on Android before accepting this trial.

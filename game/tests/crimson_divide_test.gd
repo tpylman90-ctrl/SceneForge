@@ -20,32 +20,58 @@ func check() -> void:
 		assert(scene.route.size()==scene.COUNT)
 		assert(scene.get_node_or_null("CrimsonDriveSurface")!=null)
 		assert(scene.get_node_or_null("CrimsonDeckSides")!=null)
-		for name in ["CrimsonTerrain","CrimsonStratifiedCliffs","CrimsonDistantRidgeline"]:
+		for name in ["CrimsonTerrain","CrimsonDistantRidgeline"]:
 			var scenic: MeshInstance3D=scene.get_node_or_null(name)
 			assert(scenic!=null and scenic.mesh!=null,"Missing canyon scenery: "+name)
 			assert(scenic.mesh.get_surface_count()==1,"Scenery must stay batched")
-		var rock: MeshInstance3D=scene.get_node("CrimsonStratifiedCliffs")
-		var rock_vertices: int=rock.mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX].size()
-		assert(rock_vertices>2000)
-		assert(rock_vertices<100000,"Too much canyon geometry for Android")
 		if circuit==4:
-			# The new continuous gorge is exclusive to Crimson Serpent.
-			# 75k terrain vertices + a cheap closed perimeter and underside.
-			assert(rock_vertices>77000 and rock_vertices<81000)
-			assert(rock.mesh.get_aabb().position.y<=-37.9,"Canyon edge must be capped below the road")
-			var cliff_material: StandardMaterial3D=rock.material_override as StandardMaterial3D
-			assert(cliff_material!=null)
-			assert(cliff_material.cull_mode==BaseMaterial3D.CULL_DISABLED,"Close-view backfaces must remain opaque")
+			var rock_group: Node3D=scene.get_node_or_null("CrimsonStratifiedCliffs")
+			assert(rock_group!=null)
+			assert(rock_group.get_child_count()==8,"Expected four near/far chunk pairs")
+			var near_count: int=0
+			var far_count: int=0
+			var near_vertices: int=0
+			var far_vertices: int=0
+			var has_bedrock_cap: bool=false
+			for child in rock_group.get_children():
+				var rock: MeshInstance3D=child as MeshInstance3D
+				assert(rock!=null and rock.mesh!=null)
+				assert(rock.mesh.get_surface_count()==1)
+				assert(rock.cast_shadow==GeometryInstance3D.SHADOW_CASTING_SETTING_OFF)
+				var mat: StandardMaterial3D=rock.material_override as StandardMaterial3D
+				assert(mat!=null and mat.cull_mode==BaseMaterial3D.CULL_DISABLED)
+				assert(mat.albedo_texture!=null and mat.albedo_texture.get_width()==256)
+				assert(mat.albedo_texture.get_height()==256)
+				assert(not mat.uv1_triplanar and not mat.normal_enabled,"Single-pass UV albedo only")
+				has_bedrock_cap=has_bedrock_cap or (rock.mesh.get_aabb().position.y+rock.position.y<=-37.9)
+				var vertices: int=rock.mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX].size()
+				if rock.name.begins_with("Near_"):
+					near_count+=1
+					near_vertices+=vertices
+					assert(rock.visibility_range_end>0.0)
+				else:
+					assert(rock.name.begins_with("Far_"))
+					far_count+=1
+					far_vertices+=vertices
+					assert(rock.visibility_range_begin>0.0)
+			assert(near_count==4 and far_count==4)
+			assert(near_vertices>79000 and near_vertices<85000,"Near mesh vertex budget")
+			assert(far_vertices<near_vertices*0.30,"Distant LOD is not sufficiently simplified")
+			assert(has_bedrock_cap,"Near-wall shell must stay closed")
 			var map_path: String="res://tracks/serpent_sculpt/height.r16"
-			assert(FileAccess.file_exists(map_path),"Sculpted Serpent source must be present")
-			assert(FileAccess.get_file_as_bytes(map_path).size()==1024*512*2,"Sculpted heightmap must retain full precision")
-			assert(rock.cast_shadow==GeometryInstance3D.SHADOW_CASTING_SETTING_OFF,"Decorative cliffs must not cast stair-step shadows across the road")
+			assert(FileAccess.file_exists(map_path))
+			assert(FileAccess.get_file_as_bytes(map_path).size()==1024*512*2)
 			var apron: MeshInstance3D=scene.get_node("CrimsonTerrain")
 			assert(apron.mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX].size()>1000)
 			var rubble: MultiMeshInstance3D=scene.get_node_or_null("CrimsonTalus")
 			assert(rubble!=null and rubble.multimesh!=null)
 			assert(rubble.multimesh.instance_count>=40)
 		else:
+			var rock: MeshInstance3D=scene.get_node_or_null("CrimsonStratifiedCliffs")
+			assert(rock!=null and rock.mesh!=null)
+			assert(rock.mesh.get_surface_count()==1)
+			var rock_vertices: int=rock.mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX].size()
+			assert(rock_vertices>2000 and rock_vertices<100000)
 			assert(scene.get_node_or_null("CrimsonTalus")==null,"Other canyons must be unchanged")
 		assert(scene.jump_start_index()==44 and scene.jump_end_index()==48)
 		assert(scene.is_jump_gap(44) and scene.is_jump_gap(47))

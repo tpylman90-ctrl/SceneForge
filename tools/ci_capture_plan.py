@@ -45,7 +45,9 @@ def choose_captures(paths: list[str], scope: str = "auto") -> tuple[bool, tuple[
         path = raw.strip().lower().replace("\\", "/")
         if not path:
             continue
-        if path.startswith("game/tracks/serpent_sculpt/") or path == "game/tracks/serpent_canyon.gd":
+        if (path.startswith("game/tracks/serpent_sculpt/")
+                or path.startswith("game/tracks/serpent_textures/")
+                or path == "game/tracks/serpent_canyon.gd"):
             # Dedicated sculpt passes never require Red Mesa / Devil's Gate captures.
             tracks.add(4)
         elif path.startswith("game/tracks/") and not path.endswith(".md"):

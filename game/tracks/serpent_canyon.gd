@@ -6,6 +6,12 @@ extends RefCounted
 # The entire terrain is deterministic and built once per circuit load.
 const GRID_X = 136
 const GRID_Z = 92
+# Four static chunks with local origins and two prebuilt mesh resolutions.
+const CHUNKS_X = 2
+const CHUNKS_Z = 2
+const FAR_STEP = 2
+const LOD_DISTANCE = 215.0
+const SANDSTONE_BREAKUP = preload("res://tracks/serpent_textures/serpent_breakup_256.png")
 const HALF_X = 340.0
 const HALF_Z = 222.0
 const ROAD_CLEARANCE = 16.7
@@ -132,76 +138,61 @@ static func _material(use_grain: bool=false) -> StandardMaterial3D:
 	mat.roughness=0.97
 	mat.metallic=0.0
 	if use_grain:
-		# A heightfield only has an upward-facing skin. Steep roadside faces
-		# can be viewed from the underside at driving height, especially when
-		# the camera is just below a sharp ledge. Compatibility's default
-		# backface culling made those surfaces become transparent. Keep the
-		# canyon wall opaque from either side; retain depth writing.
+		# Retain the verified two-sided cliff visibility fix.
 		mat.cull_mode=BaseMaterial3D.CULL_DISABLED
-		# Tiny baked-on-load tiling grain, only one texture rather than a
-		# costly stack of PBR maps. World triplanar prevents stretching over
-		# cliffs without demanding dense geometry or external paid textures.
-		var image := Image.create(256,256,false,Image.FORMAT_RGB8)
-		var micro := FastNoiseLite.new()
-		micro.seed=918733
-		micro.frequency=0.072
-		micro.noise_type=FastNoiseLite.TYPE_SIMPLEX_SMOOTH
-		for x in range(256):
-			for y in range(256):
-				var n: float=micro.get_noise_2d(float(x),float(y))
-				var chips: float=micro.get_noise_2d(float(x)*1.9+37.0,float(y)*1.9-13.0)
-				var drift: float=micro.get_noise_2d(float(x)*0.23+87.0,float(y)*0.23)
-				var bedding: float=0.5+0.5*sin(TAU*(float(y)/32.0+0.012*drift))
-				var seam: float=pow(1.0-bedding,13.0)*0.17
-				var crack: float=pow(maxf(0.0,0.5-absf(chips)),5.0)*0.37
-				var v: float=clampf(0.91+0.14*n+0.04*chips-seam-crack,0.63,1.0)
-				image.set_pixel(x,y,Color(v,v*0.987,v*0.978))
-		image.generate_mipmaps()
-		mat.albedo_texture=ImageTexture.create_from_image(image)
-		mat.uv1_triplanar=true
-		mat.uv1_world_triplanar=true
-		mat.uv1_scale=Vector3(0.105,0.105,0.105)
+		# One imported 256px color map; no triplanar or normal texture reads.
+		mat.albedo_texture=SANDSTONE_BREAKUP
+		mat.uv1_triplanar=false
+		mat.uv1_world_triplanar=false
+		mat.normal_enabled=false
+		mat.texture_filter=BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
 	return mat
 
-static func _vertex(st: SurfaceTool, point: Vector3, normal: Vector3, tint: Color) -> void:
+static func _surface_uv(point: Vector3, face: Vector3) -> Vector2:
+	# Project each triangle from one plane to prevent within-face stretching.
+	if absf(face.y)>0.70:
+		return Vector2(point.x*0.075,point.z*0.075)
+	if absf(face.x)>absf(face.z):
+		return Vector2(point.z*0.073,point.y*0.095)
+	return Vector2(point.x*0.073,point.y*0.095)
+
+static func _vertex(st: SurfaceTool, point: Vector3, normal: Vector3, tint: Color, uv: Vector2, origin: Vector3) -> void:
 	st.set_normal(normal)
 	st.set_color(tint)
-	st.set_uv(Vector2(point.x*0.05+point.z*0.018,point.y*0.09))
-	st.add_vertex(point)
+	st.set_uv(uv)
+	st.add_vertex(point-origin)
 
-static func _tri(st: SurfaceTool, a: Vector3, b: Vector3, c: Vector3, na: Vector3, nb: Vector3, nc: Vector3, ca: Color, cb: Color, cc: Color) -> void:
-	_vertex(st,a,na,ca)
-	_vertex(st,b,nb,cb)
-	_vertex(st,c,nc,cc)
+static func _tri(st: SurfaceTool, a: Vector3, b: Vector3, c: Vector3, na: Vector3, nb: Vector3, nc: Vector3, ca: Color, cb: Color, cc: Color, origin: Vector3=Vector3.ZERO) -> void:
+	var face: Vector3=(b-a).cross(c-a).normalized()
+	_vertex(st,a,na,ca,_surface_uv(a,face),origin)
+	_vertex(st,b,nb,cb,_surface_uv(b,face),origin)
+	_vertex(st,c,nc,cc,_surface_uv(c,face),origin)
 
-static func _cliff_skirt_segment(st: SurfaceTool, a: Vector3, b: Vector3, tint_a: Color, tint_b: Color, outward: Vector3) -> void:
-	# Close the vertical outline down into the bedrock instead of allowing
-	# the world mesh to end with a razor-thin edge against the background.
-	var low_a := Vector3(a.x,CLIFF_BASE_Y,a.z)
-	var low_b := Vector3(b.x,CLIFF_BASE_Y,b.z)
-	var foot := Color("634a42")
-	_tri(st,a,b,low_b,outward,outward,outward,tint_a,tint_b,foot)
-	_tri(st,a,low_b,low_a,outward,outward,outward,tint_a,foot,foot)
+static func _cliff_skirt_segment(st: SurfaceTool, a: Vector3, b: Vector3, tint_a: Color, tint_b: Color, outward: Vector3, origin: Vector3, exterior: bool) -> void:
+	# External skirts retain the sealed cliff shell; internal skirts hide
+	# gaps where nearby and distant geometry have different triangulation.
+	var low_a:=Vector3(a.x,CLIFF_BASE_Y if exterior else a.y-11.0,a.z)
+	var low_b:=Vector3(b.x,CLIFF_BASE_Y if exterior else b.y-11.0,b.z)
+	var foot: Color=Color("634a42") if exterior else tint_a.darkened(0.26)
+	_tri(st,a,b,low_b,outward,outward,outward,tint_a,tint_b,foot,origin)
+	_tri(st,a,low_b,low_a,outward,outward,outward,tint_a,foot,foot,origin)
 
-static func _close_cliff_boundary(st: SurfaceTool, points: Array, colors: Array) -> void:
-	# All four outer edges of the sculpted heightfield are capped. The rocky
-	# terrain itself stays a single surface and draw call (~3.6% extra verts).
-	for ix in range(GRID_X):
-		_cliff_skirt_segment(st,points[ix][0],points[ix+1][0],colors[ix][0],colors[ix+1][0],Vector3(0,0,-1))
-		_cliff_skirt_segment(st,points[ix+1][GRID_Z],points[ix][GRID_Z],colors[ix+1][GRID_Z],colors[ix][GRID_Z],Vector3(0,0,1))
-	for iz in range(GRID_Z):
-		_cliff_skirt_segment(st,points[0][iz+1],points[0][iz],colors[0][iz+1],colors[0][iz],Vector3(-1,0,0))
-		_cliff_skirt_segment(st,points[GRID_X][iz],points[GRID_X][iz+1],colors[GRID_X][iz],colors[GRID_X][iz+1],Vector3(1,0,0))
-	# Flat underside is out of view during normal racing, but stops the
-	# disconnected empty-world view from beneath the edge of a high plateau.
-	var a := Vector3(-HALF_X,CLIFF_BASE_Y,-HALF_Z)
-	var b := Vector3(HALF_X,CLIFF_BASE_Y,-HALF_Z)
-	var c := Vector3(HALF_X,CLIFF_BASE_Y,HALF_Z)
-	var d := Vector3(-HALF_X,CLIFF_BASE_Y,HALF_Z)
-	var n := Vector3.DOWN
-	var bedrock := Color("634a42")
-	_tri(st,a,b,c,n,n,n,bedrock,bedrock,bedrock)
-	_tri(st,a,c,d,n,n,n,bedrock,bedrock,bedrock)
+static func _close_chunk_boundary(st: SurfaceTool, points: Array, colors: Array, ix0: int, ix1: int, iz0: int, iz1: int, stride: int, origin: Vector3) -> void:
+	for ix in range(ix0,ix1,stride):
+		_cliff_skirt_segment(st,points[ix][iz0],points[ix+stride][iz0],colors[ix][iz0],colors[ix+stride][iz0],Vector3(0,0,-1),origin,iz0==0)
+		_cliff_skirt_segment(st,points[ix+stride][iz1],points[ix][iz1],colors[ix+stride][iz1],colors[ix][iz1],Vector3(0,0,1),origin,iz1==GRID_Z)
+	for iz in range(iz0,iz1,stride):
+		_cliff_skirt_segment(st,points[ix0][iz+stride],points[ix0][iz],colors[ix0][iz+stride],colors[ix0][iz],Vector3(-1,0,0),origin,ix0==0)
+		_cliff_skirt_segment(st,points[ix1][iz],points[ix1][iz+stride],colors[ix1][iz],colors[ix1][iz+stride],Vector3(1,0,0),origin,ix1==GRID_X)
+	# Reproduce the original underside cap, now one low-cost quad per chunk.
+	var a:=Vector3(points[ix0][iz0].x,CLIFF_BASE_Y,points[ix0][iz0].z)
+	var b:=Vector3(points[ix1][iz0].x,CLIFF_BASE_Y,points[ix1][iz0].z)
+	var c:=Vector3(points[ix1][iz1].x,CLIFF_BASE_Y,points[ix1][iz1].z)
+	var d:=Vector3(points[ix0][iz1].x,CLIFF_BASE_Y,points[ix0][iz1].z)
+	var down:=Vector3.DOWN
+	var bedrock:=Color("634a42")
+	_tri(st,a,b,c,down,down,down,bedrock,bedrock,bedrock,origin)
+	_tri(st,a,c,d,down,down,down,bedrock,bedrock,bedrock,origin)
 
 static func _cliff_mesh(owner: Node3D, route: PackedVector3Array, noise: FastNoiseLite) -> void:
 	var points: Array=[]
@@ -232,35 +223,54 @@ static func _cliff_mesh(owner: Node3D, route: PackedVector3Array, noise: FastNoi
 			var dz: float=(hi_z.y-lo_z.y)/maxf(0.01,hi_z.z-lo_z.z)
 			normals.append(Vector3(-dx,1.0,-dz).normalized())
 		smooth_normals.append(normals)
-	var st := SurfaceTool.new()
-	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	for ix in range(GRID_X):
-		for iz in range(GRID_Z):
-			var a: Vector3=points[ix][iz]
-			var b: Vector3=points[ix+1][iz]
-			var c: Vector3=points[ix+1][iz+1]
-			var d: Vector3=points[ix][iz+1]
-			var na: Vector3=smooth_normals[ix][iz]
-			var nb: Vector3=smooth_normals[ix+1][iz]
-			var nc: Vector3=smooth_normals[ix+1][iz+1]
-			var nd: Vector3=smooth_normals[ix][iz+1]
-			var ca: Color=shades[ix][iz]
-			var cb: Color=shades[ix+1][iz]
-			var cc: Color=shades[ix+1][iz+1]
-			var cd: Color=shades[ix][iz+1]
-			# The grid is one continuous surface, including joined canyon walls
-			# and saddle passes between neighboring serpentine road sections.
-			_tri(st,a,c,b,na,nc,nb,ca,cc,cb)
-			_tri(st,a,d,c,na,nd,nc,ca,cd,cc)
-	_close_cliff_boundary(st,points,shades)
-	var mesh := MeshInstance3D.new()
-	mesh.name="CrimsonStratifiedCliffs"
-	mesh.mesh=st.commit()
-	mesh.material_override=_material(true)
-	# Avoid giant stairstep shadow triangles across the mobile racing surface.
-	# Diffuse terrain normals and baked albedo still shade the canyon itself.
-	mesh.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	owner.add_child(mesh)
+	var group:=Node3D.new()
+	group.name="CrimsonStratifiedCliffs"
+	owner.add_child(group)
+	var sandstone: StandardMaterial3D=_material(true)
+	var x_step: int=int(GRID_X/CHUNKS_X)
+	var z_step: int=int(GRID_Z/CHUNKS_Z)
+	for chunk_x in range(CHUNKS_X):
+		for chunk_z in range(CHUNKS_Z):
+			var x0: int=chunk_x*x_step
+			var x1: int=(chunk_x+1)*x_step
+			var z0: int=chunk_z*z_step
+			var z1: int=(chunk_z+1)*z_step
+			# Visibility range distance uses the node's origin, not mesh bounds.
+			var center:=Vector3((points[x0][z0].x+points[x1][z1].x)*0.5,0.0,(points[x0][z0].z+points[x1][z1].z)*0.5)
+			for lod in range(2):
+				var stride: int=1 if lod==0 else FAR_STEP
+				var st:=SurfaceTool.new()
+				st.begin(Mesh.PRIMITIVE_TRIANGLES)
+				for ix in range(x0,x1,stride):
+					for iz in range(z0,z1,stride):
+						var a: Vector3=points[ix][iz]
+						var b: Vector3=points[ix+stride][iz]
+						var c: Vector3=points[ix+stride][iz+stride]
+						var d: Vector3=points[ix][iz+stride]
+						var na: Vector3=smooth_normals[ix][iz]
+						var nb: Vector3=smooth_normals[ix+stride][iz]
+						var nc: Vector3=smooth_normals[ix+stride][iz+stride]
+						var nd: Vector3=smooth_normals[ix][iz+stride]
+						var ca: Color=shades[ix][iz]
+						var cb: Color=shades[ix+stride][iz]
+						var cc: Color=shades[ix+stride][iz+stride]
+						var cd: Color=shades[ix][iz+stride]
+						_tri(st,a,c,b,na,nc,nb,ca,cc,cb,center)
+						_tri(st,a,d,c,na,nd,nc,ca,cd,cc,center)
+				_close_chunk_boundary(st,points,shades,x0,x1,z0,z1,stride,center)
+				var patch:=MeshInstance3D.new()
+				patch.name=("Near_" if lod==0 else "Far_")+str(chunk_x)+"_"+str(chunk_z)
+				patch.mesh=st.commit()
+				patch.position=center
+				patch.material_override=sandstone
+				patch.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+				if lod==0:
+					patch.visibility_range_end=LOD_DISTANCE
+					patch.visibility_range_end_margin=8.0
+				else:
+					patch.visibility_range_begin=LOD_DISTANCE
+					patch.visibility_range_begin_margin=8.0
+				group.add_child(patch)
 
 static func _road_shoulder(owner: Node3D, route: PackedVector3Array, noise: FastNoiseLite) -> void:
 	# Thin gravel transitions blend the raised road edges into the canyon
