@@ -28,6 +28,12 @@ const SCULPT_MAX = 128.0
 const SCULPT_X0 = -512.0
 const SCULPT_Z0 = -256.0
 static var _sculpt_bytes: PackedByteArray = PackedByteArray()
+# Segment deltas and inverse lengths are stable for this track load.
+# Precomputing them avoids millions of repeated geometry calculations
+# while constructing the canyon mesh on Android.
+static var _segment_starts: PackedVector3Array = PackedVector3Array()
+static var _segment_deltas: PackedVector3Array = PackedVector3Array()
+static var _segment_inv_len2: PackedFloat32Array = PackedFloat32Array()
 const ROCK_PALETTE = [
 	Color("85503e"), Color("9c6049"), Color("ae7053"),
 	Color("ba8060"), Color("9e654e")
@@ -41,27 +47,38 @@ static func _noise() -> FastNoiseLite:
 	noise.fractal_octaves=3
 	return noise
 
-static func _nearest(route: PackedVector3Array, x: float, z: float) -> Vector3:
-	# x = distance, y = nearest segment, z = interpolated road elevation.
-	# Segment projection (not point distance) gives a smooth carved floor
-	# even on the tightest bends and when neighboring road branches converge.
+static func _prepare_segments(route: PackedVector3Array) -> void:
+	var count: int=route.size()
+	_segment_starts.resize(count)
+	_segment_deltas.resize(count)
+	_segment_inv_len2.resize(count)
+	for index in range(count):
+		var p: Vector3=route[index]
+		var delta: Vector3=route[(index+1)%count]-p
+		var length_squared: float=maxf(0.001,delta.x*delta.x+delta.z*delta.z)
+		_segment_starts[index]=p
+		_segment_deltas[index]=delta
+		_segment_inv_len2[index]=1.0/length_squared
+
+static func _nearest(x: float, z: float) -> Vector3:
+	# Exact segment-projection formula; no changes to terrain geometry,
+	# collision, road course or wall containment.
 	var closest: float=INF
 	var nearest_index: int=0
 	var road_y: float=0.0
-	for index in range(route.size()):
-		var p: Vector3=route[index]
-		var q: Vector3=route[(index+1)%route.size()]
-		var dx: float=q.x-p.x
-		var dz: float=q.z-p.z
-		var length_squared: float=maxf(0.001,dx*dx+dz*dz)
-		var t: float=clampf(((x-p.x)*dx+(z-p.z)*dz)/length_squared,0.0,1.0)
-		var side_x: float=x-p.x-dx*t
-		var side_z: float=z-p.z-dz*t
+	for index in range(_segment_starts.size()):
+		var p: Vector3=_segment_starts[index]
+		var delta: Vector3=_segment_deltas[index]
+		var dx: float=x-p.x
+		var dz: float=z-p.z
+		var t: float=clampf((dx*delta.x+dz*delta.z)*_segment_inv_len2[index],0.0,1.0)
+		var side_x: float=dx-delta.x*t
+		var side_z: float=dz-delta.z*t
 		var d2: float=side_x*side_x+side_z*side_z
 		if d2<closest:
 			closest=d2
 			nearest_index=index
-			road_y=lerpf(p.y,q.y,t)
+			road_y=p.y+delta.y*t
 	return Vector3(sqrt(closest),float(nearest_index),road_y)
 
 static func _sample_sculpt_height(x: float, z: float) -> float:
@@ -203,7 +220,7 @@ static func _cliff_mesh(owner: Node3D, route: PackedVector3Array, noise: FastNoi
 		var colors: Array[Color]=[]
 		for iz in range(GRID_Z+1):
 			var z: float=-HALF_Z+2.0*HALF_Z*float(iz)/float(GRID_Z)
-			var nearest: Vector3=_nearest(route,x,z)
+			var nearest: Vector3=_nearest(x,z)
 			var height: float=_height(nearest,noise,x,z)
 			strip.append(Vector3(x,height,z))
 			colors.append(_color(height,nearest.x,x,z,noise))
@@ -295,8 +312,8 @@ static func _road_shoulder(owner: Node3D, route: PackedVector3Array, noise: Fast
 			var b: Vector3=q+side_next*sign*(w_next+1.5)-Vector3.UP*0.55
 			var c: Vector3=q+side_next*sign*(w_next+5.6)
 			var d: Vector3=p+side*sign*(w+5.6)
-			c.y=_height(_nearest(route,c.x,c.z),noise,c.x,c.z)
-			d.y=_height(_nearest(route,d.x,d.z),noise,d.x,d.z)
+			c.y=_height(_nearest(c.x,c.z),noise,c.x,c.z)
+			d.y=_height(_nearest(d.x,d.z),noise,d.x,d.z)
 			# Skip the gap, keeping a visible leap instead of a soil bridge.
 			if index>=44 and index<48:
 				continue
@@ -357,7 +374,7 @@ static func _talus(owner: Node3D, route: PackedVector3Array, noise: FastNoiseLit
 		var span: float=rng.randf_range(19.0,34.0)
 		var x: float=p.x+side.x*span*sign
 		var z: float=p.z+side.z*span*sign
-		var nearest: Vector3=_nearest(route,x,z)
+		var nearest: Vector3=_nearest(x,z)
 		if nearest.x<17.8:
 			continue
 		var r: float=rng.randf_range(0.55,1.65)
@@ -381,6 +398,8 @@ static func _talus(owner: Node3D, route: PackedVector3Array, noise: FastNoiseLit
 	owner.add_child(instance)
 
 static func populate(owner: Node3D, route: PackedVector3Array) -> void:
+	var build_started: int=Time.get_ticks_msec()
+	_prepare_segments(route)
 	_sculpt_bytes=FileAccess.get_file_as_bytes(SCULPT_PATH)
 	if _sculpt_bytes.size()!=SCULPT_W*SCULPT_H*2:
 		push_error("Crimson Serpent authored heightmap missing or wrong size; using procedural fallback")
@@ -389,3 +408,4 @@ static func populate(owner: Node3D, route: PackedVector3Array) -> void:
 	_road_shoulder(owner,route,noise)
 	_far_ridge(owner)
 	_talus(owner,route,noise)
+	print("SCENEFORGE_SERPENT_TERRAIN_BUILD_MS ",Time.get_ticks_msec()-build_started)

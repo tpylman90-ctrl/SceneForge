@@ -179,3 +179,15 @@ terrain height, jump gap, route, other courses and vehicle assets are unchanged.
 one draw call for up to four visible terrain draw calls; a performance
 improvement is *not guaranteed*. Check near-wall continuity, LOD popping,
 texture seams and FPS on Android before accepting this trial.
+
+## Crimson Serpent — cached road sampling for faster terrain startup
+
+The terrain builder now precomputes its 192 road-segment vectors and inverse
+squared lengths once per Serpent scene load, rather than recalculating them
+for every heightfield and shoulder sample. The exact nearest-segment projection
+is retained; road geometry, collision, LOD triangle counts, and other tracks
+are unchanged. `crimson_divide_test.gd` compares cached samples against
+independent brute-force reference calculations at points throughout the gorge.
+The game logs `SCENEFORGE_SERPENT_TERRAIN_BUILD_MS` for reproducible scene
+startup observations. This is a load-time optimization; it is **not** a claim
+of increased on-device FPS until handset review.

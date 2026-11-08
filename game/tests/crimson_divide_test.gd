@@ -1,9 +1,30 @@
 extends SceneTree
 
 const Crimson = preload("res://tracks/crimson_divide.gd")
+const SerpentCanyon = preload("res://tracks/serpent_canyon.gd")
 
 func _initialize() -> void:
 	call_deferred("check")
+
+func _nearest_reference(route: PackedVector3Array, x: float, z: float) -> Vector3:
+	var closest: float=INF
+	var nearest_index: int=0
+	var elevation: float=0.0
+	for index in range(route.size()):
+		var p: Vector3=route[index]
+		var q: Vector3=route[(index+1)%route.size()]
+		var dx: float=q.x-p.x
+		var dz: float=q.z-p.z
+		var length_squared: float=maxf(0.001,dx*dx+dz*dz)
+		var fraction: float=clampf(((x-p.x)*dx+(z-p.z)*dz)/length_squared,0.0,1.0)
+		var px: float=x-p.x-dx*fraction
+		var pz: float=z-p.z-dz*fraction
+		var distance_squared: float=px*px+pz*pz
+		if distance_squared<closest:
+			closest=distance_squared
+			nearest_index=index
+			elevation=lerpf(p.y,q.y,fraction)
+	return Vector3(sqrt(closest),float(nearest_index),elevation)
 
 func check() -> void:
 	var names := ["CRIMSON SERPENT","RED MESA CIRCUIT","DEVIL'S GATE"]
@@ -25,6 +46,16 @@ func check() -> void:
 			assert(scenic!=null and scenic.mesh!=null,"Missing canyon scenery: "+name)
 			assert(scenic.mesh.get_surface_count()==1,"Scenery must stay batched")
 		if circuit==4:
+			# Cached segment sampling must reproduce the original brute-force
+			# projection across the sculpted basin, including road-adjacent points.
+			for xi in range(-3,4):
+				for zi in range(-2,3):
+					var sample_x: float=float(xi)*97.0+11.0
+					var sample_z: float=float(zi)*84.0-7.0
+					var reference: Vector3=_nearest_reference(scene.route,sample_x,sample_z)
+					var cached: Vector3=SerpentCanyon._nearest(sample_x,sample_z)
+					assert(absf(reference.x-cached.x)<0.002,"Serpent cached distance changed")
+					assert(absf(reference.z-cached.z)<0.02,"Serpent cached road height changed")
 			var rock_group: Node3D=scene.get_node_or_null("CrimsonStratifiedCliffs")
 			assert(rock_group!=null)
 			assert(rock_group.get_child_count()==8,"Expected four near/far chunk pairs")
