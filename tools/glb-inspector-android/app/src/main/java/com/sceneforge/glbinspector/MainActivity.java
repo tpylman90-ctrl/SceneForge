@@ -75,6 +75,13 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
     private boolean wasPinching;
     private String modelName = "model";
     private int imageIndex = 1;
+    private byte[] sourceGlb;
+    private ByteBuffer displayedGlb;
+    private GlbInspectionVariants.Mode displayMode = GlbInspectionVariants.Mode.TEXTURED;
+    private final Button[] modeButtons = new Button[3];
+    private boolean modeBusy = false;
+    private String sourceSummary = "";
+    private long openRequest = 0;
     // Keep all studio lighting local. No network, HDR download, or model alterations.
     private static final float[] STUDIO_LEVELS = {16000f, 26000f, 38000f, 54000f};
     private int studioLevel = 2;
@@ -179,6 +186,16 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
         addPreset(presets, "BOTTOM", 0, -89);
         scroll.addView(presets);
         main.addView(scroll);
+
+        // Inspection modes are separate from camera angles, and do not alter the source file.
+        LinearLayout modeRow = new LinearLayout(this);
+        modeRow.setGravity(Gravity.CENTER_VERTICAL);
+        modeRow.setPadding(dp(12), dp(2), dp(12), dp(3));
+        addModeButton(modeRow, "TEXTURED", GlbInspectionVariants.Mode.TEXTURED, 0);
+        addModeButton(modeRow, "CLAY", GlbInspectionVariants.Mode.CLAY, 1);
+        addModeButton(modeRow, "WIREFRAME", GlbInspectionVariants.Mode.WIREFRAME, 2);
+        main.addView(modeRow);
+        syncModeButtons();
 
         LinearLayout actions = new LinearLayout(this);
         actions.setPadding(dp(12), dp(4), dp(12), dp(13));
@@ -316,6 +333,75 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
         return (float) Math.exp(-5f * a * a);
     }
 
+    private void addModeButton(LinearLayout row, String label,
+                               GlbInspectionVariants.Mode mode, int index) {
+        Button b = button(label);
+        modeButtons[index] = b;
+        LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(0, dp(41), 1f);
+        if (index > 0) p.leftMargin = dp(7);
+        row.addView(b, p);
+        b.setOnClickListener(v -> displayAs(mode));
+    }
+
+    private void syncModeButtons() {
+        GlbInspectionVariants.Mode[] modes = GlbInspectionVariants.Mode.values();
+        for (int i = 0; i < modeButtons.length; i++) {
+            Button b = modeButtons[i];
+            if (b == null) continue;
+            boolean active = modes[i] == displayMode;
+            b.setBackgroundTintList(android.content.res.ColorStateList.valueOf(active ? ACCENT : PANEL));
+            b.setTextColor(active ? Color.rgb(7, 20, 28) : TEXT);
+            b.setAlpha(modeBusy ? 0.55f : 1.0f);
+            b.setEnabled(!modeBusy);
+        }
+    }
+
+    private void displayAs(GlbInspectionVariants.Mode mode) {
+        if (!modelLoaded || sourceGlb == null) {
+            error("Open a GLB model first.");
+            return;
+        }
+        if (modeBusy || displayMode == mode) return;
+        modeBusy = true;
+        syncModeButtons();
+        status.setText("Preparing " + mode.name().toLowerCase(Locale.US) + " geometry...");
+        byte[] original = sourceGlb;
+        long revision = openRequest;
+        new Thread(() -> {
+            try {
+                byte[] variant = GlbInspectionVariants.create(original, mode);
+                ByteBuffer buffer = ByteBuffer.allocateDirect(variant.length);
+                buffer.put(variant);
+                buffer.flip();
+                runOnUiThread(() -> {
+                    if (revision != openRequest) return;
+                    try {
+                        viewer.loadModelGlb(buffer);
+                        if (viewer.getAsset() == null) {
+                            throw new IllegalArgumentException("Renderer rejected inspection variant");
+                        }
+                        viewer.transformToUnitCube(new Float3(0f, 0f, -4f));
+                        displayedGlb = buffer;
+                        displayMode = mode;
+                        status.setText(sourceSummary + " • " + mode.name());
+                    } catch (Exception ex) {
+                        error("View mode failed: " + ex.getMessage());
+                    } finally {
+                        modeBusy = false;
+                        syncModeButtons();
+                    }
+                });
+            } catch (Exception ex) {
+                runOnUiThread(() -> {
+                    if (revision != openRequest) return;
+                    modeBusy = false;
+                    syncModeButtons();
+                    error("View mode unavailable: " + ex.getMessage());
+                });
+            }
+        }, "glb-inspection-mode").start();
+    }
+
     private Button button(String text) {
         Button b = new Button(this);
         b.setText(text);
@@ -395,6 +481,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
     }
 
     private void openUri(Uri uri) {
+        final long revision = ++openRequest;
         String name = getDisplayName(uri);
         if (!name.toLowerCase(Locale.ROOT).endsWith(".glb")) {
             error("Select a .glb model file.");
@@ -425,11 +512,18 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
                 buffer.put(data);
                 buffer.flip();
                 runOnUiThread(() -> {
+                    if (revision != openRequest) return;
                     try {
                         viewer.loadModelGlb(buffer);
                         if (viewer.getAsset() == null)
                             throw new IllegalArgumentException("The renderer could not load this GLB");
                         viewer.transformToUnitCube(new Float3(0f, 0f, -4f));
+                        sourceGlb = data;
+                        displayedGlb = buffer;
+                        displayMode = GlbInspectionVariants.Mode.TEXTURED;
+                        modeBusy = false;
+                        sourceSummary = summary;
+                        syncModeButtons();
                         modelLoaded = true;
                         azimuth = 33; elevation = 18; distance = 4.8f;
                         setCamera();
