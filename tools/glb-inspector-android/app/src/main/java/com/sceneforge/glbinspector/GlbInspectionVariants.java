@@ -295,6 +295,48 @@ public final class GlbInspectionVariants {
         return indices;
     }
 
+    /**
+     * Tiny embedded geometry fixture for on-device parser/render smoke tests.
+     * Contains a square made of two indexed triangles (four distinct vertices).
+     */
+    public static byte[] diagnosticSquare() throws Exception {
+        ByteBuffer bin = ByteBuffer.allocate(60).order(ByteOrder.LITTLE_ENDIAN);
+        bin.putFloat(-1f).putFloat(-1f).putFloat(0f);
+        bin.putFloat(1f).putFloat(-1f).putFloat(0f);
+        bin.putFloat(1f).putFloat(1f).putFloat(0f);
+        bin.putFloat(-1f).putFloat(1f).putFloat(0f);
+        for (int i : new int[]{0, 1, 2, 0, 2, 3}) bin.putShort((short)i);
+
+        JSONObject root = new JSONObject();
+        root.put("asset", new JSONObject().put("version", "2.0").put("generator", "SceneForge offline diagnostic"));
+        root.put("buffers", new JSONArray().put(new JSONObject().put("byteLength", 60)));
+        root.put("bufferViews", new JSONArray()
+                .put(new JSONObject().put("buffer", 0).put("byteOffset", 0)
+                        .put("byteLength", 48).put("target", 34962))
+                .put(new JSONObject().put("buffer", 0).put("byteOffset", 48)
+                        .put("byteLength", 12).put("target", 34963)));
+        root.put("accessors", new JSONArray()
+                .put(new JSONObject().put("bufferView", 0).put("componentType", 5126)
+                        .put("count", 4).put("type", "VEC3")
+                        .put("min", new JSONArray("[-1,-1,0]"))
+                        .put("max", new JSONArray("[1,1,0]")))
+                .put(new JSONObject().put("bufferView", 1).put("componentType", 5123)
+                        .put("count", 6).put("type", "SCALAR")));
+        root.put("materials", new JSONArray().put(new JSONObject()
+                .put("doubleSided", true)
+                .put("pbrMetallicRoughness", new JSONObject().put("baseColorFactor",
+                        new JSONArray("[0.5,0.65,0.8,1]"))
+                        .put("metallicFactor", 0.1).put("roughnessFactor", 0.7))));
+        root.put("meshes", new JSONArray().put(new JSONObject().put("primitives",
+                new JSONArray().put(new JSONObject()
+                        .put("attributes", new JSONObject().put("POSITION", 0))
+                        .put("indices", 1).put("material", 0).put("mode", 4)))));
+        root.put("nodes", new JSONArray().put(new JSONObject().put("mesh", 0)));
+        root.put("scenes", new JSONArray().put(new JSONObject().put("nodes", new JSONArray("[0]"))));
+        root.put("scene", 0);
+        return encode(root, bin.array());
+    }
+
     private static byte[] encode(JSONObject gltf, byte[] bin) throws Exception {
         byte[] text = gltf.toString().getBytes(StandardCharsets.UTF_8);
         int jsonSize = (text.length + 3) & ~3;
