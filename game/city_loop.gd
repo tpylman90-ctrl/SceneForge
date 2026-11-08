@@ -698,8 +698,8 @@ func build_crimson_circuit() -> void:
 				var us: PackedFloat32Array=PackedFloat32Array([u0,u1,u0,u0,u1,u1])
 				for corner in range(quad.size()):
 					var lateral: float=us[corner]
-					var edge: float=absf(lateral-0.5)*2.0
-					var shoulder: float=smoothstep(0.35,1.0,edge)
+					var road_edge_distance: float=absf(lateral-0.5)*2.0
+					var shoulder: float=smoothstep(0.35,1.0,road_edge_distance)
 					var wear: float=0.024*(1.0-smoothstep(0.03,0.17,absf(lateral-0.25)))
 					wear+=0.024*(1.0-smoothstep(0.03,0.17,absf(lateral-0.75)))
 					var variation: float=0.009*sin(float(index)*0.17+lateral*5.0)
