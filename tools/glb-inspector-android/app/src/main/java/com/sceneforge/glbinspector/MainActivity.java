@@ -116,9 +116,62 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
         });
         surface.setOnTouchListener((v, e) -> onModelTouch(e));
         Intent intent = getIntent();
+        if (intent.getBooleanExtra("sceneforge_verify_modes", false)) {
+            handler.postDelayed(this::verifyModesForCi, 1500L);
+        }
         if (Intent.ACTION_VIEW.equals(intent.getAction()) && intent.getData() != null) {
             openUri(intent.getData());
         }
+    }
+
+    /** Run only when explicitly invoked by the GitHub Android emulator smoke test. */
+    private void verifyModesForCi() {
+        new Thread(() -> {
+            try {
+                byte[] square = GlbInspectionVariants.diagnosticSquare();
+                byte[] clay = GlbInspectionVariants.create(square, GlbInspectionVariants.Mode.CLAY);
+                byte[] wire = GlbInspectionVariants.create(square, GlbInspectionVariants.Mode.WIREFRAME);
+                // A two-triangle square must have five distinct real topology edges.
+                ByteBuffer h = ByteBuffer.wrap(wire).order(ByteOrder.LITTLE_ENDIAN);
+                JSONObject root = new JSONObject(new String(wire, 20, h.getInt(12),
+                        StandardCharsets.UTF_8).trim());
+                JSONObject prim = root.getJSONArray("meshes").getJSONObject(0)
+                        .getJSONArray("primitives").getJSONObject(0);
+                JSONObject indices = root.getJSONArray("accessors").getJSONObject(prim.getInt("indices"));
+                if (prim.getInt("mode") != 1 || indices.getInt("count") != 10) {
+                    throw new IllegalStateException("Wireframe edges did not match indexed triangles");
+                }
+                runOnUiThread(() -> {
+                    try {
+                        byte[][] models = {square, clay, wire, square};
+                        String[] labels = {"TEXTURED", "CLAY", "WIREFRAME", "RESTORED"};
+                        for (int i = 0; i < models.length; i++) {
+                            ByteBuffer payload = ByteBuffer.allocateDirect(models[i].length);
+                            payload.put(models[i]).flip();
+                            viewer.loadModelGlb(payload);
+                            if (viewer.getAsset() == null) {
+                                throw new IllegalStateException(labels[i] + " did not load into Filament");
+                            }
+                            viewer.transformToUnitCube(new Float3(0f, 0f, -4f));
+                            displayedGlb = payload;
+                            android.util.Log.i("SCENEFORGE_MODE_TEST", labels[i] + "_PASSED");
+                        }
+                        sourceGlb = square;
+                        sourceSummary = "Native GLB mode verification";
+                        modelLoaded = true;
+                        displayMode = GlbInspectionVariants.Mode.TEXTURED;
+                        syncModeButtons();
+                        status.setText(sourceSummary);
+                        android.util.Log.i("SCENEFORGE_MODE_TEST", "ALL_MODES_PASSED");
+                    } catch (Throwable ex) {
+                        android.util.Log.e("SCENEFORGE_MODE_TEST", "FAILED", ex);
+                        status.setText("Mode test failed: " + ex.getMessage());
+                    }
+                });
+            } catch (Throwable ex) {
+                android.util.Log.e("SCENEFORGE_MODE_TEST", "FAILED", ex);
+            }
+        }, "glb-mode-diagnostic").start();
     }
 
     private void buildUi() {
