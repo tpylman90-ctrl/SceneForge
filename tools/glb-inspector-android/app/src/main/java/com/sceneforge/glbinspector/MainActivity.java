@@ -29,6 +29,7 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 import com.google.android.filament.Filament;
+import com.google.android.filament.gltfio.Gltfio;
 import com.google.android.filament.Engine;
 import com.google.android.filament.android.UiHelper;
 import com.google.android.filament.utils.ModelViewer;
@@ -73,7 +74,8 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
         super.onCreate(savedInstanceState);
         getWindow().setStatusBarColor(BG);
         getWindow().setNavigationBarColor(BG);
-        Filament.init();
+        // ModelViewer uses gltfio JNI in its constructor. Filament.init() alone is insufficient.
+        Gltfio.init();
         buildUi();
 
         // A null manipulator leaves camera control to the app; presets are repeatable.
