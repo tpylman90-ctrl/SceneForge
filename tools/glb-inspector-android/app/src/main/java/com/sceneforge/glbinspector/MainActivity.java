@@ -32,6 +32,7 @@ import com.google.android.filament.Filament;
 import com.google.android.filament.Engine;
 import com.google.android.filament.android.UiHelper;
 import com.google.android.filament.utils.ModelViewer;
+import com.google.android.filament.utils.Float3;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import java.io.ByteArrayOutputStream;
@@ -272,7 +273,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
                         viewer.loadModelGlb(buffer);
                         if (viewer.getAsset() == null)
                             throw new IllegalArgumentException("The renderer could not load this GLB");
-                        viewer.transformToUnitCube();
+                        viewer.transformToUnitCube(new Float3(0f, 0f, -4f));
                         modelLoaded = true;
                         azimuth = 33; elevation = 18; distance = 4.8f;
                         setCamera();
