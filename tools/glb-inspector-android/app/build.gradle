@@ -3,7 +3,7 @@ plugins {
 }
 android {
     namespace 'com.sceneforge.glbinspector'
-    compileSdk 35
+    compileSdk 37
     defaultConfig {
         applicationId 'com.sceneforge.glbinspector'
         minSdk 26
