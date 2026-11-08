@@ -22,6 +22,12 @@ import android.view.PixelCopy;
 import android.view.ScaleGestureDetector;
 import android.view.SurfaceView;
 import android.view.View;
+import android.view.WindowInsets;
+import com.google.android.filament.IndirectLight;
+import com.google.android.filament.LightManager;
+import com.google.android.filament.Skybox;
+import com.google.android.filament.Texture;
+import com.google.android.filament.EntityManager;
 import android.widget.Button;
 import android.widget.FrameLayout;
 import android.widget.HorizontalScrollView;
@@ -69,6 +75,14 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
     private boolean wasPinching;
     private String modelName = "model";
     private int imageIndex = 1;
+    // Keep all studio lighting local. No network, HDR download, or model alterations.
+    private static final float[] STUDIO_LEVELS = {16000f, 26000f, 38000f, 54000f};
+    private int studioLevel = 2;
+    private Button lightButton;
+    private IndirectLight studioIbl;
+    private Texture reflectionCube;
+    private Skybox studioBackground;
+    private final int[] studioLights = new int[3];
 
     @Override public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -83,6 +97,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
                 new UiHelper(UiHelper.ContextErrorPolicy.DONT_CHECK), null);
         viewer.setAutoPlayAnimations(true);
         viewer.getView().setAntiAliasing(com.google.android.filament.View.AntiAliasing.FXAA);
+        setupStudioLighting();
         setCamera();
         pinch = new ScaleGestureDetector(this, new ScaleGestureDetector.SimpleOnScaleGestureListener() {
             @Override public boolean onScale(ScaleGestureDetector detector) {
@@ -104,6 +119,23 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
         main.setOrientation(LinearLayout.VERTICAL);
         main.setBackgroundColor(BG);
         setContentView(main);
+        // Android 15/16 enforce edge-to-edge for target 35. Keep controls inside system bars.
+        main.setOnApplyWindowInsetsListener((v, insets) -> {
+            int left, right, top, bottom;
+            if (Build.VERSION.SDK_INT >= 30) {
+                android.graphics.Insets bars = insets.getInsets(WindowInsets.Type.systemBars());
+                left = bars.left; right = bars.right;
+                top = bars.top; bottom = bars.bottom;
+            } else {
+                left = insets.getSystemWindowInsetLeft();
+                right = insets.getSystemWindowInsetRight();
+                top = insets.getSystemWindowInsetTop();
+                bottom = insets.getSystemWindowInsetBottom();
+            }
+            v.setPadding(left, top, right, bottom);
+            return insets;
+        });
+        main.requestApplyInsets();
 
         LinearLayout bar = new LinearLayout(this);
         bar.setOrientation(LinearLayout.HORIZONTAL);
@@ -159,7 +191,129 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
         LinearLayout.LayoutParams saveP = new LinearLayout.LayoutParams(0, dp(45), 1);
         saveP.leftMargin = dp(9);
         actions.addView(save, saveP);
+        lightButton = button("LIGHT 3/4");
+        lightButton.setOnClickListener(v -> {
+            studioLevel = (studioLevel + 1) % STUDIO_LEVELS.length;
+            if (studioIbl != null) studioIbl.setIntensity(STUDIO_LEVELS[studioLevel]);
+            lightButton.setText("LIGHT " + (studioLevel + 1) + "/4");
+        });
+        LinearLayout.LayoutParams lightP = new LinearLayout.LayoutParams(0, dp(45), 0.8f);
+        lightP.leftMargin = dp(9);
+        actions.addView(lightButton, lightP);
         main.addView(actions);
+    }
+
+    /**
+     * Offline environment lighting. Filament requires an IBL for metallic GLB materials
+     * to reflect their surroundings. A few direct lights alone leave painted metal black.
+     * We synthesize a neutral HDR-like multi-softbox reflection cubemap in linear RGB.
+     * The mip levels approximate progressively rougher reflections for glTF PBR surfaces.
+     */
+    private void setupStudioLighting() {
+        Engine engine = viewer.getEngine();
+
+        // Subtle slate backdrop instead of the renderer's default black sky.
+        studioBackground = new Skybox.Builder()
+                .color(0.095f, 0.12f, 0.16f, 1.0f)
+                .build(engine);
+        viewer.getScene().setSkybox(studioBackground);
+
+        reflectionCube = new Texture.Builder()
+                .width(32).height(32).levels(6)
+                .sampler(Texture.Sampler.SAMPLER_CUBEMAP)
+                .format(Texture.InternalFormat.RGBA8)
+                .build(engine);
+        for (int level = 0; level < 6; level++) {
+            int dim = Math.max(1, 32 >> level);
+            ByteBuffer pixels = ByteBuffer.allocateDirect(dim * dim * 6 * 4);
+            for (int face = 0; face < 6; face++) {
+                for (int y = 0; y < dim; y++) {
+                    for (int x = 0; x < dim; x++) {
+                        float u = (2f * (x + 0.5f) / dim) - 1f;
+                        float v = (2f * (y + 0.5f) / dim) - 1f;
+                        float[] d = cubeDirection(face, u, v);
+                        float rough = level / 5f;
+                        // Broad softbox overhead, cool left bounce and warm right strip.
+                        float roof = softPanel(d, -0.25f, 0.85f, -0.36f,
+                                0.45f + rough * 0.45f, 0.22f + rough * 0.65f);
+                        float left = softPanel(d, -0.80f, 0.25f, 0.45f,
+                                0.28f + rough * 0.55f, 0.42f + rough * 0.55f);
+                        float right = softPanel(d, 0.88f, 0.42f, -0.05f,
+                                0.25f + rough * 0.60f, 0.60f + rough * 0.55f);
+                        float base = 0.45f + 0.13f * Math.max(0f, d[1]);
+                        float contrast = 1.0f - 0.55f * rough;
+                        float r = base + contrast * (0.39f * roof + 0.15f * left + 0.23f * right);
+                        float g = base + contrast * (0.40f * roof + 0.20f * left + 0.20f * right);
+                        float b = base + contrast * (0.42f * roof + 0.27f * left + 0.16f * right);
+                        pixels.put((byte) (255f * clamp(r, 0f, 1f)));
+                        pixels.put((byte) (255f * clamp(g, 0f, 1f)));
+                        pixels.put((byte) (255f * clamp(b, 0f, 1f)));
+                        pixels.put((byte) 255);
+                    }
+                }
+            }
+            pixels.flip();
+            // Six stacked cubemap faces in one upload, RGBA8 avoids HDR extension requirements.
+            reflectionCube.setImage(engine, level, 0, 0, 0, dim, dim, 6,
+                    new Texture.PixelBufferDescriptor(pixels, Texture.Format.RGBA, Texture.Type.UBYTE));
+        }
+
+        float[] sh = new float[27];
+        // Pre-scaled L0 irradiance: neutral diffuse fill, preserving GLB material colors.
+        sh[0] = 0.63f;
+        sh[1] = 0.67f;
+        sh[2] = 0.73f;
+        studioIbl = new IndirectLight.Builder()
+                .reflections(reflectionCube)
+                .irradiance(3, sh)
+                .intensity(STUDIO_LEVELS[studioLevel])
+                .build(engine);
+        viewer.getScene().setIndirectLight(studioIbl);
+
+        // Camera-facing key plus softer side/rim sources reveal undercuts and rear geometry.
+        studioLights[0] = addStudioLight(engine, -0.35f, -0.90f, -0.55f,
+                40000f, 1.0f, 0.98f, 0.94f);
+        studioLights[1] = addStudioLight(engine, 0.86f, -0.25f, 0.45f,
+                23000f, 0.78f, 0.87f, 1.0f);
+        studioLights[2] = addStudioLight(engine, -0.55f, -0.32f, 0.83f,
+                15000f, 1.0f, 0.86f, 0.71f);
+        // A softer exposure keeps the black panels legible without burning bright paint.
+        viewer.getCamera().setExposure(13.0f, 1.0f / 125.0f, 100.0f);
+    }
+
+    private int addStudioLight(Engine engine, float x, float y, float z,
+                               float lux, float r, float g, float b) {
+        int light = EntityManager.get().create();
+        new LightManager.Builder(LightManager.Type.DIRECTIONAL)
+                .color(r, g, b)
+                .intensity(lux)
+                .direction(x, y, z)
+                .castShadows(false)
+                .build(engine, light);
+        viewer.getScene().addEntity(light);
+        return light;
+    }
+
+    private static float[] cubeDirection(int face, float u, float v) {
+        float x = 0f, y = 0f, z = 0f;
+        switch (face) {
+            case 0: x = 1f; y = -v; z = -u; break;
+            case 1: x = -1f; y = -v; z = u; break;
+            case 2: x = u; y = 1f; z = v; break;
+            case 3: x = u; y = -1f; z = -v; break;
+            case 4: x = u; y = -v; z = 1f; break;
+            default: x = -u; y = -v; z = -1f;
+        }
+        float len = (float) Math.sqrt(x*x + y*y + z*z);
+        return new float[]{x / len, y / len, z / len};
+    }
+
+    private static float softPanel(float[] d, float x, float y, float z,
+                                   float width, float height) {
+        float len = (float) Math.sqrt(x*x + y*y + z*z);
+        float cosine = (d[0]*x + d[1]*y + d[2]*z) / len;
+        float a = (1f - cosine) / Math.max(0.04f, width * height);
+        return (float) Math.exp(-5f * a * a);
     }
 
     private Button button(String text) {
