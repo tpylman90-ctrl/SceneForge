@@ -240,6 +240,31 @@ static func _cliff_mesh(owner: Node3D, route: PackedVector3Array, noise: FastNoi
 			var dz: float=(hi_z.y-lo_z.y)/maxf(0.01,hi_z.z-lo_z.z)
 			normals.append(Vector3(-dx,1.0,-dz).normalized())
 		smooth_normals.append(normals)
+	# Approximate canyon ambient occlusion in vertex colors, calculated
+	# once during construction. This is the mobile-racer approach of baking
+	# visual relief instead of reading another AO/normal texture each pixel.
+	# A concave vertex is below its neighboring rock; crests receive a tiny
+	# sunlit lift. No extra triangles, texture samples or shadow maps.
+	for ix in range(GRID_X+1):
+		for iz in range(GRID_Z+1):
+			var y: float=points[ix][iz].y
+			var mean_y: float=(
+				points[maxi(0,ix-1)][iz].y
+				+points[mini(GRID_X,ix+1)][iz].y
+				+points[ix][maxi(0,iz-1)].y
+				+points[ix][mini(GRID_Z,iz+1)].y
+			)*0.25
+			var cavity: float=clampf((mean_y-y)/6.0,0.0,1.0)
+			var crest: float=clampf((y-mean_y)/8.0,0.0,1.0)
+			var n: Vector3=smooth_normals[ix][iz]
+			var slope: float=1.0-clampf(n.y,0.0,1.0)
+			# Subtle directional baked bounce from the warm desert horizon.
+			var aspect: float=clampf((-n.x*0.55+n.z*0.35),-0.75,0.75)
+			var shade: float=clampf(
+				1.0-0.155*cavity-0.085*slope+0.032*crest+0.040*aspect,
+				0.74,1.05
+			)
+			shades[ix][iz]=shades[ix][iz]*shade
 	var group:=Node3D.new()
 	group.name="CrimsonStratifiedCliffs"
 	owner.add_child(group)

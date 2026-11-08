@@ -282,7 +282,7 @@ func _ready() -> void:
 	if track_id>=Crimson.FIRST_ID:
 		var desert_sky := ProceduralSkyMaterial.new()
 		desert_sky.sky_top_color=Color("41657f") if track_id==4 else Color("496b83")
-		desert_sky.sky_horizon_color=Color("e9ac83")
+		desert_sky.sky_horizon_color=Color("d8b296") if track_id==4 else Color("e9ac83")
 		desert_sky.ground_horizon_color=Color("c88965")
 		desert_sky.ground_bottom_color=Color("473b3d")
 		sky.sky_material=desert_sky
@@ -293,11 +293,11 @@ func _ready() -> void:
 	settings.sky=sky
 	settings.background_color = Color("172c42")
 	settings.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	settings.ambient_light_color = Color("a9aeaa") if track_id>=Crimson.FIRST_ID else Color("91afc4")
-	settings.ambient_light_energy = 0.56 if track_id==4 else (0.62 if track_id>=Crimson.FIRST_ID else 0.8)
+	settings.ambient_light_color = Color("a4b0ba") if track_id==4 else (Color("a9aeaa") if track_id>=Crimson.FIRST_ID else Color("91afc4") )
+	settings.ambient_light_energy = 0.53 if track_id==4 else (0.62 if track_id>=Crimson.FIRST_ID else 0.8)
 	settings.tonemap_mode = Environment.TONE_MAPPER_FILMIC
 	settings.fog_enabled = true
-	settings.fog_light_color = Color("be8368") if track_id>=Crimson.FIRST_ID else Color("273c50")
+	settings.fog_light_color = Color("c59b86") if track_id==4 else (Color("be8368") if track_id>=Crimson.FIRST_ID else Color("273c50"))
 	settings.fog_density = 0.0032 if track_id==4 else (0.0014 if track_id>=Crimson.FIRST_ID else 0.002)
 	settings.fog_sky_affect = 0.0
 	if track_id==4:
@@ -310,8 +310,8 @@ func _ready() -> void:
 	add_child(environment)
 	var sun := DirectionalLight3D.new()
 	sun.rotation_degrees = Vector3(-38, -28, 0)
-	sun.light_color = Color("ffd3a5") if track_id>=Crimson.FIRST_ID else Color("b8d6ef")
-	sun.light_energy = 0.95 if track_id==4 else (0.98 if track_id>=Crimson.FIRST_ID else 1.0)
+	sun.light_color = Color("ffe0b8") if track_id==4 else (Color("ffd3a5") if track_id>=Crimson.FIRST_ID else Color("b8d6ef"))
+	sun.light_energy = 1.01 if track_id==4 else (0.98 if track_id>=Crimson.FIRST_ID else 1.0)
 	sun.shadow_enabled = true
 	sun.directional_shadow_max_distance = 70
 	sun.shadow_bias = 0.15
@@ -654,6 +654,10 @@ func build_crimson_circuit() -> void:
 	var edge: StandardMaterial3D=material("ffd096",true)
 	var road_mat: StandardMaterial3D=material("464348")
 	road_mat.roughness=0.87
+	# A single road draw call, with inexpensive baked roadside darkening and
+	# tire-wear color variation on Crimson Serpent. No asphalt normal maps.
+	if track_id==4:
+		road_mat.vertex_color_use_as_albedo=true
 	for index in range(COUNT):
 		route.append(route_position(index))
 	if track_id==4:
@@ -679,10 +683,36 @@ func build_crimson_circuit() -> void:
 		var next_width: float=road_half_width((index+1)%COUNT)
 		var corners := PackedVector3Array([p-side*half_width,q-side_next*next_width,q+side_next*next_width,p+side*half_width])
 		var face_normal: Vector3=(q-p).cross(corners[2]-corners[1]).normalized()
-		for corner in [0,2,1,0,3,2]:
-			road.set_normal(face_normal)
-			road.set_uv(Vector2(corners[corner].x,corners[corner].z)*0.07)
-			road.add_vertex(corners[corner])
+		if track_id==4:
+			# More believable asphalt: darker road shoulders and gently worn
+			# wheel paths encoded directly as vertex colors. Four lengthwise
+			# strips still produce ONE road surface and ONE material.
+			for strip in range(4):
+				var u0: float=float(strip)*0.25
+				var u1: float=float(strip+1)*0.25
+				var a: Vector3=corners[0].lerp(corners[3],u0)
+				var b: Vector3=corners[1].lerp(corners[2],u0)
+				var c: Vector3=corners[1].lerp(corners[2],u1)
+				var d: Vector3=corners[0].lerp(corners[3],u1)
+				var quad: PackedVector3Array=PackedVector3Array([a,c,b,a,d,c])
+				var us: PackedFloat32Array=PackedFloat32Array([u0,u1,u0,u0,u1,u1])
+				for corner in range(quad.size()):
+					var lateral: float=us[corner]
+					var edge: float=absf(lateral-0.5)*2.0
+					var shoulder: float=smoothstep(0.35,1.0,edge)
+					var wear: float=0.024*(1.0-smoothstep(0.03,0.17,absf(lateral-0.25)))
+					wear+=0.024*(1.0-smoothstep(0.03,0.17,absf(lateral-0.75)))
+					var variation: float=0.009*sin(float(index)*0.17+lateral*5.0)
+					var tint: float=clampf(0.97-0.095*shoulder+wear+variation,0.84,1.02)
+					road.set_normal(face_normal)
+					road.set_color(Color(tint,tint*0.995,tint*0.993))
+					road.set_uv(Vector2(quad[corner].x,quad[corner].z)*0.07)
+					road.add_vertex(quad[corner])
+		else:
+			for corner in [0,2,1,0,3,2]:
+				road.set_normal(face_normal)
+				road.set_uv(Vector2(corners[corner].x,corners[corner].z)*0.07)
+				road.add_vertex(corners[corner])
 		if p.y>-0.01 or q.y>-0.01:
 			add_wall(walls,PackedVector3Array([corners[0],corners[1],Vector3(corners[1].x,-0.5,corners[1].z),Vector3(corners[0].x,-0.5,corners[0].z)]))
 			add_wall(walls,PackedVector3Array([corners[2],corners[3],Vector3(corners[3].x,-0.5,corners[3].z),Vector3(corners[2].x,-0.5,corners[2].z)]))

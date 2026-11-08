@@ -191,3 +191,30 @@ independent brute-force reference calculations at points throughout the gorge.
 The game logs `SCENEFORGE_SERPENT_TERRAIN_BUILD_MS` for reproducible scene
 startup observations. This is a load-time optimization; it is **not** a claim
 of increased on-device FPS until handset review.
+
+## Crimson Serpent — Mobile-racer baked lighting comparison
+
+Compared the proven 60 FPS corridor against techniques highlighted by
+Gameloft's Asphalt engine/lighting improvements, NetEase's ACE Racer 90 FPS
+optimization talk and Android Games' texture/lighting guidance.
+This test implements two light-weight quality improvements without changing
+the rendering backend:
+
+1. **Cliff curvature/ambient shading is baked directly into the existing
+   vertex colors**, using the already-computed grid normals and adjacent
+   height samples. Concave rock pockets are slightly darker; crests receive
+   subtle warm bounce. No runtime AO, shadow pass, new textures, or extra
+   vertices are required. Four near/far terrain chunk pairs remain unchanged.
+2. **Lighting color balance for track 4 only**: cooler sky/ambient fill,
+   warmer sun and more cohesive atmospheric fog. The preexisting FILMIC
+   tonemapper, 3D scale, shadow-map configuration and Compatibility renderer
+   are preserved. Red Mesa and Devil's Gate retain all their old lighting.
+3. **Asphalt depth:** one road material and one road mesh now contain four
+   narrow color strips across the surface to suggest worn wheel paths and
+   darker shoulders. No additional texture samplers or draw calls; the added
+   road triangles are a small fraction of terrain geometry.
+
+No 2K material, triplanar maps, reflections, per-frame SSAO, realtime
+global illumination, extra dynamic light or renderer switch. The 59-61 FPS
+baseline comes from the phone BEFORE this trial: visual quality and real
+on-device FPS are **not verified until the new build is installed**.

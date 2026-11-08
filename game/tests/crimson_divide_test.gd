@@ -46,6 +46,28 @@ func check() -> void:
 			assert(scenic!=null and scenic.mesh!=null,"Missing canyon scenery: "+name)
 			assert(scenic.mesh.get_surface_count()==1,"Scenery must stay batched")
 		if circuit==4:
+			# Mobile visual pass does not add an asphalt texture or extra
+			# material; fine color variation comes from baked road vertices.
+			var road_mesh: MeshInstance3D=scene.get_node("CrimsonDriveSurface")
+			var road_material: StandardMaterial3D=road_mesh.material_override as StandardMaterial3D
+			assert(road_material!=null and road_material.vertex_color_use_as_albedo)
+			assert(road_material.albedo_texture==null and not road_material.normal_enabled)
+			var road_arrays: Array=road_mesh.mesh.surface_get_arrays(0)
+			var road_verts: int=road_arrays[Mesh.ARRAY_VERTEX].size()
+			assert(road_verts>2000 and road_verts<6000)
+			assert(road_arrays[Mesh.ARRAY_COLOR].size()==road_verts)
+			# Color-only canyon AO: verify variance and the same one-map setup.
+			assert(scene.get_node("CrimsonStratifiedCliffs").get_child_count()==8)
+			var near: MeshInstance3D=scene.get_node("CrimsonStratifiedCliffs/Near_0_0")
+			var shades: PackedColorArray=near.mesh.surface_get_arrays(0)[Mesh.ARRAY_COLOR]
+			assert(shades.size()>10000)
+			var darkest: float=100.0
+			var lightest: float=0.0
+			for sample in range(0,shades.size(),83):
+				var brightness: float=shades[sample].get_luminance()
+				darkest=minf(darkest,brightness)
+				lightest=maxf(lightest,brightness)
+			assert(lightest-darkest>0.025,"Baked rock lighting should produce tonal separation")
 			# Cached segment sampling must reproduce the original brute-force
 			# projection across the sculpted basin, including road-adjacent points.
 			for xi in range(-3,4):
