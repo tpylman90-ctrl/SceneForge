@@ -1,6 +1,14 @@
 # SceneForge GLB Inspector — Android (native)
 Standalone offline Android GLB inspector for SceneForge and AssetWright.
 
+## Inspection view modes
+- **TEXTURED:** reloads the original GLB, including its authored materials.
+- **CLAY:** temporary neutral opaque materials, exposing uninterrupted geometry and silhouette.
+- **WIREFRAME:** emits unique indexed triangle edges as true GL_LINES; shared triangle edges are deduplicated.
+- Modes are reversible, original GLB bytes are never rewritten on disk. Unsupported compressed/sparse
+  topology returns a clear error rather than falsely displaying estimated edges.
+- Native device smoke test exercises all three modes using a two-triangle diagnostic GLB.
+
 ## Features
 - Native Android app, not HTML, WebView, or an image generator
 - Opens **actual .glb** files with Android's local document picker, or via Open With
