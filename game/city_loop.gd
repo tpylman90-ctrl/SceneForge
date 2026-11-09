@@ -359,6 +359,22 @@ func _ready() -> void:
 		hud.text = chassis.display_name+" / "+track_name()+"\nD 129 KM/H  /  BOOST ACTIVE"
 	if "--track-jump" in OS.get_cmdline_user_args():
 		prepare_jump_capture()
+	# Landmark proof: capture 7 spline segments before each hero assembly.
+	# The captures are in the real playable scene, not Blender mockups.
+	if track_id==4:
+		for landmark in [14,75,155]:
+			if "--track-landmark-%d" % landmark in OS.get_cmdline_user_args():
+				set_physics_process(false)
+				var start_idx: int=posmod(landmark-7,COUNT)
+				route_index=start_idx
+				car.position=route[start_idx]
+				var forward: Vector3=flat(route[(start_idx+3)%COUNT]-route[start_idx]).normalized()
+				heading=atan2(forward.x,forward.z)
+				car.rotation.y=heading
+				speed=30
+				update_camera(1.0)
+				hud.text="CRIMSON SERPENT / CANYON LANDMARK %d" % landmark
+				break
 	if "--track-overview" in OS.get_cmdline_user_args():
 		set_physics_process(false)
 		camera.position=Vector3(25,390,-25) if track_id>=Crimson.FIRST_ID else Vector3(120,185,-120)
@@ -1592,6 +1608,11 @@ func _process(_delta: float) -> void:
 			if track_id>0:
 				var circuit_prefix: String = ["NeonLoop","Skyway","ViperRift","IronHarbor","CrimsonSerpent","RedMesa","DevilsGate"][track_id]
 				file=circuit_prefix+("-overview.png" if "--track-overview" in OS.get_cmdline_user_args() else ("-jump.png" if "--track-jump" in OS.get_cmdline_user_args() else "-cockpit.png"))
+			if track_id==4:
+				for landmark in [14,75,155]:
+					if "--track-landmark-%d" % landmark in OS.get_cmdline_user_args():
+						file="CrimsonSerpent-landmark-%d.png" % landmark
+						break
 			if "--track-menu" in OS.get_cmdline_user_args():
 				file="Circuit-select.png"
 			if chassis.chassis_id in ["shrike","aerolith"] and "--track-action" in OS.get_cmdline_user_args():

@@ -103,3 +103,41 @@ amount of authored detail appears near useful driving-camera viewpoints.
 Optional two-channel packed atlas variant, fewer instances and more
 deliberately modeled overhangs where proven beneficial. No wholesale 4-way
 splatmapping or renderer switch without separate controlled benchmarks.
+
+## Second art-direction gate — Canyon landmarks (November 9, 2026)
+
+The first six-module kit preserved phone FPS but barely changed the silhouette.
+This revision deliberately changes the **authored geometry** rather than
+stacking more expensive shaders:
+
+- `wall_a/b/c`: increased from ~15–21 m to **28–34 m** in height and
+  8–10 m in thickness, more visible above the sculpted heightfield.
+  Fractures are cut 2–3 m deep into actual polygon surfaces; stepped
+  ledges now extend outward.
+- `sunstone_fang`: ~47 m primary tilted fang and ~27 m satellite blade,
+  three copies along **Sunstone Approach**.
+- `strata_buttress`: three linked, overlapping, tiered masses up to
+  ~43 m; four instances frame **Arch Run**.
+- `split_chimney`: asymmetrical 52 m and 42 m twin columns separated by
+  a genuine open slot; four instances mark **Low Canyon**.
+
+The landmarks use a second original Blender source:
+`tools/build_serpent_landmarks.py`. Source assets are assembled as
+closed solid meshes with real horizon-breaking geometry, then packed
+with baked vertex colors for local cavity/underside darkening.
+Every GLB asserts UV0 plus COLOR0; vertices are tinted in the shader by
+an ordinary StandardMaterial3D with **one 1024px albedo atlas only**.
+Each of its four tiles occupies 512px. The 256px original heightfield
+and 512px asphalt remain unchanged.
+
+The 11 landmark placements are art-directed along real spline indices
+14,20,28 / 60,67,75,101 / 146,155,166,175. The closest road branch must
+be at least 26 m from each placement; they are decorative and have no
+vehicle collisions or dynamic shadows. The old 59–61 FPS user baseline
+is **not proof of this revision's performance**.
+
+CI also takes real in-game driving-camera screenshots from 7 spline
+segments before indices **14,75,155**, so the landmark impact can be
+reviewed directly from the intended vehicle approach. Reject the pass
+if landmarks do not visibly read at driving speed or FPS drops from
+the verified 60 target.

@@ -34,6 +34,12 @@ class CapturePlanTests(unittest.TestCase):
             (False, (4,), ()),
         )
 
+    def test_hero_landmark_source_only_captures_serpent(self):
+        self.assertEqual(
+            choose_captures(["tools/build_serpent_landmarks.py"]),
+            (False, (4,), ()),
+        )
+
     def test_shrike_only(self):
         self.assertEqual(choose_captures(["game/vehicles/shrike_windshield.gd"]), (False, (), (2,)))
 

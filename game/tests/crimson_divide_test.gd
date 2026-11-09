@@ -61,7 +61,7 @@ func check() -> void:
 			# Blender modules are UV-mapped to one shared 512px sandstone atlas;
 			# MultiMesh instancing has no extra physics or dynamic shadows.
 			var rock_kit: Node3D=scene.get_node_or_null("CrimsonRockKit")
-			assert(rock_kit!=null and rock_kit.get_child_count()==6)
+			assert(rock_kit!=null and rock_kit.get_child_count()==9)
 			var total_instances: int=0
 			for node in rock_kit.get_children():
 				var batch_node: MultiMeshInstance3D=node as MultiMeshInstance3D
@@ -70,12 +70,18 @@ func check() -> void:
 				assert(batch_node.multimesh.mesh.surface_get_arrays(0)[Mesh.ARRAY_TEX_UV].size()>0)
 				var atlas: StandardMaterial3D=batch_node.material_override as StandardMaterial3D
 				assert(atlas!=null and atlas.albedo_texture!=null)
-				assert(atlas.albedo_texture.get_width()==512 and atlas.albedo_texture.get_height()==512)
+				assert(atlas.albedo_texture.get_width()==1024 and atlas.albedo_texture.get_height()==1024)
+				assert(atlas.vertex_color_use_as_albedo,"Offline baked geology must be visible")
 				assert(not atlas.uv1_triplanar and not atlas.normal_enabled)
 				assert(batch_node.cast_shadow==GeometryInstance3D.SHADOW_CASTING_SETTING_OFF)
 				assert(batch_node.multimesh.instance_count>0,"Every rock module should be instanced")
 				total_instances+=batch_node.multimesh.instance_count
-			assert(total_instances>35 and total_instances<120,"Instanced rock-kit budget")
+			assert(total_instances>45 and total_instances<175,"Instanced rock-kit budget")
+			for landmark_name in ["sunstone_fang","strata_buttress","split_chimney"]:
+				var hero: MultiMeshInstance3D=rock_kit.get_node(landmark_name)
+				assert(hero.multimesh.instance_count>=2,"Hero landmark must be visible on course")
+				assert(hero.has_meta("hero_landmark"))
+				assert(hero.multimesh.mesh.get_aabb().size.y>24.0,"Landmark silhouettes must rise above canyon")
 			# Color-only canyon AO: verify variance and the same one-map setup.
 			assert(scene.get_node("CrimsonStratifiedCliffs").get_child_count()==8)
 			var near: MeshInstance3D=scene.get_node("CrimsonStratifiedCliffs/Near_0_0")

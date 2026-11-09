@@ -237,3 +237,31 @@ the two original Python sources and budget verification are committed.
 Each archetype is drawn as one hardware MultiMesh. No extra real-time
 lights or terrain rebuilds. Other race courses remain unchanged. Phone
 performance remains unverified until the signed test APK is reviewed.
+
+## Signature canyon landmark pass — original Blender rock artistry
+
+Following the first kit's phone review ("not much improvement and zero
+performance loss"), the original Blender source now builds visibly taller
+and deeper closed cliff slabs (26–34 m high) with 3D fracture channels,
+undercut bedding shelves and recessed scar geometry. Three multi-mass
+hero assets expand the six-asset kit to nine UV-mapped meshes:
+`sunstone_fang` (~47 m), `strata_buttress` (~43 m), and
+`split_chimney` (~52 m). They use real open slots, leaning masses and
+stepped eroded ring profiles instead of flat painted rectangular panels.
+
+Hero instances are deliberately located beside Sunstone Approach,
+Arch Run and Low Canyon using route indices measured against the real
+192-point spline. Each placement checks >=26 m centerline clearance to
+avoid crossing nearby winding track branches. Visual props continue to
+carry **no collision shapes** or real-time shadows. Each archetype remains
+one MultiMesh draw, with cheap offline-baked vertex-color cavity/underside
+shading. Texture generation is offline: the **rock kit only** now uses
+one original 1024px (four 512px atlas tiles) albedo texture, with a more
+contrasting color/fracture pattern. The race-wide base heightfield stays
+on its single 256px breakup material; the road stays on a 512px albedo.
+No triplanar, normal-map, SSAO, runtime rock physics or renderer change.
+Godot/Android import tests verify nine meshes, colored UV vertices,
+the hero silhouette height, and preserved road behavior.
+
+**Acceptance remains an actual Android visual/FPS lap test**, not a claimed
+performance win from CI. The older handset result was ~59–61 FPS.

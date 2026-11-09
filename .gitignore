@@ -7,5 +7,5 @@ build/
 
 # Generated Blender GLBs and original atlas PNGs (source scripts in tools/).
 /game/assets/scenery/serpent/*.glb
-/game/tracks/serpent_textures/rock_atlas_512.png
+/game/tracks/serpent_textures/rock_atlas_1024.png
 /game/tracks/serpent_textures/asphalt_512.png

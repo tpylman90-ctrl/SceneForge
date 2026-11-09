@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Bake one original sandstone atlas and one subtle asphalt map (512px each).
+"""Bake one original 1024px sandstone atlas and a lightweight 512px road map.
 
 Pure Python stdlib: no on-device work, no external texture licenses, no normal
 maps. Four atlas quadrants have 3px inset UV margins authored in Blender.
@@ -36,29 +36,36 @@ def emit_png(path: Path, pixels: bytes) -> None:
     )
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_bytes(png)
-    print("SERPENT_512_ATLAS_OK", path.name, len(png),
+    print("SERPENT_RACING_TEXTURE_OK", path.name, len(png),
           hashlib.sha256(png).hexdigest())
 
 def sandstone_rgb(x: int, y: int) -> tuple[int, int, int]:
     tile = (x // HALF) + 2 * (y // HALF)
     u = (x % HALF) / HALF
     v = (y % HALF) / HALF
-    palettes = ((168, 109, 77), (126, 77, 56),
-                (190, 143, 101), (140, 95, 72))
+    palettes = ((190, 118, 76), (126, 71, 51),
+                (216, 168, 109), (156, 97, 67))
     base = palettes[tile]
-    # Seamless because every oscillation has whole-number tile periods.
-    shelf = 0.045 * sin(TAU * (9 * v + 0.085 * sin(TAU * 2 * u)))
-    sediment = 0.027 * sin(TAU * (20 * v + 0.042 * sin(TAU * 3 * u)))
-    long_erosion = 0.052 * sin(TAU * (3 * u + 2 * v))
-    crack = max(0.0, 0.082 - abs(sin(TAU * (6 * u + 0.055 * sin(TAU * 2 * v)))))
-    grain = (0.014 * sin(TAU * (37 * u + 43 * v))
-             + 0.008 * cos(TAU * (71 * u - 58 * v)))
-    variation = 1.0 + shelf + sediment + long_erosion + grain - crack * 0.62
-    # Light strips are baked, not another sampling pass in the mobile shader.
+    # 2D sediment benches, variegated rusty oxide, deep fracture seams.
+    # Multiple whole-number harmonics remain seamlessly tileable.
+    warp = 0.093 * sin(TAU * 2 * u) + 0.021 * sin(TAU * (5 * u + 3 * v))
+    bedding = sin(TAU * (11 * v + warp))
+    sediment = 0.057 * sin(TAU * (23 * v + .045 * sin(TAU * 3 * u)))
+    macro = 0.13 * sin(TAU * (3 * u + 2 * v))
+    macro += 0.058 * cos(TAU * (4 * u - 3 * v))
+    swash = 0.06 * sin(TAU * (2 * u + 7 * v))
+    narrow_seam = max(0.0, (0.15 - abs(bedding))/0.15) * 0.17
+    deep_scar = max(0.0, (0.105 - abs(sin(TAU * (6 * u + .075 * sin(TAU * 2 * v)))))/0.105)
+    deep_scar *= (0.55 + 0.45 * sin(TAU * (3 * v + 2 * u)))
+    chips = 0.021 * sin(TAU * (63 * u + 47 * v))
+    chips += 0.014 * cos(TAU * (87 * u - 59 * v))
+    variation = (0.94 + 0.075*bedding + sediment + macro + swash + chips
+                 - narrow_seam - 0.24*deep_scar)
     if tile == 2:
-        variation += 0.035
+        variation += 0.045
     elif tile == 1:
         variation -= 0.045
+    variation=max(0.58,min(1.25,variation))
     return tuple(max(0, min(255, round(vv * variation))) for vv in base)
 
 def asphalt_rgb(x: int, y: int) -> tuple[int, int, int]:
@@ -85,8 +92,12 @@ def make_pixels(fn) -> bytes:
     return bytes(data)
 
 def main():
+    global SIZE, HALF
     root = Path.cwd() / "game/tracks/serpent_textures"
-    emit_png(root / "rock_atlas_512.png", make_pixels(sandstone_rgb))
+    SIZE, HALF = 1024, 512
+    emit_png(root / "rock_atlas_1024.png", make_pixels(sandstone_rgb))
+    # Keep road sampling, memory footprint and capture budget unchanged.
+    SIZE, HALF = 512, 256
     emit_png(root / "asphalt_512.png", make_pixels(asphalt_rgb))
 
 if __name__ == "__main__":

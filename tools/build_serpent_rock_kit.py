@@ -20,14 +20,15 @@ bpy.ops.object.delete(use_global=False)
 
 # width X, face thickness Y, upright Z (export_yup converts Z to Godot Y).
 SPEC = {
-    "wall_a": (19.0, 17.0, 3.0, 17, 0),
-    "wall_b": (25.0, 21.0, 4.2, 31, 1),
-    "wall_c": (16.0, 15.0, 3.1, 49, 2),
-    "ledge_a": (11.5, 4.2, 4.5, 73, 2),
-    "ledge_b": (14.0, 3.6, 5.1, 101, 3),
+    "wall_a": (26.0, 29.0, 8.0, 17, 0),
+    "wall_b": (30.0, 34.0, 10.0, 31, 1),
+    "wall_c": (24.0, 28.0, 8.0, 49, 2),
+    "ledge_a": (16.5, 5.7, 7.5, 73, 2),
+    "ledge_b": (19.0, 5.3, 8.0, 101, 3),
 }
-BUDGET = {"wall_a": 750, "wall_b": 750, "wall_c": 750,
-          "ledge_a": 750, "ledge_b": 750, "boulder_a": 150}
+BUDGET = {"wall_a": 1000, "wall_b": 1000, "wall_c": 1000,
+          "ledge_a": 1000, "ledge_b": 1000, "boulder_a": 150,
+          "sunstone_fang": 1800, "strata_buttress": 2300, "split_chimney": 1800}
 
 def atlas_uv(tile, u, v):
     # A 3 pixel bleed guard at 512px resolution: no adjacent atlas tiles.
@@ -38,7 +39,7 @@ def atlas_uv(tile, u, v):
 def rock_piece(name, width, height, depth, seed, tile):
     rng = random.Random(seed)
     ledge = name.startswith("ledge")
-    nx, nz = (10, 6) if ledge else (12, 8)
+    nx, nz = (12, 8) if ledge else (14, 10)
     vertices, uv_by_index = [], []
     # Front rock surface and recessed back surface form a solid, closed mesh.
     for side in range(2):
@@ -46,18 +47,19 @@ def rock_piece(name, width, height, depth, seed, tile):
             v = j / nz
             for i in range(nx + 1):
                 u = i / nx
-                corner_noise = 0.26 * math.sin(i * 1.63 + j * 0.83 + seed)
+                corner_noise = 0.45 * math.sin(i * 1.63 + j * 0.83 + seed)
                 x = width * (u - 0.5)
                 x += (0.19 if ledge else 0.45) * math.sin(v * 8.8 + seed * 0.7) * math.sin(math.pi * u)
                 z = height * v + corner_noise * v * (1.0 - v)
-                bedding = 0.34 * math.sin(v * 22 + seed * 0.11) + 0.18 * math.cos(v * 34 + u * 11)
-                fissure = -0.86 * math.exp(-((u - (0.27 + 0.075 * math.sin(v * 7 + seed))) / 0.065) ** 2)
-                fissure += -0.62 * math.exp(-((u - (0.69 + 0.045 * math.cos(v * 10 + seed))) / 0.06) ** 2)
-                terraces = (0.48 if v < 0.39 else (-0.30 if v < 0.69 else 0.12))
+                bedding = 0.75 * math.sin(v * 22 + seed * 0.11) + 0.34 * math.cos(v * 34 + u * 11)
+                fissure = -2.5 * math.exp(-((u - (0.26 + 0.075 * math.sin(v * 7 + seed))) / 0.065) ** 2)
+                fissure += -1.9 * math.exp(-((u - (0.70 + 0.045 * math.cos(v * 10 + seed))) / 0.06) ** 2)
+                terraces = (1.25 if v < 0.32 else (-1.4 if v < 0.59 else 1.85))
                 if ledge:
-                    terraces = (1.85 if v > 0.54 else 0.48)
-                face = 0.16 * depth + terraces + bedding + fissure
-                face += 0.28 * math.sin(i * 0.9 + j * 1.7 + seed)
+                    terraces = (3.65 if v > 0.54 else -0.52)
+                face = 0.18 * depth + terraces + bedding + fissure
+                face += 0.57 * math.sin(i * 0.9 + j * 1.7 + seed)
+                face += 0.48 * math.sin(u*13.0 + v*17.0 + seed)
                 y = (-depth + 0.05 * math.sin(j + i)) if side else face
                 vertices.append((x, y, z))
                 uv_by_index.append(atlas_uv(tile, u, v))
@@ -120,6 +122,11 @@ def boulder(name):
 
 objects = [rock_piece(key, *values) for key, values in SPEC.items()]
 objects.append(boulder("boulder_a"))
+# Three distinct skyline landmarks; source uses this script's mesh/UV helpers.
+exec((ROOT / "tools/build_serpent_landmarks.py").read_text())
+objects.extend(make_landmarks())
+for obj in objects:
+    bake_rock_color(obj)
 report = []
 for obj in objects:
     bpy.ops.object.select_all(action="DESELECT")
@@ -129,17 +136,22 @@ for obj in objects:
     bpy.ops.export_scene.gltf(
         filepath=str(dest), export_format="GLB", use_selection=True,
         export_yup=True, export_texcoords=True, export_normals=True,
-        export_materials="NONE", export_animations=False
+        export_materials="NONE", export_animations=False,
+        export_vertex_color="ACTIVE", export_all_vertex_colors=False
     )
     triangles = sum(len(face.vertices) - 2 for face in obj.data.polygons)
     assert 12 < triangles < BUDGET[obj.name], (obj.name, triangles)
     assert dest.stat().st_size > 400, dest
     raw = dest.read_bytes()
     assert raw[:4] == b"glTF" and struct.unpack_from("<I", raw, 8)[0] == len(raw)
+    json_size=struct.unpack_from("<I",raw,12)[0]
+    definition=json.loads(raw[20:20+json_size])
+    assert all("TEXCOORD_0" in p["attributes"] and "COLOR_0" in p["attributes"]
+               for m in definition["meshes"] for p in m["primitives"])
     report.append({"asset": obj.name, "triangles": triangles,
                    "bytes": dest.stat().st_size, "mesh_instances": 1})
     print("SERPENT_BLENDER_ASSET_OK", obj.name, triangles, dest.stat().st_size)
-assert sum(x["triangles"] for x in report) < 3500
+assert sum(x["triangles"] for x in report) < 11500
 REPORT.write_text(json.dumps({"asset_family": "Crimson Serpent rock modules",
     "license": "Original authored procedural Blender work",
     "source": "tools/build_serpent_rock_kit.py", "assets": report,

@@ -49,7 +49,8 @@ def choose_captures(paths: list[str], scope: str = "auto") -> tuple[bool, tuple[
                 or path.startswith("game/tracks/serpent_textures/")
                 or path.startswith("game/assets/scenery/serpent/")
                 or path in {"game/tracks/serpent_canyon.gd", "game/tracks/serpent_rock_kit.gd",
-                            "tools/build_serpent_rock_kit.py", "tools/bake_serpent_racing_textures.py"}):
+                            "tools/build_serpent_rock_kit.py", "tools/build_serpent_landmarks.py",
+                            "tools/bake_serpent_racing_textures.py"}):
             # Dedicated sculpt passes never require Red Mesa / Devil's Gate captures.
             tracks.add(4)
         elif path.startswith("game/tracks/") and not path.endswith(".md"):

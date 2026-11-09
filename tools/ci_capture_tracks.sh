@@ -26,6 +26,12 @@ for circuit in ${CAPTURE_TRACKS:-}; do
   test -s "build/$name-cockpit.png"
   capture_track "track-$circuit-jump" --track-jump --circuit-"$circuit"
   test -s "build/$jump-jump.png"
+  if [[ "$circuit" == 4 ]]; then
+    for index in 14 75 155; do
+      capture_track "track-$circuit-landmark-$index" --track-landmark-"$index" --circuit-"$circuit"
+      test -s "build/CrimsonSerpent-landmark-$index.png"
+    done
+  fi
 done
 
 # Extra legacy views only when the main city course is under inspection.
