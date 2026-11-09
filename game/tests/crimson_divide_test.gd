@@ -76,10 +76,10 @@ func check() -> void:
 				assert(batch_node.cast_shadow==GeometryInstance3D.SHADOW_CASTING_SETTING_OFF)
 				assert(batch_node.multimesh.instance_count>0,"Every rock module should be instanced")
 				total_instances+=batch_node.multimesh.instance_count
-			assert(total_instances>45 and total_instances<175,"Instanced rock-kit budget")
+			assert(total_instances>30 and total_instances<100,"Fewer cohesive instanced rocks expected")
 			for landmark_name in ["sunstone_fang","strata_buttress","split_chimney"]:
 				var hero: MultiMeshInstance3D=rock_kit.get_node(landmark_name)
-				assert(hero.multimesh.instance_count>=2,"Hero landmark must be visible on course")
+				assert(hero.multimesh.instance_count==1,"One continuous escarpment per sector")
 				assert(hero.has_meta("hero_landmark"))
 				assert(hero.multimesh.mesh.get_aabb().size.y>24.0,"Landmark silhouettes must rise above canyon")
 			# Color-only canyon AO: verify variance and the same one-map setup.
@@ -119,8 +119,8 @@ func check() -> void:
 				assert(rock.cast_shadow==GeometryInstance3D.SHADOW_CASTING_SETTING_OFF)
 				var mat: StandardMaterial3D=rock.material_override as StandardMaterial3D
 				assert(mat!=null and mat.cull_mode==BaseMaterial3D.CULL_DISABLED)
-				assert(mat.albedo_texture!=null and mat.albedo_texture.get_width()==256)
-				assert(mat.albedo_texture.get_height()==256)
+				assert(mat.albedo_texture!=null and mat.albedo_texture.get_width()==512)
+				assert(mat.albedo_texture.get_height()==512)
 				assert(not mat.uv1_triplanar and not mat.normal_enabled,"Single-pass UV albedo only")
 				has_bedrock_cap=has_bedrock_cap or (rock.mesh.get_aabb().position.y+rock.position.y<=-37.9)
 				var vertices: int=rock.mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX].size()
@@ -141,7 +141,11 @@ func check() -> void:
 			assert(FileAccess.file_exists(map_path))
 			assert(FileAccess.get_file_as_bytes(map_path).size()==1024*512*2)
 			var apron: MeshInstance3D=scene.get_node("CrimsonTerrain")
-			assert(apron.mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX].size()>1000)
+			assert(apron.mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX].size()>7000,
+				"Graded roadside talus transition must use multiple strips")
+			var apron_mat: StandardMaterial3D=apron.material_override as StandardMaterial3D
+			assert(apron_mat!=null and apron_mat.albedo_texture!=null)
+			assert(apron_mat.albedo_texture.get_width()==512)
 			var rubble: MultiMeshInstance3D=scene.get_node_or_null("CrimsonTalus")
 			assert(rubble!=null and rubble.multimesh!=null)
 			assert(rubble.multimesh.instance_count>=40)

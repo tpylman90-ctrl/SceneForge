@@ -1,7 +1,7 @@
-"""Original Blender 4.5 Crimson Serpent cliff kit, generated before Godot import.
+"""Original Blender 4.5 eroded cliff kit for Crimson Serpent.
 
-No paid services, imported meshes, AI models, runtime modifiers or texture
-baking on Android. All six source meshes are exported as reusable UV-mapped GLBs.
+Nine UV-mapped source meshes, three continuous cohesive escarpments.
+No paid assets, runtime modifiers, high-cost material blending or Android baking.
 """
 import bpy
 import json
@@ -20,11 +20,11 @@ bpy.ops.object.delete(use_global=False)
 
 # width X, face thickness Y, upright Z (export_yup converts Z to Godot Y).
 SPEC = {
-    "wall_a": (26.0, 29.0, 8.0, 17, 0),
-    "wall_b": (30.0, 34.0, 10.0, 31, 1),
-    "wall_c": (24.0, 28.0, 8.0, 49, 2),
-    "ledge_a": (16.5, 5.7, 7.5, 73, 2),
-    "ledge_b": (19.0, 5.3, 8.0, 101, 3),
+    "wall_a": (25.0, 25.0, 8.0, 17, 0),
+    "wall_b": (30.0, 27.0, 9.0, 31, 1),
+    "wall_c": (23.0, 23.0, 8.0, 49, 2),
+    "ledge_a": (16.5, 5.7, 6.8, 73, 2),
+    "ledge_b": (19.0, 5.3, 7.0, 101, 3),
 }
 BUDGET = {"wall_a": 1000, "wall_b": 1000, "wall_c": 1000,
           "ledge_a": 1000, "ledge_b": 1000, "boulder_a": 150,
@@ -51,16 +51,15 @@ def rock_piece(name, width, height, depth, seed, tile):
                 x = width * (u - 0.5)
                 x += (0.19 if ledge else 0.45) * math.sin(v * 8.8 + seed * 0.7) * math.sin(math.pi * u)
                 z = height * v + corner_noise * v * (1.0 - v)
-                bedding = 0.75 * math.sin(v * 22 + seed * 0.11) + 0.34 * math.cos(v * 34 + u * 11)
-                fissure = -2.5 * math.exp(-((u - (0.26 + 0.075 * math.sin(v * 7 + seed))) / 0.065) ** 2)
-                fissure += -1.9 * math.exp(-((u - (0.70 + 0.045 * math.cos(v * 10 + seed))) / 0.06) ** 2)
-                terraces = (1.25 if v < 0.32 else (-1.4 if v < 0.59 else 1.85))
-                if ledge:
-                    terraces = (3.65 if v > 0.54 else -0.52)
-                face = 0.18 * depth + terraces + bedding + fissure
-                face += 0.57 * math.sin(i * 0.9 + j * 1.7 + seed)
-                face += 0.48 * math.sin(u*13.0 + v*17.0 + seed)
-                y = (-depth + 0.05 * math.sin(j + i)) if side else face
+                bedding = 0.46 * math.sin(v * 13 + seed * 0.11) + 0.24 * math.cos(v * 22 + u * 9)
+                fracture = -1.4 * math.exp(-((u-(0.3+0.065*math.sin(v*7+seed)))/.055)**2)
+                smooth_shelf = (1.3 if ledge else 0.9) * math.tanh((v-.43)*19)
+                smooth_shelf += 0.6 * math.tanh((v-.73)*17)
+                # Blend irregular ends underneath the sculpted canyon base.
+                edge_fade = max(0.0,1.0-(2*u-1)**2)**1.5
+                face = -depth*.68 + edge_fade*(depth*.90+bedding+fracture+smooth_shelf)
+                face += edge_fade*.31*math.sin(u*13.0+v*17.0+seed)
+                y = -depth-1.4 if side else face
                 vertices.append((x, y, z))
                 uv_by_index.append(atlas_uv(tile, u, v))
     stride = (nx + 1) * (nz + 1)
@@ -91,7 +90,7 @@ def rock_piece(name, width, height, depth, seed, tile):
     mesh.update()
     uv_layer = mesh.uv_layers.new(name="UVMap")
     for polygon in mesh.polygons:
-        polygon.use_smooth = False
+        polygon.use_smooth = True
         for loop_id in polygon.loop_indices:
             vid = mesh.loops[loop_id].vertex_index
             uv_layer.data[loop_id].uv = uv_by_index[vid]

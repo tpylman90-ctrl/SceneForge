@@ -9,3 +9,5 @@ build/
 /game/assets/scenery/serpent/*.glb
 /game/tracks/serpent_textures/rock_atlas_1024.png
 /game/tracks/serpent_textures/asphalt_512.png
+
+/game/tracks/serpent_textures/terrain_sandstone_512.png

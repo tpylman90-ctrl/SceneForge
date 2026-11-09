@@ -265,3 +265,33 @@ the hero silhouette height, and preserved road behavior.
 
 **Acceptance remains an actual Android visual/FPS lap test**, not a claimed
 performance win from CI. The older handset result was ~59–61 FPS.
+
+## Cohesive Sandstone Canyon — geometry integration correction (November 9)
+
+A handset screenshot of the prior landmark pass showed clipped, floating,
+distinctly faceted rock prisms and obvious repetitive rock-strip banding,
+despite a solid 60 FPS. Those are **art/geometry integration defects**, not
+GPU bottlenecks. This trial keeps the same signed APK workflow but changes:
+
+* The three tall split spire/cube formations into broad, shallow,
+  **continuous wind-eroded sandstone escarpments**. 23x15 front grid
+  vertices per piece, smooth normals, gradual strata lips, wavy crowns,
+  organic folds and buried edges. Exactly **one** wide landmark per zone:
+  route 20 (Sunstone Approach), 75 (Arch Run), 155 (Low Canyon).
+* Supporting wall modules are now softer sculpted relief, fewer and
+  farther apart (stride 16 rather than 6 route points), with more than
+  half of each insert embedded into the source heightfield. Decorative
+  rocks retain deterministic route-safety checks and zero collisions.
+* The original terrain's single 256px gray breakup becomes a **single
+  512px tileable sandstone texture** with broader color and bedding
+  variation. The offline 1024px landmark atlas gets less mechanical
+  striping. No triplanar, normal maps or extra pixel samplers.
+* The road-to-canyon apron uses four connected rubble/scree strips
+  between road barrier and real sculpted terrain instead of one planar
+  wedge. Each strip is part of one static, vertex-tinted mesh, sampling
+  the same 512px sandstone color map. Collision and jump openings remain
+  unchanged.
+
+**CI smoke/geometry tests cannot establish on-phone FPS**. The trial
+remains gated on visible geological continuity with no floating panels,
+no disappearing canyon walls, and the proven ~59–61 FPS handset baseline.

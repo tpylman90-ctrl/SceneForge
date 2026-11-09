@@ -1,8 +1,8 @@
 extends RefCounted
 
-# Instanced Blender rock-kit pass for Crimson Serpent only. The sculpted
-# heightfield remains the support landform and stays unchanged. Imported GLB
-# modules have real UVs into one 512x512 atlas and never get collisions.
+# Cohesive Canyon pass: fewer, broader eroded modules, carefully sunk into
+# the original Terrain3D landform. The shared Blender UV atlas is 1024px;
+# all rocks remain visual-only, collision-free and batched via MultiMesh.
 const ATLAS_PATH = "res://tracks/serpent_textures/rock_atlas_1024.png"
 const ASSET_DIR = "res://assets/scenery/serpent/"
 const NAMES = ["wall_a","wall_b","wall_c","ledge_a","ledge_b","boulder_a",
@@ -89,7 +89,7 @@ static func populate(owner: Node3D, route: PackedVector3Array, heightmap: Packed
 	# Attach detailed cliff pieces to the steep part of both walls. Sampling
 	# the real sculpt height and checking nearest road branch prevents random
 	# rock pillars intruding into the playable course on tight turns.
-	for index in range(6,route.size()-4,6):
+	for index in range(6,route.size()-4,16):
 		if index>=39 and index<=52:
 			continue # Unobstructed leap silhouette and landing
 		if index>=81 and index<=92:
@@ -100,28 +100,28 @@ static func populate(owner: Node3D, route: PackedVector3Array, heightmap: Packed
 		var outward:=Vector3(tangent.z,0.0,-tangent.x)
 		var yaw: float=atan2(-tangent.z,tangent.x)
 		for side_sign in [-1.0,1.0]:
-			var lateral: float=27.0+rng.randf_range(-1.5,2.8)
+			var lateral: float=28.0+rng.randf_range(-0.8,2.2)
 			var center: Vector3=p+outward*side_sign*lateral
 			if _near_road(route,center.x,center.z)<25.0:
 				continue
 			if absf(center.x)>330.0 or absf(center.z)>216.0:
 				continue
-			var model: int=(index/6+(0 if side_sign<0 else 1))%3
-			var height: float=[17.0,21.0,15.0][model]
-			# Stop hiding most of the mesh below the sculpted terrain.
-			# Keep the base embedded, leaving the fracture silhouette exposed.
-			center.y=_terrain_y(heightmap,center.x,center.z)-height*0.24
+			var model: int=(index/16+(0 if side_sign<0 else 1))%3
+			var height: float=[25.0,27.0,23.0][model]
+			# More than half of each authored rock is embedded in the real
+			# terrain, so the contact is continuous rather than pasted on.
+			center.y=_terrain_y(heightmap,center.x,center.z)-height*0.52
 			var rotation: float=yaw+(PI if side_sign>0.0 else 0.0)
-			var scale: float=rng.randf_range(0.88,1.12)
+			var scale: float=rng.randf_range(0.94,1.06)
 			spots[model].append(Transform3D(Basis(Vector3.UP,rotation).scaled(Vector3(scale,scale,scale)),center))
 			# Shelf motifs appear between some wall modules, not everywhere.
-			if index%18==6:
+			if index%32==6:
 				var shelf_id: int=3+int(side_sign>0.0)
-				var shelf_point: Vector3=center+outward*side_sign*3.0+Vector3.UP*(height*0.34)
+				var shelf_point: Vector3=center+outward*side_sign*1.8+Vector3.UP*(height*0.38)
 				var shelf_basis:=Basis(Vector3.UP,rotation).scaled(Vector3(scale,scale,scale))
 				spots[shelf_id].append(Transform3D(shelf_basis,shelf_point))
 	# Small boulders are placed sparsely and never in the road envelope.
-	for index in range(4,route.size(),4):
+	for index in range(4,route.size(),6):
 		if index>=40 and index<=52:
 			continue
 		var p: Vector3=route[index]
@@ -129,50 +129,42 @@ static func populate(owner: Node3D, route: PackedVector3Array, heightmap: Packed
 		var tangent:=Vector3(q.x-p.x,0.0,q.z-p.z).normalized()
 		var outward:=Vector3(tangent.z,0.0,-tangent.x)
 		var sign: float=-1.0 if rng.randf()<0.5 else 1.0
-		var candidate: Vector3=p+outward*sign*rng.randf_range(19.5,25.0)
+		var candidate: Vector3=p+outward*sign*rng.randf_range(19.2,25.5)
 		if _near_road(route,candidate.x,candidate.z)<18.0:
 			continue
 		if absf(candidate.x)>330.0 or absf(candidate.z)>216.0:
 			continue
 		candidate.y=_terrain_y(heightmap,candidate.x,candidate.z)+0.3
-		var size: float=rng.randf_range(0.85,1.65)
+		var size: float=rng.randf_range(0.90,1.50)
 		spots[5].append(Transform3D(Basis(Vector3.UP,rng.randf_range(-PI,PI)).scaled(Vector3(size,size,size)),candidate))
-	# Carefully composed skyline landmarks rather than random prop clutter.
-	# Index anchors correspond to three recognizable racing sections:
-	# 1) Sunstone Approach's tall teeth; 2) Arch Run's eroded buttress;
-	# 3) Low Canyon's forked chimneys. Each uses the true sculpted heightmap.
+	# One sculpted escarpment per cinematic zone. They are wide, shallow
+	# erosion folds, NOT grouped vertical pillars. The rest of the canyon
+	# remains the continuous sculpted terrain and its native rock texture.
 	var landmark_plan: Array[Dictionary]=[
-		{"index":14, "side":-1.0, "kind":6, "distance":31.0, "scale":1.06},
-		{"index":20, "side":1.0, "kind":6, "distance":31.0, "scale":0.98},
-		{"index":28, "side":-1.0, "kind":6, "distance":31.0, "scale":0.94},
-		{"index":60, "side":-1.0, "kind":7, "distance":31.0, "scale":1.03},
-		{"index":67, "side":-1.0, "kind":7, "distance":31.0, "scale":0.91},
-		{"index":75, "side":1.0, "kind":7, "distance":31.0, "scale":1.10},
-		{"index":101, "side":1.0, "kind":7, "distance":31.0, "scale":0.93},
-		{"index":146, "side":1.0, "kind":8, "distance":31.0, "scale":1.00},
-		{"index":155, "side":-1.0, "kind":8, "distance":31.0, "scale":0.94},
-		{"index":166, "side":1.0, "kind":8, "distance":31.0, "scale":1.08},
-		{"index":175, "side":-1.0, "kind":8, "distance":31.0, "scale":0.90},
+		{"index":20, "side":-1.0, "kind":6, "distance":30.0, "scale":1.0},
+		{"index":75, "side":1.0, "kind":7, "distance":30.0, "scale":1.0},
+		{"index":155, "side":-1.0, "kind":8, "distance":30.0, "scale":1.0},
 	]
 	for feature in landmark_plan:
 		var index: int=int(feature["index"])
 		var sign: float=float(feature["side"])
 		var kind: int=int(feature["kind"])
 		var along: Vector3=route[index]
-		var next: Vector3=route[(index+3)%route.size()]
-		var tangent:=Vector3(next.x-along.x,0.0,next.z-along.z).normalized()
+		var ahead: Vector3=route[(index+3)%route.size()]
+		var tangent:=Vector3(ahead.x-along.x,0.0,ahead.z-along.z).normalized()
 		var outward:=Vector3(tangent.z,0.0,-tangent.x)
 		var position: Vector3=along+outward*sign*float(feature["distance"])
 		if _near_road(route,position.x,position.z)<26.0:
-			push_error("Crimson landmark too close to neighboring track branch")
+			push_error("Cohesive cliff too close to neighboring branch")
 			continue
 		if absf(position.x)>325.0 or absf(position.z)>211.0:
 			continue
-		position.y=_terrain_y(heightmap,position.x,position.z)-7.5
-		var angle: float=atan2(-tangent.z,tangent.x)+(PI if sign>0.0 else 0.0)
-		var factor: float=float(feature["scale"])
+		var form_height: float=[33.0,31.0,35.0][kind-6]
+		position.y=_terrain_y(heightmap,position.x,position.z)-form_height*0.69
+		var rotation: float=atan2(-tangent.z,tangent.x)+(PI if sign>0.0 else 0.0)
+		var size: float=float(feature["scale"])
 		spots[kind].append(Transform3D(
-			Basis(Vector3.UP,angle).scaled(Vector3(factor,factor,factor)),position))
+			Basis(Vector3.UP,rotation).scaled(Vector3(size,size,size)),position))
 	var material: StandardMaterial3D=_stone_material()
 	for i in range(NAMES.size()):
 		var mesh: Mesh=_load_mesh(NAMES[i])

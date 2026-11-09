@@ -11,7 +11,7 @@ const CHUNKS_X = 2
 const CHUNKS_Z = 2
 const FAR_STEP = 2
 const LOD_DISTANCE = 215.0
-const SANDSTONE_BREAKUP = preload("res://tracks/serpent_textures/serpent_breakup_256.png")
+const SANDSTONE_BREAKUP = preload("res://tracks/serpent_textures/terrain_sandstone_512.png")
 const RockKit = preload("res://tracks/serpent_rock_kit.gd")
 const HALF_X = 340.0
 const HALF_Z = 222.0
@@ -136,17 +136,19 @@ static func _ground(nearest: Vector3, noise: FastNoiseLite, x: float, z: float) 
 	return floor_y+mass*variation+fracture+weathering
 
 static func _color(y: float, distance: float, x: float, z: float, noise: FastNoiseLite) -> Color:
-	# Subtle layered rock bedding and darkened bases, avoiding stripe blocks.
-	var grain: float=noise.get_noise_2d(x*0.18+63.0,z*0.18-11.0)
-	var contour: float=noise.get_noise_2d(x*0.34+7.0,z*0.34+51.0)
-	var strata_y: float=y+2.6*noise.get_noise_2d(x*0.11+53.0,z*0.11-47.0)
-	var band: float=0.5+0.5*sin(strata_y*0.44+contour)
-	var seam: float=pow(1.0-band,8.0)
-	var hue: float=clampf(0.44+0.23*grain+0.12*band,0.07,0.9)
+	# Slow, large-scale sediment color and oxidation remain in vertices.
+	# The matching 512px albedo adds small structure without normal-map reads.
+	var grain: float=noise.get_noise_2d(x*0.16+63.0,z*0.16-11.0)
+	var contour: float=noise.get_noise_2d(x*0.27+7.0,z*0.27+51.0)
+	var strata_y: float=y+2.3*noise.get_noise_2d(x*0.09+53.0,z*0.09-47.0)
+	var band: float=0.5+0.5*sin(strata_y*0.38+contour*0.7)
+	var seam: float=pow(1.0-band,6.0)
+	var hue: float=clampf(0.42+0.30*grain+0.14*band+0.08*contour,0.05,0.96)
 	var color: Color=ROCK_PALETTE[0].lerp(ROCK_PALETTE[3],hue)
-	color*=1.0-0.11*seam
-	var near_foot: float=1.0-smoothstep(17.0,29.0,distance)
-	color=color.lerp(ROCK_PALETTE[0].darkened(0.08),near_foot*0.48)
+	color*=1.0-0.15*seam
+	# Natural dark talus toe, faded by height and distance from the road.
+	var near_foot: float=1.0-smoothstep(16.0,30.0,distance)
+	color=color.lerp(ROCK_PALETTE[0].darkened(0.08),near_foot*0.39)
 	return color.lerp(Color("a27b6a"),clampf((distance-125.0)/210.0,0.0,0.24))
 
 static func _material(use_grain: bool=false) -> StandardMaterial3D:
@@ -316,40 +318,61 @@ static func _cliff_mesh(owner: Node3D, route: PackedVector3Array, noise: FastNoi
 				group.add_child(patch)
 
 static func _road_shoulder(owner: Node3D, route: PackedVector3Array, noise: FastNoiseLite) -> void:
-	# Thin gravel transitions blend the raised road edges into the canyon
-	# floor. Only decorative: cannot affect steering or collisions.
-	var st := SurfaceTool.new()
+	# The sculpted canyon gets a continuous graduated talus toe: four low-poly
+	# gravel strips instead of one vertical soil wedge at the barrier. Each
+	# strip samples the original heightfield and matches the final terrain
+	# on its outer edge. Decorative only; the road collision stays untouched.
+	var st:=SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	var size: int=route.size()
-	var soil: Color=Color("8a624f")
-	for index in range(size):
+	var count: int=route.size()
+	var offsets:=PackedFloat32Array([1.2,3.4,6.2,9.7,13.0])
+	var rock_inner:=Color("8d6956")
+	var rock_outer:=Color("a2775b")
+	for index in range(count):
+		# The jump stays a true gap, no gravel bridge.
+		if index>=44 and index<48:
+			continue
 		var p: Vector3=route[index]
-		var q: Vector3=route[(index+1)%size]
-		var tangent: Vector3=Vector3(q.x-p.x,0.0,q.z-p.z).normalized()
-		var next: Vector3=route[(index+2)%size]
-		var ahead: Vector3=Vector3(next.x-q.x,0.0,next.z-q.z).normalized()
-		var side: Vector3=Vector3(tangent.z,0,-tangent.x)
-		var side_next: Vector3=Vector3(ahead.z,0,-ahead.x)
+		var q: Vector3=route[(index+1)%count]
+		var tangent:=Vector3(q.x-p.x,0.0,q.z-p.z).normalized()
+		var next: Vector3=route[(index+2)%count]
+		var ahead:=Vector3(next.x-q.x,0.0,next.z-q.z).normalized()
+		var side:=Vector3(tangent.z,0.0,-tangent.x)
+		var side_next:=Vector3(ahead.z,0.0,-ahead.x)
+		var width: float=10.5 if index>=86 and index<=126 else 12.0
+		var next_index: int=(index+1)%count
+		var width_next: float=10.5 if next_index>=86 and next_index<=126 else 12.0
 		for sign in [-1.0,1.0]:
-			var w: float=10.5 if index>=86 and index<=126 else 12.0
-			var next_i: int=(index+1)%size
-			var w_next: float=10.5 if next_i>=86 and next_i<=126 else 12.0
-			var a: Vector3=p+side*sign*(w+1.5)-Vector3.UP*0.55
-			var b: Vector3=q+side_next*sign*(w_next+1.5)-Vector3.UP*0.55
-			var c: Vector3=q+side_next*sign*(w_next+5.6)
-			var d: Vector3=p+side*sign*(w+5.6)
-			c.y=_height(_nearest(c.x,c.z),noise,c.x,c.z)
-			d.y=_height(_nearest(d.x,d.z),noise,d.x,d.z)
-			# Skip the gap, keeping a visible leap instead of a soil bridge.
-			if index>=44 and index<48:
-				continue
-			var n: Vector3=Vector3.UP
-			_tri(st,a,b,c,n,n,n,soil,soil,soil.lightened(0.04))
-			_tri(st,a,c,d,n,n,n,soil,soil.lightened(0.04),soil.lightened(0.05))
-	var mesh := MeshInstance3D.new()
+			var last_a:=Vector3.ZERO
+			var last_b:=Vector3.ZERO
+			var last_tint:=rock_inner
+			for step in range(offsets.size()):
+				var offset: float=offsets[step]
+				var u: float=float(step)/float(offsets.size()-1)
+				var blend: float=smoothstep(0.0,1.0,u)
+				var a: Vector3=p+side*sign*(width+offset)
+				var b: Vector3=q+side_next*sign*(width_next+offset)
+				var terrain_a: float=_height(_nearest(a.x,a.z),noise,a.x,a.z)
+				var terrain_b: float=_height(_nearest(b.x,b.z),noise,b.x,b.z)
+				a.y=lerpf(p.y-0.54,terrain_a,blend)
+				b.y=lerpf(q.y-0.54,terrain_b,blend)
+				# Low-relief rubble ripple; must vanish at the outer join.
+				var ripple: float=0.26*sin(PI*u)
+				a.y+=ripple*noise.get_noise_2d(a.x*0.61,a.z*0.61)
+				b.y+=ripple*noise.get_noise_2d(b.x*0.61,b.z*0.61)
+				var tone: float=clampf(0.07*noise.get_noise_2d(a.x*.15,a.z*.15)+0.5,0.0,1.0)
+				var tint: Color=rock_inner.lerp(rock_outer,0.42*u+0.28*tone)
+				if step>0:
+					var n:=Vector3.UP
+					_tri(st,last_a,last_b,b,n,n,n,last_tint,last_tint,tint)
+					_tri(st,last_a,b,a,n,n,n,last_tint,tint,tint)
+				last_a=a
+				last_b=b
+				last_tint=tint
+	var mesh:=MeshInstance3D.new()
 	mesh.name="CrimsonTerrain"
 	mesh.mesh=st.commit()
-	mesh.material_override=_material()
+	mesh.material_override=_material(true)
 	mesh.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	owner.add_child(mesh)
 

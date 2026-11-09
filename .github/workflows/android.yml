@@ -198,9 +198,10 @@ jobs:
             game/assets/scenery/serpent
             game/tracks/serpent_textures/rock_atlas_1024.png
             game/tracks/serpent_textures/asphalt_512.png
+            game/tracks/serpent_textures/terrain_sandstone_512.png
             build/serpent-kit-report.json
           key: serpent-blender-kit-v2-${{ hashFiles('tools/build_serpent_rock_kit.py', 'tools/build_serpent_landmarks.py', 'tools/bake_serpent_racing_textures.py') }}
-      - name: Build Blender cliff kit and baked 512px texture atlas
+      - name: Build Blender cohesive cliffs and offline sandstone textures
         if: steps.serpent_kit.outputs.cache-hit != 'true'
         shell: bash
         run: |
@@ -213,7 +214,7 @@ jobs:
           fi
           /tmp/blender-4.5.3-linux-x64/blender --background --threads 3 --python tools/build_serpent_rock_kit.py 2>&1 | tee build/serpent-blender.log
           grep SERPENT_BLENDER_KIT_OK build/serpent-blender.log
-          test "$(grep -c SERPENT_RACING_TEXTURE_OK build/serpent-atlas.log)" = 2
+          test "$(grep -c SERPENT_RACING_TEXTURE_OK build/serpent-atlas.log)" = 3
       - name: Verify original rock-kit and asphalt asset budget
         shell: bash
         run: |
@@ -230,7 +231,8 @@ jobs:
           for name in names:
               raw=(folder/(name+".glb")).read_bytes()
               assert raw[:4]==b"glTF" and struct.unpack_from("<I",raw,8)[0]==len(raw)
-          for name,dimensions in (("rock_atlas_1024.png",1024),("asphalt_512.png",512)):
+          for name,dimensions in (("rock_atlas_1024.png",1024),("asphalt_512.png",512),
+                                  ("terrain_sandstone_512.png",512)):
               raw=(Path("game/tracks/serpent_textures")/name).read_bytes()
               assert raw[:8]==bytes((137,80,78,71,13,10,26,10))
               assert struct.unpack_from(">II",raw,16)==(dimensions,dimensions)
