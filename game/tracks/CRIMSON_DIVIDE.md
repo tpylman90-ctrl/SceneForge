@@ -218,3 +218,22 @@ No 2K material, triplanar maps, reflections, per-frame SSAO, realtime
 global illumination, extra dynamic light or renderer switch. The 59-61 FPS
 baseline comes from the phone BEFORE this trial: visual quality and real
 on-device FPS are **not verified until the new build is installed**.
+
+## Crimson Serpent — Original modular Blender environment kit trial (2026-11-08)
+
+**Build brief:** `docs/CRIMSON_SERPENT_BLENDER_GODOT_BUILD_BRIEF.md`.
+This first-stage racer-style environment change adds three original
+UV-mapped Blender wall modules, two erosion ledges and one low-poly
+boulder, exported as six independently instanced GLBs. The baked
+512×512 four-tile rock atlas is shared by every module and has no normal
+maps or triplanar projection. The existing sculpted, sealed canyon base
+remains authoritative, and module placement reads its real 16-bit heightmap
+while enforcing a road-branch clearance margin. No visual prop collisions.
+The road receives a single 512px color map over its existing wear/tint
+vertex shading.
+
+All assets are generated in the **GitHub build before Godot import**;
+the two original Python sources and budget verification are committed.
+Each archetype is drawn as one hardware MultiMesh. No extra real-time
+lights or terrain rebuilds. Other race courses remain unchanged. Phone
+performance remains unverified until the signed test APK is reviewed.

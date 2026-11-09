@@ -12,6 +12,7 @@ const CHUNKS_Z = 2
 const FAR_STEP = 2
 const LOD_DISTANCE = 215.0
 const SANDSTONE_BREAKUP = preload("res://tracks/serpent_textures/serpent_breakup_256.png")
+const RockKit = preload("res://tracks/serpent_rock_kit.gd")
 const HALF_X = 340.0
 const HALF_Z = 222.0
 const ROAD_CLEARANCE = 16.7
@@ -433,4 +434,6 @@ static func populate(owner: Node3D, route: PackedVector3Array) -> void:
 	_road_shoulder(owner,route,noise)
 	_far_ridge(owner)
 	_talus(owner,route,noise)
+	# Imported cliff modules sit on the actual Terrain3D sculpted heightmap.
+	RockKit.populate(owner,route,_sculpt_bytes)
 	print("SCENEFORGE_SERPENT_TERRAIN_BUILD_MS ",Time.get_ticks_msec()-build_started)

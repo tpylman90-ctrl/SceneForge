@@ -51,11 +51,31 @@ func check() -> void:
 			var road_mesh: MeshInstance3D=scene.get_node("CrimsonDriveSurface")
 			var road_material: StandardMaterial3D=road_mesh.material_override as StandardMaterial3D
 			assert(road_material!=null and road_material.vertex_color_use_as_albedo)
-			assert(road_material.albedo_texture==null and not road_material.normal_enabled)
+			assert(road_material.albedo_texture!=null and road_material.albedo_texture.get_width()==512)
+			assert(road_material.albedo_texture.get_height()==512)
+			assert(not road_material.normal_enabled and not road_material.uv1_triplanar)
 			var road_arrays: Array=road_mesh.mesh.surface_get_arrays(0)
 			var road_verts: int=road_arrays[Mesh.ARRAY_VERTEX].size()
 			assert(road_verts>2000 and road_verts<6000)
 			assert(road_arrays[Mesh.ARRAY_COLOR].size()==road_verts)
+			# Blender modules are UV-mapped to one shared 512px sandstone atlas;
+			# MultiMesh instancing has no extra physics or dynamic shadows.
+			var rock_kit: Node3D=scene.get_node_or_null("CrimsonRockKit")
+			assert(rock_kit!=null and rock_kit.get_child_count()==6)
+			var total_instances: int=0
+			for node in rock_kit.get_children():
+				var batch_node: MultiMeshInstance3D=node as MultiMeshInstance3D
+				assert(batch_node!=null and batch_node.multimesh!=null)
+				assert(batch_node.multimesh.mesh!=null)
+				assert(batch_node.multimesh.mesh.surface_get_arrays(0)[Mesh.ARRAY_TEX_UV].size()>0)
+				var atlas: StandardMaterial3D=batch_node.material_override as StandardMaterial3D
+				assert(atlas!=null and atlas.albedo_texture!=null)
+				assert(atlas.albedo_texture.get_width()==512 and atlas.albedo_texture.get_height()==512)
+				assert(not atlas.uv1_triplanar and not atlas.normal_enabled)
+				assert(batch_node.cast_shadow==GeometryInstance3D.SHADOW_CASTING_SETTING_OFF)
+				assert(batch_node.multimesh.instance_count>0,"Every rock module should be instanced")
+				total_instances+=batch_node.multimesh.instance_count
+			assert(total_instances>35 and total_instances<120,"Instanced rock-kit budget")
 			# Color-only canyon AO: verify variance and the same one-map setup.
 			assert(scene.get_node("CrimsonStratifiedCliffs").get_child_count()==8)
 			var near: MeshInstance3D=scene.get_node("CrimsonStratifiedCliffs/Near_0_0")
@@ -126,6 +146,7 @@ func check() -> void:
 			var rock_vertices: int=rock.mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX].size()
 			assert(rock_vertices>2000 and rock_vertices<100000)
 			assert(scene.get_node_or_null("CrimsonTalus")==null,"Other canyons must be unchanged")
+			assert(scene.get_node_or_null("CrimsonRockKit")==null,"Kit must stay Crimson Serpent-only")
 		assert(scene.jump_start_index()==44 and scene.jump_end_index()==48)
 		assert(scene.is_jump_gap(44) and scene.is_jump_gap(47))
 		assert(not scene.is_jump_gap(48))

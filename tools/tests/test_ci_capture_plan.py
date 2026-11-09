@@ -22,6 +22,18 @@ class CapturePlanTests(unittest.TestCase):
             (False, (4,), ()),
         )
 
+    def test_blender_canyon_kit_only_captures_serpent(self):
+        self.assertEqual(
+            choose_captures(["tools/build_serpent_rock_kit.py",
+                             "tools/bake_serpent_racing_textures.py",
+                             "game/tracks/serpent_rock_kit.gd"]),
+            (False, (4,), ()),
+        )
+        self.assertEqual(
+            choose_captures(["game/assets/scenery/serpent/wall_a.glb"]),
+            (False, (4,), ()),
+        )
+
     def test_shrike_only(self):
         self.assertEqual(choose_captures(["game/vehicles/shrike_windshield.gd"]), (False, (), (2,)))
 

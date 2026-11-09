@@ -1,0 +1,152 @@
+extends RefCounted
+
+# Instanced Blender rock-kit pass for Crimson Serpent only. The sculpted
+# heightfield remains the support landform and stays unchanged. Imported GLB
+# modules have real UVs into one 512x512 atlas and never get collisions.
+const ATLAS_PATH = "res://tracks/serpent_textures/rock_atlas_512.png"
+const ASSET_DIR = "res://assets/scenery/serpent/"
+const NAMES = ["wall_a","wall_b","wall_c","ledge_a","ledge_b","boulder_a"]
+const MAP_WIDTH = 1024
+const MAP_HEIGHT = 512
+const MIN_H = -32.0
+const MAX_H = 128.0
+
+static func _terrain_y(raw: PackedByteArray, x: float, z: float) -> float:
+	var u: float=clampf(x+512.0,0.0,1023.0)
+	var v: float=clampf(z+256.0,0.0,511.0)
+	var xi: int=floori(u)
+	var zi: int=floori(v)
+	var xj: int=mini(xi+1,1023)
+	var zj: int=mini(zi+1,511)
+	var f: float=u-float(xi)
+	var g: float=v-float(zi)
+	var a: float=float(raw.decode_u16(2*(zi*MAP_WIDTH+xi)))
+	var b: float=float(raw.decode_u16(2*(zi*MAP_WIDTH+xj)))
+	var c: float=float(raw.decode_u16(2*(zj*MAP_WIDTH+xi)))
+	var d: float=float(raw.decode_u16(2*(zj*MAP_WIDTH+xj)))
+	var h: float=lerpf(lerpf(a,b,f),lerpf(c,d,f),g)
+	return MIN_H+(MAX_H-MIN_H)*h/65535.0
+
+static func _near_road(route: PackedVector3Array, x: float, z: float) -> float:
+	var best: float=INF
+	for i in range(route.size()):
+		var p: Vector3=route[i]
+		var q: Vector3=route[(i+1)%route.size()]
+		var dx: float=q.x-p.x
+		var dz: float=q.z-p.z
+		var f: float=clampf(((x-p.x)*dx+(z-p.z)*dz)/maxf(0.001,dx*dx+dz*dz),0.0,1.0)
+		var ex: float=x-(p.x+dx*f)
+		var ez: float=z-(p.z+dz*f)
+		best=minf(best,ex*ex+ez*ez)
+	return sqrt(best)
+
+static func _mesh_of(node: Node) -> Mesh:
+	if node is MeshInstance3D:
+		return (node as MeshInstance3D).mesh
+	for child in node.get_children():
+		var found: Mesh=_mesh_of(child)
+		if found!=null:
+			return found
+	return null
+
+static func _load_mesh(name: String) -> Mesh:
+	var source: PackedScene=load(ASSET_DIR+name+".glb") as PackedScene
+	if source==null:
+		push_error("Missing Blender cliff-kit mesh: "+name)
+		return null
+	var root: Node=source.instantiate()
+	var mesh: Mesh=_mesh_of(root)
+	root.free()
+	return mesh
+
+static func _stone_material() -> StandardMaterial3D:
+	var mat:=StandardMaterial3D.new()
+	mat.albedo_color=Color.WHITE
+	mat.albedo_texture=load(ATLAS_PATH) as Texture2D
+	mat.roughness=0.96
+	mat.metallic=0.0
+	mat.cull_mode=BaseMaterial3D.CULL_DISABLED
+	mat.uv1_triplanar=false
+	mat.normal_enabled=false
+	mat.texture_filter=BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+	return mat
+
+static func populate(owner: Node3D, route: PackedVector3Array, heightmap: PackedByteArray) -> void:
+	if heightmap.size()!=MAP_WIDTH*MAP_HEIGHT*2:
+		push_error("Cannot place rock kit without valid sculpted canyon heightmap")
+		return
+	var group:=Node3D.new()
+	group.name="CrimsonRockKit"
+	owner.add_child(group)
+	var spots: Array[Array]=[]
+	for i in range(NAMES.size()):
+		spots.append([])
+	var rng:=RandomNumberGenerator.new()
+	rng.seed=712239
+	# Attach detailed cliff pieces to the steep part of both walls. Sampling
+	# the real sculpt height and checking nearest road branch prevents random
+	# rock pillars intruding into the playable course on tight turns.
+	for index in range(8,route.size()-4,10):
+		if index>=39 and index<=52:
+			continue # Unobstructed leap silhouette and landing
+		if index>=81 and index<=92:
+			continue # Existing Arch Run landmark
+		var p: Vector3=route[index]
+		var q: Vector3=route[(index+3)%route.size()]
+		var tangent:=Vector3(q.x-p.x,0.0,q.z-p.z).normalized()
+		var outward:=Vector3(tangent.z,0.0,-tangent.x)
+		var yaw: float=atan2(-tangent.z,tangent.x)
+		for side_sign in [-1.0,1.0]:
+			var lateral: float=31.0+rng.randf_range(-1.8,3.2)
+			var center: Vector3=p+outward*side_sign*lateral
+			if _near_road(route,center.x,center.z)<25.0:
+				continue
+			if absf(center.x)>330.0 or absf(center.z)>216.0:
+				continue
+			var model: int=(index/10+(0 if side_sign<0 else 1))%3
+			var height: float=[17.0,21.0,15.0][model]
+			center.y=_terrain_y(heightmap,center.x,center.z)-height*0.40
+			var rotation: float=yaw+(PI if side_sign>0.0 else 0.0)
+			var scale: float=rng.randf_range(0.88,1.12)
+			spots[model].append(Transform3D(Basis(Vector3.UP,rotation).scaled(Vector3(scale,scale,scale)),center))
+			# Shelf motifs appear between some wall modules, not everywhere.
+			if index%30==8:
+				var shelf_id: int=3+int(side_sign>0.0)
+				var shelf_point: Vector3=center+outward*side_sign*3.0+Vector3.UP*(height*0.34)
+				var shelf_basis:=Basis(Vector3.UP,rotation).scaled(Vector3(scale,scale,scale))
+				spots[shelf_id].append(Transform3D(shelf_basis,shelf_point))
+	# Small boulders are placed sparsely and never in the road envelope.
+	for index in range(4,route.size(),4):
+		if index>=40 and index<=52:
+			continue
+		var p: Vector3=route[index]
+		var q: Vector3=route[(index+1)%route.size()]
+		var tangent:=Vector3(q.x-p.x,0.0,q.z-p.z).normalized()
+		var outward:=Vector3(tangent.z,0.0,-tangent.x)
+		var sign: float=-1.0 if rng.randf()<0.5 else 1.0
+		var candidate: Vector3=p+outward*sign*rng.randf_range(19.5,25.0)
+		if _near_road(route,candidate.x,candidate.z)<18.0:
+			continue
+		if absf(candidate.x)>330.0 or absf(candidate.z)>216.0:
+			continue
+		candidate.y=_terrain_y(heightmap,candidate.x,candidate.z)+0.3
+		var size: float=rng.randf_range(0.85,1.65)
+		spots[5].append(Transform3D(Basis(Vector3.UP,rng.randf_range(-PI,PI)).scaled(Vector3(size,size,size)),candidate))
+	var material: StandardMaterial3D=_stone_material()
+	for i in range(NAMES.size()):
+		var mesh: Mesh=_load_mesh(NAMES[i])
+		if mesh==null:
+			push_error("Cannot complete Crimson Serpent Blender kit: "+NAMES[i])
+			continue
+		var batch:=MultiMesh.new()
+		batch.transform_format=MultiMesh.TRANSFORM_3D
+		batch.mesh=mesh
+		batch.instance_count=spots[i].size()
+		for index in range(spots[i].size()):
+			batch.set_instance_transform(index,spots[i][index])
+		var instance:=MultiMeshInstance3D.new()
+		instance.name=NAMES[i]
+		instance.multimesh=batch
+		instance.material_override=material
+		instance.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		group.add_child(instance)

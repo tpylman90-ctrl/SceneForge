@@ -190,6 +190,51 @@ jobs:
           test -s game/assets/fleet/aerolith.glb
           test -s game/assets/showroom/aerolith.glb
           test "$(grep -c SCENEFORGE_AEROLITH_ASSET_OK build/aerolith-install.log)" = 2
+      - name: Restore authored Crimson Serpent environment assets
+        id: serpent_kit
+        uses: actions/cache@v4
+        with:
+          path: |
+            game/assets/scenery/serpent
+            game/tracks/serpent_textures/rock_atlas_512.png
+            game/tracks/serpent_textures/asphalt_512.png
+            build/serpent-kit-report.json
+          key: serpent-blender-kit-v1-${{ hashFiles('tools/build_serpent_rock_kit.py', 'tools/bake_serpent_racing_textures.py') }}
+      - name: Build Blender cliff kit and baked 512px texture atlas
+        if: steps.serpent_kit.outputs.cache-hit != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p build
+          python3 tools/bake_serpent_racing_textures.py | tee build/serpent-atlas.log
+          if [ ! -x /tmp/blender-4.5.3-linux-x64/blender ]; then
+            curl --fail --location --retry 3 https://download.blender.org/release/Blender4.5/blender-4.5.3-linux-x64.tar.xz -o /tmp/blender.tar.xz
+            tar -xf /tmp/blender.tar.xz -C /tmp
+          fi
+          /tmp/blender-4.5.3-linux-x64/blender --background --threads 3 --python tools/build_serpent_rock_kit.py 2>&1 | tee build/serpent-blender.log
+          grep SERPENT_BLENDER_KIT_OK build/serpent-blender.log
+          test "$(grep -c SERPENT_512_ATLAS_OK build/serpent-atlas.log)" = 2
+      - name: Verify original rock-kit and asphalt asset budget
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json, struct
+          from pathlib import Path
+          folder=Path("game/assets/scenery/serpent")
+          names=["wall_a","wall_b","wall_c","ledge_a","ledge_b","boulder_a"]
+          report=json.loads(Path("build/serpent-kit-report.json").read_text())
+          assert report["total_unique_triangles"] < 3500
+          assert [a["asset"] for a in report["assets"]] == names
+          for name in names:
+              raw=(folder/(name+".glb")).read_bytes()
+              assert raw[:4]==b"glTF" and struct.unpack_from("<I",raw,8)[0]==len(raw)
+          for name in ("rock_atlas_512.png","asphalt_512.png"):
+              raw=(Path("game/tracks/serpent_textures")/name).read_bytes()
+              assert raw[:8]==bytes((137,80,78,71,13,10,26,10))
+              assert struct.unpack_from(">II",raw,16)==(512,512)
+          print("SCENEFORGE_SERPENT_UV_RACING_KIT_OK",report["total_unique_triangles"],names)
+          PY
       - name: Import and smoke test
         shell: bash
         run: |

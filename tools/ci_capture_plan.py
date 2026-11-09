@@ -47,7 +47,9 @@ def choose_captures(paths: list[str], scope: str = "auto") -> tuple[bool, tuple[
             continue
         if (path.startswith("game/tracks/serpent_sculpt/")
                 or path.startswith("game/tracks/serpent_textures/")
-                or path == "game/tracks/serpent_canyon.gd"):
+                or path.startswith("game/assets/scenery/serpent/")
+                or path in {"game/tracks/serpent_canyon.gd", "game/tracks/serpent_rock_kit.gd",
+                            "tools/build_serpent_rock_kit.py", "tools/bake_serpent_racing_textures.py"}):
             # Dedicated sculpt passes never require Red Mesa / Devil's Gate captures.
             tracks.add(4)
         elif path.startswith("game/tracks/") and not path.endswith(".md"):
@@ -63,7 +65,8 @@ def choose_captures(paths: list[str], scope: str = "auto") -> tuple[bool, tuple[
         }:
             foundry = True
             craft.update(FLEET)
-        if path.startswith("game/assets/") and not path.startswith("game/assets/fleet/"):
+        if (path.startswith("game/assets/")
+                and not path.startswith(("game/assets/fleet/", "game/assets/scenery/serpent/"))):
             foundry = True
         if path in {"tools/kestrel_surface_pass.py", "tools/install_kestrel_upgrade.py",
                     "tools/refine_kestrel_upgrade.py"}:

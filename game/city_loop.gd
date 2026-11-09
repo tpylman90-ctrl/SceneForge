@@ -658,6 +658,11 @@ func build_crimson_circuit() -> void:
 	# tire-wear color variation on Crimson Serpent. No asphalt normal maps.
 	if track_id==4:
 		road_mat.vertex_color_use_as_albedo=true
+		# Single-sample racing asphalt map, blended with the baked wear colors.
+		road_mat.albedo_texture=load("res://tracks/serpent_textures/asphalt_512.png") as Texture2D
+		road_mat.normal_enabled=false
+		road_mat.uv1_triplanar=false
+		road_mat.texture_filter=BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
 	for index in range(COUNT):
 		route.append(route_position(index))
 	if track_id==4:
