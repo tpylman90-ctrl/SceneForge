@@ -79,8 +79,8 @@ def terrain_sandstone_rgb(x: int, y: int) -> tuple[int, int, int]:
     strata = .086*band+.025*thin
     seam = max(0.0, (.15-abs(band))/.15)*.085
     contrast = max(.73,min(1.03,.92+strata+broad+pock-seam))
-    value = round(255*contrast)
-    return value, round(value*.989), round(value*.976)
+    value = max(0,min(255,round(255*contrast)))
+    return value, max(0,min(255,round(value*.989))), max(0,min(255,round(value*.976)))
 
 def asphalt_rgb(x: int, y: int) -> tuple[int, int, int]:
     u = x / SIZE
