@@ -53,6 +53,7 @@ func check() -> void:
 			assert(road_material!=null and road_material.vertex_color_use_as_albedo)
 			assert(road_material.albedo_texture!=null and road_material.albedo_texture.get_width()==512)
 			assert(road_material.albedo_texture.get_height()==512)
+			assert(road_material.albedo_texture.has_mipmaps(),"Asphalt must be mipmapped")
 			assert(not road_material.normal_enabled and not road_material.uv1_triplanar)
 			var road_arrays: Array=road_mesh.mesh.surface_get_arrays(0)
 			var road_verts: int=road_arrays[Mesh.ARRAY_VERTEX].size()
@@ -71,6 +72,7 @@ func check() -> void:
 				var atlas: StandardMaterial3D=batch_node.material_override as StandardMaterial3D
 				assert(atlas!=null and atlas.albedo_texture!=null)
 				assert(atlas.albedo_texture.get_width()==1024 and atlas.albedo_texture.get_height()==1024)
+				assert(atlas.albedo_texture.has_mipmaps(),"Rock atlas requires mipmaps")
 				assert(atlas.vertex_color_use_as_albedo,"Offline baked geology must be visible")
 				assert(not atlas.uv1_triplanar and not atlas.normal_enabled)
 				assert(batch_node.cast_shadow==GeometryInstance3D.SHADOW_CASTING_SETTING_OFF)
@@ -119,8 +121,9 @@ func check() -> void:
 				assert(rock.cast_shadow==GeometryInstance3D.SHADOW_CASTING_SETTING_OFF)
 				var mat: StandardMaterial3D=rock.material_override as StandardMaterial3D
 				assert(mat!=null and mat.cull_mode==BaseMaterial3D.CULL_DISABLED)
-				assert(mat.albedo_texture!=null and mat.albedo_texture.get_width()==512)
-				assert(mat.albedo_texture.get_height()==512)
+				assert(mat.albedo_texture!=null and mat.albedo_texture.get_width()==1024)
+				assert(mat.albedo_texture.get_height()==1024)
+				assert(mat.albedo_texture.has_mipmaps(),"Canyon albedo requires mipmaps")
 				assert(not mat.uv1_triplanar and not mat.normal_enabled,"Single-pass UV albedo only")
 				has_bedrock_cap=has_bedrock_cap or (rock.mesh.get_aabb().position.y+rock.position.y<=-37.9)
 				var vertices: int=rock.mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX].size()
@@ -145,7 +148,8 @@ func check() -> void:
 				"Graded roadside talus transition must use multiple strips")
 			var apron_mat: StandardMaterial3D=apron.material_override as StandardMaterial3D
 			assert(apron_mat!=null and apron_mat.albedo_texture!=null)
-			assert(apron_mat.albedo_texture.get_width()==512)
+			assert(apron_mat.albedo_texture.get_width()==1024)
+			assert(apron_mat.albedo_texture.has_mipmaps())
 			var rubble: MultiMeshInstance3D=scene.get_node_or_null("CrimsonTalus")
 			assert(rubble!=null and rubble.multimesh!=null)
 			assert(rubble.multimesh.instance_count>=40)

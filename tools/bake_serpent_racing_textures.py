@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Offline bake: one 1024px rock atlas, 512px road and 512px terrain map.
+"""Offline bake: 1024px rock atlas, 512px road and 1024px terrain albedo.
 
 Pure Python stdlib: no on-device work, no external texture licenses, no normal
 maps. Four atlas quadrants have 3px inset UV margins authored in Blender.
@@ -67,20 +67,57 @@ def sandstone_rgb(x: int, y: int) -> tuple[int, int, int]:
     return tuple(max(0,min(255,round(ch*variation))) for ch in base)
 
 
+def _lattice_hash(x: int, y: int, seed: int) -> float:
+    """Deterministic 2D hash; used only during offline texture baking."""
+    n = (x * 374761393 + y * 668265263 + seed * 1442695041) & 0xFFFFFFFF
+    n = ((n ^ (n >> 13)) * 1274126177) & 0xFFFFFFFF
+    return (((n ^ (n >> 16)) & 65535) / 32767.5) - 1.0
+
+
+def _seamless_noise(u: float, v: float, period: int, seed: int) -> float:
+    """Tileable smooth value noise, unlike fixed-frequency sinusoid stripes."""
+    x, y = u * period, v * period
+    ix, iy = int(x), int(y)
+    fx, fy = x - ix, y - iy
+    sx, sy = fx * fx * (3.0 - 2.0 * fx), fy * fy * (3.0 - 2.0 * fy)
+    x0, x1 = ix % period, (ix + 1) % period
+    y0, y1 = iy % period, (iy + 1) % period
+    a = _lattice_hash(x0, y0, seed)
+    b = _lattice_hash(x1, y0, seed)
+    c = _lattice_hash(x0, y1, seed)
+    d = _lattice_hash(x1, y1, seed)
+    return ((a + (b - a) * sx) * (1.0 - sy)
+            + (c + (d - c) * sx) * sy)
+
+
 def terrain_sandstone_rgb(x: int, y: int) -> tuple[int, int, int]:
-    """Single 512px material for the *whole* canyon: strata without triplanar."""
-    u = x / SIZE
-    v = y / SIZE
-    warped = .058*sin(TAU*2*u)+.021*sin(TAU*(5*u+v))
-    band = sin(TAU*(5*v+warped))
-    thin = sin(TAU*(19*v+.034*sin(TAU*3*u)))
-    broad = .085*sin(TAU*(2*u+v))+.045*cos(TAU*(3*u-2*v))
-    pock = .018*sin(TAU*(41*u+37*v))+.011*cos(TAU*(59*u-53*v))
-    strata = .086*band+.025*thin
-    seam = max(0.0, (.15-abs(band))/.15)*.085
-    contrast = max(.73,min(1.03,.92+strata+broad+pock-seam))
-    value = max(0,min(255,round(255*contrast)))
-    return value, max(0,min(255,round(value*.989))), max(0,min(255,round(value*.976)))
+    """Original 1024px sandstone color relief. All layers baked, one GPU read.
+
+    Broad oxidation bleeds, warped sediment layers, recessed wash lines and
+    sand-grain breakup have distinct scales. Periodic noise ensures the texture
+    wraps without a visible seam. Vertex colors still provide large canyon tint.
+    """
+    u, v = x / SIZE, y / SIZE
+    macro = 0.085 * _seamless_noise(u, v, 3, 8)
+    macro += 0.065 * _seamless_noise(u, v, 9, 17)
+    warp = 0.050 * _seamless_noise(u, v, 4, 91)
+    warp += 0.027 * sin(TAU * (2 * u + v))
+    strata = sin(TAU * (7 * v + warp))
+    fine_strata = sin(TAU * (23 * v + warp * 0.74 + 0.022 * sin(TAU * 3 * u)))
+    silt = 0.037 * _seamless_noise(u, v, 38, 124)
+    pores = 0.016 * _seamless_noise(u, v, 117, 275)
+    weathered = 0.039 * sin(TAU * (3 * u + 2 * v))
+    weathered += 0.021 * cos(TAU * (5 * u - 3 * v))
+    fracture_warp = 0.045 * sin(TAU * (2 * v + u))
+    fissure = abs(sin(TAU * (4 * u + fracture_warp)))
+    fissure = 0.087 * max(0.0, (0.13 - fissure) / 0.13)
+    soft_seam = 0.050 * max(0.0, (0.14 - abs(strata)) / 0.14)
+    brightness = (0.920 + macro + 0.060 * strata + 0.026 * fine_strata
+                  + weathered + silt + pores - fissure - soft_seam)
+    brightness = max(0.67, min(1.0, brightness))
+    value = max(0, min(255, round(255 * brightness)))
+    return value, round(value * 0.979), round(value * 0.952)
+
 
 def asphalt_rgb(x: int, y: int) -> tuple[int, int, int]:
     u = x / SIZE
@@ -113,7 +150,10 @@ def main():
     # Keep road sampling, memory footprint and capture budget unchanged.
     SIZE, HALF = 512, 256
     emit_png(root / "asphalt_512.png", make_pixels(asphalt_rgb))
-    emit_png(root / "terrain_sandstone_512.png", make_pixels(terrain_sandstone_rgb))
+    # The canyon gets a denser color *source*, still only one albedo fetch
+    # per rendered pixel. ETC2/mipmaps are applied during Godot import.
+    SIZE, HALF = 1024, 512
+    emit_png(root / "terrain_sandstone_1024.png", make_pixels(terrain_sandstone_rgb))
 
 if __name__ == "__main__":
     main()

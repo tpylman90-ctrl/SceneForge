@@ -11,7 +11,7 @@ const CHUNKS_X = 2
 const CHUNKS_Z = 2
 const FAR_STEP = 2
 const LOD_DISTANCE = 215.0
-const SANDSTONE_BREAKUP = preload("res://tracks/serpent_textures/terrain_sandstone_512.png")
+const SANDSTONE_BREAKUP = preload("res://tracks/serpent_textures/terrain_sandstone_1024.png")
 const RockKit = preload("res://tracks/serpent_rock_kit.gd")
 const HALF_X = 340.0
 const HALF_Z = 222.0
@@ -160,7 +160,7 @@ static func _material(use_grain: bool=false) -> StandardMaterial3D:
 	if use_grain:
 		# Retain the verified two-sided cliff visibility fix.
 		mat.cull_mode=BaseMaterial3D.CULL_DISABLED
-		# One imported 256px color map; no triplanar or normal texture reads.
+		# 1024px ETC2/mipmapped canyon albedo, sampled once with existing UVs.
 		mat.albedo_texture=SANDSTONE_BREAKUP
 		mat.uv1_triplanar=false
 		mat.uv1_world_triplanar=false

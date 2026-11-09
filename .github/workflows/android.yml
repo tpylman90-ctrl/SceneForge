@@ -198,7 +198,7 @@ jobs:
             game/assets/scenery/serpent
             game/tracks/serpent_textures/rock_atlas_1024.png
             game/tracks/serpent_textures/asphalt_512.png
-            game/tracks/serpent_textures/terrain_sandstone_512.png
+            game/tracks/serpent_textures/terrain_sandstone_1024.png
             build/serpent-kit-report.json
           key: serpent-blender-kit-v2-${{ hashFiles('tools/build_serpent_rock_kit.py', 'tools/build_serpent_landmarks.py', 'tools/bake_serpent_racing_textures.py') }}
       - name: Build Blender cohesive cliffs and offline sandstone textures
@@ -232,19 +232,31 @@ jobs:
               raw=(folder/(name+".glb")).read_bytes()
               assert raw[:4]==b"glTF" and struct.unpack_from("<I",raw,8)[0]==len(raw)
           for name,dimensions in (("rock_atlas_1024.png",1024),("asphalt_512.png",512),
-                                  ("terrain_sandstone_512.png",512)):
+                                  ("terrain_sandstone_1024.png",1024)):
               raw=(Path("game/tracks/serpent_textures")/name).read_bytes()
               assert raw[:8]==bytes((137,80,78,71,13,10,26,10))
               assert struct.unpack_from(">II",raw,16)==(dimensions,dimensions)
           print("SCENEFORGE_SERPENT_UV_RACING_KIT_OK",report["total_unique_triangles"],names)
           PY
+      - name: Import ETC2-compatible textures with mipmaps and verify derived GPU assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          # First import creates canonical Godot-generated remap and dependency
+          # entries for the three offline-baked PNGs. Never invent .ctex paths.
+          godot --headless --path game --editor --import 2>&1 | tee build/import-initial.log
+          python3 tools/ensure_serpent_texture_import.py configure | tee build/texture-import-settings.log
+          # Reimport these assets in VRAM Compressed mode with mipmaps enabled.
+          godot --headless --path game --editor --import 2>&1 | tee build/import-recompressed.log
+          python3 tools/ensure_serpent_texture_import.py verify | tee build/texture-import-verification.log
+          test "$(grep -c SERPENT_ETC2_MIPMAP_OK build/texture-import-verification.log)" = 3
+          if grep -E 'SCRIPT ERROR:|ERROR:' build/import-initial.log build/import-recompressed.log; then exit 1; fi
       - name: Import and smoke test
         shell: bash
         run: |
           set -euo pipefail
-          godot --headless --path game --editor --import 2>&1 | tee build/import.log
           godot --headless --verbose --path game --quit-after 60 2>&1 | tee build/smoke.log
-          if grep -E 'SCRIPT ERROR:|ERROR:' build/import.log build/smoke.log; then exit 1; fi
+          if grep -E 'SCRIPT ERROR:|ERROR:' build/smoke.log; then exit 1; fi
       - name: Install headless renderer
         run: |
           sudo apt-get update -qq

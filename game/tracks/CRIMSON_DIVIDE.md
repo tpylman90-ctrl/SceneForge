@@ -295,3 +295,33 @@ GPU bottlenecks. This trial keeps the same signed APK workflow but changes:
 **CI smoke/geometry tests cannot establish on-phone FPS**. The trial
 remains gated on visible geological continuity with no floating panels,
 no disappearing canyon walls, and the proven ~59–61 FPS handset baseline.
+
+## Compressed 1024px sandstone color experiment — Godot Android VRAM import
+
+SceneForge uses Godot 4.5.1's **Compatibility GLES3** renderer, with ETC2
+available at `textures/vram_compression/import_etc2_astc=true`. That project
+setting alone does not prove Godot assigned VRAM compression to PNGs loaded
+programmatically in GDScript. The importer defaults to lossless with no
+mipmaps until detected as 3D.
+
+The CI pipeline now explicitly converts the generated rock, terrain and
+asphalt PNGs to `compress/mode=2` (**VRAM Compressed, ETC2 for Android**),
+`compress/high_quality=false` (never ASTC on Compatibility), and
+`mipmaps/generate=true`. It first lets Godot create valid import remaps,
+updates only their parameter sections, invalidates only the three stale
+imported texture caches, reimports, and verifies that actual `.etc2.ctex`
+GPU assets exist. Tests confirm all three loaded albedo textures have
+mipmaps. All runtime materials remain single-sample standard UV albedo
+without triplanar, normal-map, or extra texture-blend passes.
+
+The broad sculpted canyon changes from the prior 512px gray noise pattern
+to an original **1024x1024 domain-warped sandstone color map** with different
+frequency bands for sediment bedding, fracture seams, broad oxidation,
+fine granular texture and erosion streaks. This is still offline-generated
+original artwork, not a claim of scanned photographic material.
+
+**Experimental control:** canyon geometry, sculpted heightmap, collisions,
+lighting, road, hero rocks, atlas geometry and shader sampling count are
+unchanged. Device-level frame timings are not asserted from CI. Compare
+the new trial against the previous ~60 FPS Android baseline; only if it
+holds should the next experiment test a *selective* normal map.
