@@ -61,9 +61,9 @@ static func _load_mesh(name: String) -> Mesh:
 
 static func _stone_material() -> StandardMaterial3D:
 	var mat:=StandardMaterial3D.new()
-	mat.albedo_color=Color.WHITE
+	mat.albedo_color=Color(0.92,0.84,0.72)
 	mat.albedo_texture=load(ATLAS_PATH) as Texture2D
-	mat.roughness=0.96
+	mat.roughness=0.88
 	mat.metallic=0.0
 	mat.cull_mode=BaseMaterial3D.CULL_DISABLED
 	mat.uv1_triplanar=false
@@ -86,7 +86,7 @@ static func populate(owner: Node3D, route: PackedVector3Array, heightmap: Packed
 	# Attach detailed cliff pieces to the steep part of both walls. Sampling
 	# the real sculpt height and checking nearest road branch prevents random
 	# rock pillars intruding into the playable course on tight turns.
-	for index in range(8,route.size()-4,10):
+	for index in range(6,route.size()-4,6):
 		if index>=39 and index<=52:
 			continue # Unobstructed leap silhouette and landing
 		if index>=81 and index<=92:
@@ -97,20 +97,20 @@ static func populate(owner: Node3D, route: PackedVector3Array, heightmap: Packed
 		var outward:=Vector3(tangent.z,0.0,-tangent.x)
 		var yaw: float=atan2(-tangent.z,tangent.x)
 		for side_sign in [-1.0,1.0]:
-			var lateral: float=31.0+rng.randf_range(-1.8,3.2)
+			var lateral: float=27.5+rng.randf_range(-1.5,2.8)
 			var center: Vector3=p+outward*side_sign*lateral
 			if _near_road(route,center.x,center.z)<25.0:
 				continue
 			if absf(center.x)>330.0 or absf(center.z)>216.0:
 				continue
-			var model: int=(index/10+(0 if side_sign<0 else 1))%3
+			var model: int=(index/6+(0 if side_sign<0 else 1))%3
 			var height: float=[17.0,21.0,15.0][model]
 			center.y=_terrain_y(heightmap,center.x,center.z)-height*0.40
 			var rotation: float=yaw+(PI if side_sign>0.0 else 0.0)
 			var scale: float=rng.randf_range(0.88,1.12)
 			spots[model].append(Transform3D(Basis(Vector3.UP,rotation).scaled(Vector3(scale,scale,scale)),center))
 			# Shelf motifs appear between some wall modules, not everywhere.
-			if index%30==8:
+			if index%18==6:
 				var shelf_id: int=3+int(side_sign>0.0)
 				var shelf_point: Vector3=center+outward*side_sign*3.0+Vector3.UP*(height*0.34)
 				var shelf_basis:=Basis(Vector3.UP,rotation).scaled(Vector3(scale,scale,scale))
