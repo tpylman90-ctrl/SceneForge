@@ -411,6 +411,23 @@ func _ready() -> void:
 				update_camera(1.0)
 				hud.text="CRIMSON SERPENT / CANYON LANDMARK %d" % landmark
 				break
+	# Capture the actual live 3D descent at two positions for mobile review.
+	# These views use the race camera, not offline concept artwork.
+	if track_id==Skyfall.ID:
+		for flight_index in [140,167]:
+			if "--track-flight-%d" % flight_index in OS.get_cmdline_user_args():
+				set_physics_process(false)
+				route_index=flight_index
+				car.position=route[flight_index]+Vector3.UP*8.0
+				var tangent: Vector3=flat(route[flight_index+1]-route[flight_index]).normalized()
+				heading=atan2(tangent.x,tangent.z)
+				car.rotation.y=heading
+				speed=43.0
+				airborne=true
+				feedback.update_feedback(1.0,speed,0.8,0,0,0,cockpit,true,75,-0.17)
+				update_camera(1.0)
+				hud.text="SKYFALL RUN / FLIGHT %d\nVULKAN  /  3D DESCENT" % flight_index
+				break
 	if "--track-overview" in OS.get_cmdline_user_args():
 		set_physics_process(false)
 		camera.position=Vector3(850,950,-300) if track_id==Skyfall.ID else (Vector3(25,390,-25) if (track_id>=Crimson.FIRST_ID and track_id<=Crimson.LAST_ID) else Vector3(120,185,-120))
@@ -1850,6 +1867,11 @@ func _process(_delta: float) -> void:
 			if track_id>0:
 				var circuit_prefix: String = ["NeonLoop","Skyway","ViperRift","IronHarbor","CrimsonSerpent","RedMesa","DevilsGate","SkyfallRun"][track_id]
 				file=circuit_prefix+("-overview.png" if "--track-overview" in OS.get_cmdline_user_args() else ("-jump.png" if "--track-jump" in OS.get_cmdline_user_args() else "-cockpit.png"))
+			if track_id==Skyfall.ID:
+				for flight_index in [140,167]:
+					if "--track-flight-%d" % flight_index in OS.get_cmdline_user_args():
+						file="SkyfallRun-flight-%d.png"%flight_index
+						break
 			if track_id==4:
 				for landmark in [14,75,155]:
 					if "--track-landmark-%d" % landmark in OS.get_cmdline_user_args():
