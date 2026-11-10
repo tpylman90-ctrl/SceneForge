@@ -15,20 +15,23 @@ Use TRACKS in the driving view. Selecting a circuit starts a fresh attempt; RESU
 - Crimson Serpent (medium; **1-stage sprint**): ~1.15 km of flowing S-curves, stone arch, cliff road and a short canyon leap. A long closed route is used in this first engine pass; true point-to-point mode is not yet shipped.
 - Red Mesa Circuit (easy): ~0.81 km wide mesa loop, broad horseshoe, rock gateway and protected jump.
 - Devil's Gate (hard): ~0.80 km of technical ridge turns, stone needles, narrow gates and technical descending bends.
+- Tidal Relics (medium; new prototype): ~0.89 km over open water, flooded ruins, cobblestone causeways and magnetic lagoon boundaries.
+- Frostline Wilds (medium; new prototype): ~0.88 km of frozen lake, muddy thaw basin, grassy alpine slopes and frost shards.
+- Skyfall Run (hard; new prototype): ~0.89 km across high platforms and open-air repulsor corridors, with illuminated ring gates and staged landings.
 
-See [Crimson Divide route layouts](tracks/CRIMSON_DIVIDE.md) for exact course design and review gates.
+See [Crimson Divide route layouts](tracks/CRIMSON_DIVIDE.md) for exact course design and review gates. See [Beyond the Road](tracks/HOVER_WORLDS.md) for the new water/ice/mud/grass/open-air course contracts.
 
 All use the same fleet selection, controls, boost and reverse rules. This is a solo-race and time-trial prototype with barrier containment; no traffic opponents or wall-driving physics. Road banking affects mesh height, vehicle support height, cockpit roll and repulsor footprint roll. Flight remains ballistic with reduced steering.
 
 ## Race weekend (first implementation)
 
-The EVENT menu offers FREE DRIVE, TIME TRIAL (3-2-1 countdown and personal-best lap timing), and solo CHALLENGE (standing start, event record, results and replay). Crimson Serpent is a one-stage sprint; the other six are three laps. Three-lap challenges and Serpent's sprint award race credits redeemable for mechanical-only performance parts in the Foundry; visual modifications are not yet available. CPU rivals and career are still planned. The new game/tests/race_event_test.gd exercises the race lifecycle and is required by CI.
+The EVENT menu offers FREE DRIVE, TIME TRIAL (3-2-1 countdown and personal-best lap timing), and solo CHALLENGE (standing start, event record, results and replay). Crimson Serpent is a one-stage sprint; the other nine are three laps. Three-lap challenges and Serpent's sprint award race credits redeemable for mechanical-only performance parts in the Foundry; visual modifications are not yet available. CPU rivals and career are still planned. The new game/tests/race_event_test.gd exercises the race lifecycle and is required by CI.
 
 ## Validation
 
 game/tests/circuits_test.gd drives all four layouts at 30/60/120 simulation Hz, tests approach speeds 8/32/42 m/s, checks one successful launch/landing per lap without recovery, and exercises actual menu-triggered scene replacement. Existing figure-eight, controls, boost, cockpit and reverse checks remain.
 
-CI is configured to publish Skyway, Viper Rift, Iron Harbor and the three Crimson Divide overview/cockpit/jump renders plus Circuit-select.png. The new canyon tracks must pass their dedicated geometry and event-mode tests before export. CI software-render FPS does not predict Android performance.
+CI is configured to publish previews for all ten circuits (with automatic change-based selection), including the new hover-world overview/cockpit/jump renders, plus Circuit-select.png. The new canyon tracks must pass their dedicated geometry and event-mode tests before export. CI software-render FPS does not predict Android performance.
 
 ## City detail and wall response
 
