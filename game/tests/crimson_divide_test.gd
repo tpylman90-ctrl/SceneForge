@@ -46,6 +46,27 @@ func check() -> void:
 			assert(scenic!=null and scenic.mesh!=null,"Missing canyon scenery: "+name)
 			assert(scenic.mesh.get_surface_count()==1,"Scenery must stay batched")
 		if circuit==4:
+			# The previous cliff UV selection chose different projection
+			# planes per triangle, creating hard-edged discoloration wedges.
+			# The new single-sample UV is independent of face orientation.
+			var uv_probe: Vector3=Vector3(37.35,24.2,-18.7)
+			var uv_base: Vector2=SerpentCanyon._surface_uv(uv_probe,Vector3.UP)
+			for arbitrary_normal in [Vector3.RIGHT,Vector3.BACK,Vector3(-0.4,0.2,0.9)]:
+				assert(SerpentCanyon._surface_uv(uv_probe,arbitrary_normal).distance_to(uv_base)<0.00001,
+					"Adjacent cliff triangles must use a continuous UV frame")
+			# Internal seam guards should overlap modestly, never form
+			# huge 11m hanging curtains inside the canyon.
+			var skirt_probe:=SurfaceTool.new()
+			skirt_probe.begin(Mesh.PRIMITIVE_TRIANGLES)
+			SerpentCanyon._cliff_skirt_segment(skirt_probe,Vector3(3,12,0),
+				Vector3(5,12,0),Color.WHITE,Color.WHITE,Vector3.FORWARD,
+				Vector3.ZERO,false)
+			var verts: PackedVector3Array=skirt_probe.commit().surface_get_arrays(0)[Mesh.ARRAY_VERTEX]
+			var min_skirt_y: float=INF
+			for vert in verts:
+				min_skirt_y=minf(min_skirt_y,vert.y)
+			assert(min_skirt_y>=9.8 and min_skirt_y<=10.2,
+				"Internal cliff seam guard must remain shallow")
 			# Mobile visual pass does not add an asphalt texture or extra
 			# material; fine color variation comes from baked road vertices.
 			var road_mesh: MeshInstance3D=scene.get_node("CrimsonDriveSurface")

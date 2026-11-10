@@ -40,31 +40,41 @@ def emit_png(path: Path, pixels: bytes) -> None:
           hashlib.sha256(png).hexdigest())
 
 def sandstone_rgb(x: int, y: int) -> tuple[int, int, int]:
-    """Four warm, softly banded sandstone variations, UV sampled just once."""
+    """Offline four-palette sediment atlas: coherent layers, fractured oxide.
+
+    Each tile is seeded separately but all its color variation is periodic
+    within the tile. Do not stack textures on Android; the single imported
+    ETC2 image includes the complete color/strata/weathering treatment.
+    """
     tile = (x // HALF) + 2 * (y // HALF)
-    u = (x % HALF) / HALF
-    v = (y % HALF) / HALF
-    palettes = ((177, 112, 79), (128, 82, 63),
-                (203, 155, 109), (157, 111, 81))
+    u, v = (x % HALF) / HALF, (y % HALF) / HALF
+    palettes = ((182, 121, 85), (140, 92, 69),
+                (213, 165, 116), (157, 110, 79))
     base = palettes[tile]
-    # Gently warped sediment beds; broad oxidation patches and erosion
-    # seams are all pre-baked. Whole-number harmonics tile in both axes.
-    warping = .075*sin(TAU*2*u) + .035*sin(TAU*(3*u+v))
-    bed = sin(TAU*(5*v + warping))
-    fine_bed = sin(TAU*(17*v + .027*sin(TAU*(4*u+v))))
-    oxide = .068*sin(TAU*(2*u+v)) + .040*cos(TAU*(3*u-2*v))
-    mottling = .035*sin(TAU*(4*u+5*v))
-    grain = .018*sin(TAU*(49*u+53*v)) + .012*cos(TAU*(71*u-63*v))
-    seam = max(0.0, (0.15-abs(bed))/.15)
-    fracture = max(0.0, (0.09-abs(sin(TAU*(3*u+.04*sin(TAU*2*v)))))/.09)
-    variation = .97 + .060*bed + .031*fine_bed + oxide + mottling + grain
-    variation -= .071*seam + .064*fracture
-    if tile == 1:
-        variation -= .027
-    elif tile == 2:
-        variation += .020
-    variation = max(.77,min(1.16,variation))
-    return tuple(max(0,min(255,round(ch*variation))) for ch in base)
+    seed = 13 + tile * 23
+    coarse = _seamless_noise(u, v, 3, seed)
+    middle = _seamless_noise(u, v, 11, seed + 1)
+    grit = _seamless_noise(u, v, 44, seed + 2)
+    warp = 0.085 * _seamless_noise(u, v, 4, seed + 3)
+    warp += 0.034 * sin(TAU * (2 * u + v))
+    # Sediment planes are interrupted by large eroded, staggered deposits.
+    beds = sin(TAU * (5 * v + warp))
+    undercut = max(0.0, (0.25 - abs(beds)) / 0.25)
+    oxidation = 0.095 * coarse + 0.048 * middle
+    salt = 0.033 * sin(TAU * (3 * u + 2 * v))
+    pore = 0.018 * grit
+    seam = 0.10 * undercut * (0.72 + 0.28 * middle)
+    scar_u = 3.0 * u + 0.078 * sin(TAU * (2 * v + warp))
+    fracture = max(0.0, (0.13 - abs(sin(TAU * scar_u))) / 0.13)
+    variation = 0.955 + oxidation + 0.050 * beds + salt + pore
+    variation -= seam + 0.085 * fracture
+    variation = max(0.67, min(1.16, variation))
+    # Shade fissures toward warm iron rather than simply black.
+    iron = max(0.0, coarse + middle * 0.5)
+    r = base[0] * variation * (1.0 + 0.038 * iron)
+    g = base[1] * variation * (1.0 - 0.028 * iron)
+    b = base[2] * variation * (1.0 - 0.038 * iron)
+    return tuple(max(0, min(255, round(n))) for n in (r, g, b))
 
 
 def _lattice_hash(x: int, y: int, seed: int) -> float:
@@ -91,33 +101,39 @@ def _seamless_noise(u: float, v: float, period: int, seed: int) -> float:
 
 
 def terrain_sandstone_rgb(x: int, y: int) -> tuple[int, int, int]:
-    """Original 1024px sandstone color relief. All layers baked, one GPU read.
+    """Racing-grade sandstone surface: weathered, fine, and non-mechanical.
 
-    Broad oxidation bleeds, warped sediment layers, recessed wash lines and
-    sand-grain breakup have distinct scales. Periodic noise ensures the texture
-    wraps without a visible seam. Vertex colors still provide large canyon tint.
+    This is COLOR baked entirely offline, not per-pixel shader noise.
+    Half-tones stay light enough to multiply with the hand-tuned terrain
+    vertex palette. The world UV mapping defines the visible rock scale.
     """
     u, v = x / SIZE, y / SIZE
-    macro = 0.085 * _seamless_noise(u, v, 3, 8)
-    macro += 0.065 * _seamless_noise(u, v, 9, 17)
-    warp = 0.050 * _seamless_noise(u, v, 4, 91)
-    warp += 0.027 * sin(TAU * (2 * u + v))
-    strata = sin(TAU * (7 * v + warp))
-    fine_strata = sin(TAU * (23 * v + warp * 0.74 + 0.022 * sin(TAU * 3 * u)))
-    silt = 0.037 * _seamless_noise(u, v, 38, 124)
-    pores = 0.016 * _seamless_noise(u, v, 117, 275)
-    weathered = 0.039 * sin(TAU * (3 * u + 2 * v))
-    weathered += 0.021 * cos(TAU * (5 * u - 3 * v))
-    fracture_warp = 0.045 * sin(TAU * (2 * v + u))
-    fissure = abs(sin(TAU * (4 * u + fracture_warp)))
-    fissure = 0.087 * max(0.0, (0.13 - fissure) / 0.13)
-    soft_seam = 0.050 * max(0.0, (0.14 - abs(strata)) / 0.14)
-    brightness = (0.920 + macro + 0.060 * strata + 0.026 * fine_strata
-                  + weathered + silt + pores - fissure - soft_seam)
-    brightness = max(0.67, min(1.0, brightness))
-    value = max(0, min(255, round(255 * brightness)))
-    return value, round(value * 0.979), round(value * 0.952)
-
+    broad = _seamless_noise(u, v, 3, 8)
+    large = _seamless_noise(u, v, 7, 17)
+    mid = _seamless_noise(u, v, 19, 45)
+    fine = _seamless_noise(u, v, 61, 124)
+    grit = _seamless_noise(u, v, 127, 275)
+    # Organic, winding sediment bands cross the whole atlas continuously.
+    warp = 0.087 * _seamless_noise(u, v, 4, 91)
+    warp += 0.032 * _seamless_noise(u, v, 9, 92)
+    warp += 0.016 * sin(TAU * (3 * u - 2 * v))
+    bed = sin(TAU * (5 * v + warp))
+    thin_bed = sin(TAU * (17 * v + warp * 0.60 + 0.02 * mid))
+    wash = max(0.0, (0.22 - abs(bed)) / 0.22)
+    fracture_u = 3 * u + 0.035 * sin(TAU * (2 * v + warp))
+    joint = max(0.0, (0.09 - abs(sin(TAU * fracture_u))) / 0.09)
+    # Recessed crevices and rust-colored weathering separated by scale.
+    rust = max(0.0, broad * 0.6 + large * 0.4 + 0.19)
+    relief = 0.91 + 0.095 * broad + 0.067 * large + 0.037 * mid
+    relief += 0.050 * bed + 0.024 * thin_bed + 0.025 * fine + 0.013 * grit
+    relief -= 0.080 * wash + 0.068 * joint
+    relief = max(0.69, min(1.055, relief))
+    # Warm sandstone instead of grayscale multiplication: subtle and
+    # pigment-aware, with pale chalk veins and richer weathered iron.
+    r = 252 * relief * (1.0 + 0.036 * rust)
+    g = 244 * relief * (1.0 - 0.023 * rust)
+    b = 230 * relief * (1.0 - 0.050 * rust)
+    return tuple(max(0, min(255, round(n))) for n in (r, g, b))
 
 def asphalt_rgb(x: int, y: int) -> tuple[int, int, int]:
     u = x / SIZE

@@ -137,7 +137,7 @@ static func _ground(nearest: Vector3, noise: FastNoiseLite, x: float, z: float) 
 
 static func _color(y: float, distance: float, x: float, z: float, noise: FastNoiseLite) -> Color:
 	# Slow, large-scale sediment color and oxidation remain in vertices.
-	# The matching 512px albedo adds small structure without normal-map reads.
+	# The matching 1024px albedo adds small structure without normal-map reads.
 	var grain: float=noise.get_noise_2d(x*0.16+63.0,z*0.16-11.0)
 	var contour: float=noise.get_noise_2d(x*0.27+7.0,z*0.27+51.0)
 	var strata_y: float=y+2.3*noise.get_noise_2d(x*0.09+53.0,z*0.09-47.0)
@@ -168,13 +168,14 @@ static func _material(use_grain: bool=false) -> StandardMaterial3D:
 		mat.texture_filter=BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
 	return mat
 
-static func _surface_uv(point: Vector3, face: Vector3) -> Vector2:
-	# Project each triangle from one plane to prevent within-face stretching.
-	if absf(face.y)>0.70:
-		return Vector2(point.x*0.075,point.z*0.075)
-	if absf(face.x)>absf(face.z):
-		return Vector2(point.z*0.073,point.y*0.095)
-	return Vector2(point.x*0.073,point.y*0.095)
+static func _surface_uv(point: Vector3, _face: Vector3) -> Vector2:
+	# A continuous world-aligned UV frame for the entire sculpted canyon.
+	# The old dominant-normal per-triangle projection switched x/z/planar
+	# directions between adjacent triangles, creating obvious dark wedges
+	# and triangular texture seams. One single UV lookup stays inexpensive.
+	# Slight shearing disguises a mechanical repeating vertical grain.
+	return Vector2(point.x*0.067+point.z*0.041,
+			point.y*0.092+point.x*0.003+point.z*0.005)
 
 static func _vertex(st: SurfaceTool, point: Vector3, normal: Vector3, tint: Color, uv: Vector2, origin: Vector3) -> void:
 	st.set_normal(normal)
@@ -191,8 +192,12 @@ static func _tri(st: SurfaceTool, a: Vector3, b: Vector3, c: Vector3, na: Vector
 static func _cliff_skirt_segment(st: SurfaceTool, a: Vector3, b: Vector3, tint_a: Color, tint_b: Color, outward: Vector3, origin: Vector3, exterior: bool) -> void:
 	# External skirts retain the sealed cliff shell; internal skirts hide
 	# gaps where nearby and distant geometry have different triangulation.
-	var low_a:=Vector3(a.x,CLIFF_BASE_Y if exterior else a.y-11.0,a.z)
-	var low_b:=Vector3(b.x,CLIFF_BASE_Y if exterior else b.y-11.0,b.z)
+	# 11 m inward skirts were forming exposed, flat dark curtains at
+	# chunk boundaries. Near/far border vertices match the same heightmap.
+	# A thin overlapping seam guard is enough without a huge fake wall.
+	var seam_drop: float=2.0
+	var low_a:=Vector3(a.x,CLIFF_BASE_Y if exterior else a.y-seam_drop,a.z)
+	var low_b:=Vector3(b.x,CLIFF_BASE_Y if exterior else b.y-seam_drop,b.z)
 	var foot: Color=Color("634a42") if exterior else tint_a.darkened(0.26)
 	_tri(st,a,b,low_b,outward,outward,outward,tint_a,tint_b,foot,origin)
 	_tri(st,a,low_b,low_a,outward,outward,outward,tint_a,foot,foot,origin)

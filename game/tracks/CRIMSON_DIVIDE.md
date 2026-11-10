@@ -325,3 +325,31 @@ lighting, road, hero rocks, atlas geometry and shader sampling count are
 unchanged. Device-level frame timings are not asserted from CI. Compare
 the new trial against the previous ~60 FPS Android baseline; only if it
 holds should the next experiment test a *selective* normal map.
+
+## Rock texture continuity and mobile cost — artifact repair trial
+
+November 9, 2026 screenshot at Arch Run: steady 60 FPS, improved rock
+color, but giant dark triangular wedges and mechanical bands remain. The
+dominant-axis per-triangle UV projection was assigning different texture
+planes to adjacent cliff faces, and internal near/far chunk skirt meshes
+extruded 11 m below the authored heightfield. Both can create obvious
+angular discontinuities independent of texture resolution.
+
+This trial eliminates per-triangle UV switching in favor of a single
+world-locked x/z/y UV frame on every terrain triangle (still one ETC2
+texture fetch). Internal chunk seam guards shrink from 11 m to 2 m
+while full-depth **external** cliff seals and two-sided visibility remain
+unchanged. Decorative wall modules are farther from the racing line,
+more deeply bedded into the sculpted source heightmap, and less repetitive.
+
+Both the 1024px canyon albedo and 1024px Blender rock atlas now bake
+multiscale, periodic-value-noise erosion, wind-warped sediment deposition,
+fine rock pores and warm iron-oxide weathering. Import remains ETC2 VRAM
+compressed with mipmaps. There is **no second diffuse read, triplanar,
+normal map, screen-space AO, geometry subdivision, shadow pass or extra
+light**, and road physics/collision is unchanged.
+
+Automated regression verifies orientation-independent UVs and guards
+against the previous giant internal skirts. User handset is required to
+confirm image quality, absence of visible holes at LOD seams, and continued
+59–61 FPS.

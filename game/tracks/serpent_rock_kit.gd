@@ -89,7 +89,7 @@ static func populate(owner: Node3D, route: PackedVector3Array, heightmap: Packed
 	# Attach detailed cliff pieces to the steep part of both walls. Sampling
 	# the real sculpt height and checking nearest road branch prevents random
 	# rock pillars intruding into the playable course on tight turns.
-	for index in range(6,route.size()-4,16):
+	for index in range(6,route.size()-4,24):
 		if index>=39 and index<=52:
 			continue # Unobstructed leap silhouette and landing
 		if index>=81 and index<=92:
@@ -100,17 +100,17 @@ static func populate(owner: Node3D, route: PackedVector3Array, heightmap: Packed
 		var outward:=Vector3(tangent.z,0.0,-tangent.x)
 		var yaw: float=atan2(-tangent.z,tangent.x)
 		for side_sign in [-1.0,1.0]:
-			var lateral: float=28.0+rng.randf_range(-0.8,2.2)
+			var lateral: float=30.5+rng.randf_range(-0.8,2.2)
 			var center: Vector3=p+outward*side_sign*lateral
 			if _near_road(route,center.x,center.z)<25.0:
 				continue
 			if absf(center.x)>330.0 or absf(center.z)>216.0:
 				continue
-			var model: int=(index/16+(0 if side_sign<0 else 1))%3
+			var model: int=(index/24+(0 if side_sign<0 else 1))%3
 			var height: float=[25.0,27.0,23.0][model]
-			# More than half of each authored rock is embedded in the real
-			# terrain, so the contact is continuous rather than pasted on.
-			center.y=_terrain_y(heightmap,center.x,center.z)-height*0.52
+			# Deepen the rock insertion so the back/side faces do not
+			# stand proud as detached dark polygons at racing speed.
+			center.y=_terrain_y(heightmap,center.x,center.z)-height*0.68
 			var rotation: float=yaw+(PI if side_sign>0.0 else 0.0)
 			var scale: float=rng.randf_range(0.94,1.06)
 			spots[model].append(Transform3D(Basis(Vector3.UP,rotation).scaled(Vector3(scale,scale,scale)),center))
