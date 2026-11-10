@@ -9,6 +9,7 @@ class CapturePlanTests(unittest.TestCase):
 
     def test_neon_cross_rebuild_only(self):
         self.assertEqual(choose_captures(["game/tracks/neon_cross_rebuild.gd"]), (False, (0,), ()))
+        self.assertEqual(choose_captures(["game/tracks/neon_cross_skyline.gd"]), (False, (0,), ()))
 
     def test_new_hover_biomes_only(self):
         self.assertEqual(choose_captures(["game/tracks/hover_worlds.gd"]), (False, HOVER, ()))
