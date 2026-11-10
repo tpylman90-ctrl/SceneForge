@@ -10,7 +10,7 @@ import argparse
 from pathlib import Path
 
 FLEET = tuple(range(10))
-TRACKS = tuple(range(7))
+TRACKS = tuple(range(8))
 CRIMSON = (4, 5, 6)
 ACTIVE_CRAFT = (0, 2, 7, 9)  # Current Kestrel fairing and other active bodywork
 NAMES = {
@@ -45,7 +45,9 @@ def choose_captures(paths: list[str], scope: str = "auto") -> tuple[bool, tuple[
         path = raw.strip().lower().replace("\\", "/")
         if not path:
             continue
-        if (path.startswith("game/tracks/serpent_sculpt/")
+        if path == "game/tracks/skyfall_run.gd" or path == "game/tests/skyfall_run_test.gd":
+            tracks.add(7)
+        elif (path.startswith("game/tracks/serpent_sculpt/")
                 or path.startswith("game/tracks/serpent_textures/")
                 or path.startswith("game/assets/scenery/serpent/")
                 or path in {"game/tracks/serpent_canyon.gd", "game/tracks/serpent_rock_kit.gd",
@@ -90,9 +92,7 @@ def choose_captures(paths: list[str], scope: str = "auto") -> tuple[bool, tuple[
                 craft.update(FLEET)
         # Renderer settings and scene-wide lighting can change all previews.
         if path == "game/project.godot":
-            foundry = True
-            tracks.update(TRACKS)
-            craft.update(FLEET)
+            tracks.add(7)  # Vulkan evaluation: isolate the new visual target
     return foundry, tuple(sorted(tracks)), tuple(sorted(craft))
 
 
