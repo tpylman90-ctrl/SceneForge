@@ -27,6 +27,12 @@ for circuit in ${CAPTURE_TRACKS:-}; do
   test -s "build/$name-cockpit.png"
   capture_track "track-$circuit-jump" --track-jump --circuit-"$circuit"
   test -s "build/$jump-jump.png"
+  if [[ "$circuit" == 7 ]]; then
+    for index in 140 167; do
+      capture_track "skyfall-flight-$index" --track-flight-"$index" --circuit-7
+      test -s "build/SkyfallRun-flight-$index.png"
+    done
+  fi
   if [[ "$circuit" == 4 ]]; then
     for index in 14 75 155; do
       capture_track "track-$circuit-landmark-$index" --track-landmark-"$index" --circuit-"$circuit"
