@@ -1,3 +1,4 @@
+const SkylineFeatures=preload("res://tracks/neon_cross_skyline.gd")
 extends RefCounted
 
 # Neon Cross / Aerial City Rebuild (track 0 only).
@@ -124,84 +125,21 @@ static func _instances(parent: Node3D, name: String, descriptors: Array, unlit: 
 	parent.add_child(instance)
 
 static func _skyline(parent: Node3D, route: PackedVector3Array) -> void:
-	# Two tiers: a handful of nearby tower silhouettes, and the wider city
-	# massing below them. Grouped in four spatial sectors to allow frustum
-	# culling of entire MultiMeshes outside the view.
-	var near_groups: Array=[]
-	var light_groups: Array=[]
-	var far_groups: Array=[]
-	for _i in range(4):
-		near_groups.append([])
-		light_groups.append([])
-		far_groups.append([])
-	var occupied: int=0
-	var rng:=RandomNumberGenerator.new()
-	rng.seed=701123
-	for ix in range(-10,11):
-		for iz in range(-8,9):
-			var x: float=float(ix)*GRID_STEP_X+3.0*sin(float(ix*11+iz*7))
-			var z: float=float(iz)*GRID_STEP_Z+2.2*cos(float(ix*5-iz*13))
-			# Deterministic 3/5 sampling balances visual density on both lobes.
-			if posmod(ix*17+iz*23,5)>=3:
-				continue
-			var distance: float=_distance_to_route_xz(route,x,z)
-			var w: float=rng.randf_range(8.0,12.5)
-			var d: float=rng.randf_range(8.0,13.0)
-			# Keep even the wider building corners away from the support field.
-			if distance<CLOSE_ROUTE_CLEARANCE+maxf(w,d)*0.75:
-				continue
-			# Enforce a per-district ceiling instead of filling the west
-			# side first with a global row-major cap.
-			var h: float=rng.randf_range(30.0,69.0)
-			var p:=Vector3(x,BUILDING_LEVEL+h*0.5,z)
-			var sector: int=_district(p)
-			if near_groups[sector].size()>=int(MAX_BUILDINGS/4):
-				continue
-			var shade: float=0.70+0.29*rng.randf()
-			var tint: Color=Color("294257").lerp(Color("54647b"),shade)
-			if (ix+iz)%4==0:
-				tint=tint.lerp(Color("456373"),0.40)
-			near_groups[sector].append({"position":p,"size":Vector3(w,h,d),"color":tint})
-			# One thin rooftop light ribbon per tower; not hundreds of
-			# individual light/window objects or realtime lights.
-			if (ix+2*iz)%3!=0:
-				var strip_color: Color=Color("3f9fa6") if (ix+iz)%3 else Color("a48ac5")
-				light_groups[sector].append({
-					"position":Vector3(x,BUILDING_LEVEL+h-1.7,z),
-					"size":Vector3(w+0.15,0.23,d+0.15),
-					"color":strip_color
-				})
-			occupied+=1
-	for sector in range(4):
-		_instances(parent,"NeonNearTowerDistrict_%d"%sector,near_groups[sector])
-		_instances(parent,"NeonRoofLightsDistrict_%d"%sector,light_groups[sector],true)
-	# One deliberately low-cost dark outer skyline; no real faraway city
-	# simulation and no individual facade details beyond the near towers.
-	for n in range(64):
-		var angle: float=TAU*float(n)/64.0
-		var r: float=229.0+10.0*sin(angle*7.0)
-		var p:=Vector3(cos(angle)*r,0.0,sin(angle)*r*0.82)
-		var h: float=43.0+26.0*absf(sin(angle*5.0+0.4))
-		p.y=BUILDING_LEVEL-14.0+h*0.5
-		var sector: int=_district(p)
-		var tint: Color=Color("283749").lerp(Color("374963"),0.5+0.3*sin(angle*9.0))
-		far_groups[sector].append({
-			"position":p,
-			"size":Vector3(15.0,h,13.0),
-			"color":tint
-		})
-	for sector in range(4):
-		_instances(parent,"NeonFarImpostorDistrict_%d"%sector,far_groups[sector])
+	# Buildings are now route-adjacent (including the open inner lobes),
+	# rather than remaining below the entire racing plane.
+	SkylineFeatures.populate(parent,route)
 	var base:=MeshInstance3D.new()
 	base.name="NeonCityDepthFloor"
 	var slab:=BoxMesh.new()
 	slab.size=Vector3(480,1.0,360)
 	base.mesh=slab
-	base.position=Vector3(0,BUILDING_LEVEL-0.7,0)
+	base.position=Vector3(0,SkylineFeatures.BASE_Y-1.0,0)
 	base.material_override=_mat("162735")
 	base.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	parent.add_child(base)
-	parent.set_meta("instanced_buildings",occupied)
+	parent.set_meta("instanced_buildings",
+		int(parent.get_meta("midrise_towers",0))+
+		int(parent.get_meta("hero_3d_towers",0)))
 
 static func _surfaces(parent: Node3D, route: PackedVector3Array) -> void:
 	# The deck is a series of isolated, camera-readable platforms. The
@@ -339,4 +277,4 @@ static func populate(owner: Node3D, route: PackedVector3Array) -> void:
 	_skyline(parent,route)
 	_landmarks(parent,route)
 	parent.set_meta("open_air_segments",192-int(parent.get_meta("physical_visual_deck_segments")))
-	parent.set_meta("geometry_contract","static batched near/far city; no ground level roadway; decorative no collision")
+	parent.set_meta("geometry_contract","route-facing 3d skyline in lobes and gaps; spatial midrise instances; skyline cylinders; decorative no collision")
