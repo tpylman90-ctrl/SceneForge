@@ -12,6 +12,8 @@ const JUMP_START := 44
 const JUMP_END := 52
 const RAMP_HEIGHT := 4.2
 const GRAVITY := 14.0
+const BASE_3D_SCALE := 0.85
+const RUSH_3D_SCALE := 0.80
 const WIDTH := 16.0
 const DISTRICTS := ["FOUNDRY ROW","TRANSIT","FREIGHT DOCKS","EXCHANGE"]
 var route: PackedVector3Array = []
@@ -40,6 +42,13 @@ var boost_energy := 100.0
 var boost_cooldown := 0.0
 var boost_locked := false
 var boost_button: Button
+# Mobile speed VFX: full-screen sampling is skipped when hidden, while 3D
+# resolution drops by one discrete step at race velocity (not every frame).
+var speed_blur_rect: ColorRect
+var speed_blur_material: ShaderMaterial
+var speed_blur_level := 0.0
+var speed_reduced_resolution := false
+var speed_vfx_enabled := true
 var left := false
 var right := false
 var cockpit := false
@@ -164,6 +173,8 @@ func clear_drive_input() -> void:
 func open_events() -> void:
 	clear_drive_input()
 	set_physics_process(false)
+	if speed_blur_rect!=null:
+		speed_blur_rect.hide()
 	track_menu.hide()
 	results_panel.hide()
 	event_menu.show()
@@ -208,6 +219,8 @@ func finish_solo_race() -> void:
 	results_info.text=report
 	countdown_label.hide()
 	results_panel.show()
+	if speed_blur_rect!=null:
+		speed_blur_rect.hide()
 	hud.text=track_name()+" / FINISHED\nTOTAL %.2f s  /  %d STAGE(S)" % [total,challenge_laps()]
 
 func advance_countdown(delta: float) -> bool:
@@ -226,6 +239,8 @@ func advance_countdown(delta: float) -> bool:
 func open_tracks() -> void:
 	clear_drive_input()
 	set_physics_process(false)
+	if speed_blur_rect!=null:
+		speed_blur_rect.hide()
 	event_menu.hide()
 	results_panel.hide()
 	track_menu.show()
@@ -332,8 +347,9 @@ func _ready() -> void:
 	camera.far = 500 if track_id>=Crimson.FIRST_ID else 300
 	camera.near = 0.03
 	add_child(camera)
-	get_viewport().scaling_3d_scale = 0.85
+	get_viewport().scaling_3d_scale = BASE_3D_SCALE
 	get_viewport().msaa_3d = Viewport.MSAA_2X
+	build_speed_effect()
 	build_ui()
 	reset_car()
 	update_camera(1.0)
@@ -1064,9 +1080,54 @@ func steering_feedback(button: Button, active: bool) -> void:
 	button.add_theme_stylebox_override("hover",style)
 	button.add_theme_color_override("font_color",Color("dfffff") if active else Color.WHITE)
 
+func build_speed_effect() -> void:
+	var args := OS.get_cmdline_user_args()
+	# Keep existing fleet/build captures sharp unless explicitly testing blur.
+	speed_vfx_enabled = not ("--no-speed-vfx" in args or ("--capture" in args and not "--capture-speed-vfx" in args))
+	if not speed_vfx_enabled:
+		return
+	var layer := CanvasLayer.new()
+	layer.name="SpeedRush"
+	layer.layer=0
+	add_child(layer)
+	speed_blur_material=ShaderMaterial.new()
+	speed_blur_material.shader=preload("res://effects/speed_rush.gdshader")
+	speed_blur_rect=ColorRect.new()
+	speed_blur_rect.name="PeripheralRush"
+	speed_blur_rect.color=Color.WHITE
+	speed_blur_rect.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	speed_blur_rect.mouse_filter=Control.MOUSE_FILTER_IGNORE
+	speed_blur_rect.material=speed_blur_material
+	speed_blur_rect.visible=false
+	layer.add_child(speed_blur_rect)
+
+func update_speed_effect(delta: float) -> void:
+	if not speed_vfx_enabled:
+		return
+	var ratio := clampf(maxf(0.0,speed)/maxf(1.0,chassis.max_forward_speed),0.0,1.5)
+	var target := smoothstep(0.35,0.97,ratio)
+	if boost_active and ratio>0.45:
+		target=maxf(target,0.50)
+	if airborne and ratio>0.35:
+		target=minf(1.0,target+0.13)
+	speed_blur_level=lerpf(speed_blur_level,target,1.0-exp(-7.0*delta))
+	var driving_visible := not (track_menu.visible or event_menu.visible or results_panel.visible or race_countdown>0.0)
+	speed_blur_rect.visible=driving_visible and speed_blur_level>0.018
+	if speed_blur_rect.visible:
+		speed_blur_material.set_shader_parameter("intensity",speed_blur_level)
+	# Lower pixel shading cost only once per threshold crossing. Hysteresis
+	# prevents expensive resolution-buffer reallocations every physics frame.
+	if ratio>=0.80 and not speed_reduced_resolution:
+		speed_reduced_resolution=true
+		get_viewport().scaling_3d_scale=RUSH_3D_SCALE
+	elif ratio<=0.65 and speed_reduced_resolution:
+		speed_reduced_resolution=false
+		get_viewport().scaling_3d_scale=BASE_3D_SCALE
+
 func build_ui() -> void:
 	var layer := CanvasLayer.new()
 	layer.name="DrivingUI"
+	layer.layer=1  # Controls and telemetry remain sharp above the blur overlay.
 	add_child(layer)
 	hud = Label.new()
 	hud.position = Vector2(24,20)
@@ -1247,6 +1308,12 @@ func reset_car() -> void:
 	heading = atan2(tangent.x,tangent.z)
 	car.rotation = Vector3(0,heading,0)
 	speed = 0.0
+	speed_blur_level=0.0
+	if speed_blur_rect!=null:
+		speed_blur_rect.hide()
+	if speed_reduced_resolution:
+		speed_reduced_resolution=false
+		get_viewport().scaling_3d_scale=BASE_3D_SCALE
 	reverse_hold = 0.0
 	travel_velocity = Vector3.ZERO
 	steer = 0.0
@@ -1552,6 +1619,7 @@ func _physics_process(delta: float) -> void:
 	if speed > 0.1:
 		track_progress(nearest["index"])
 	update_camera(delta)
+	update_speed_effect(delta)
 	boost_button.text = "%s / %03d%%" % ["BOOST" if not boost_locked else "RECHARGING",int(boost_energy)]
 	if not race_finished:
 		var event_name := "FREE DRIVE" if race_mode==MODE_FREE else ("TIME TRIAL" if race_mode==MODE_TIME_TRIAL else ("SPRINT STAGE" if track_id==4 else "3-LAP CHALLENGE"))
@@ -1621,6 +1689,17 @@ func _process(_delta: float) -> void:
 			shutdown()
 
 func test_loop() -> void:
+	# The blur is dormant while stationary. A high-speed sample must activate
+	# both peripheral rush and a lower-cost 3D buffer, then recover at rest.
+	if speed_vfx_enabled:
+		speed=chassis.max_forward_speed
+		update_speed_effect(1.0)
+		assert(speed_blur_rect.visible and speed_reduced_resolution)
+		speed=0.0
+		update_speed_effect(1.0)
+		assert(not speed_blur_rect.visible and not speed_reduced_resolution)
+		reset_car()
+		print("SCENEFORGE_SPEED_VFX_OK")
 	# Steering settles consistently at different simulation rates.
 	var headings: Array[float] = []
 	for hz in [30,60,120]:
