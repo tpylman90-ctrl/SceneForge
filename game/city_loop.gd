@@ -75,6 +75,8 @@ var driving_touches: Dictionary = {}
 var track_id := 0
 var skyfall_hazards: Array[Vector3] = []
 var skyfall_trim := 0.0
+var skyfall_vertical_speed := 0.0
+var skyfall_gate_next := 0
 var skyfall_renderer_label := ""
 var track_menu: Control
 var event_menu: ColorRect
@@ -1340,6 +1342,8 @@ func build_ui() -> void:
 
 func reset_car() -> void:
 	skyfall_trim=0.0
+	skyfall_vertical_speed=0.0
+	skyfall_gate_next=0
 	car.position = route[0]
 	route_index=0
 	airborne=false
@@ -1538,7 +1542,11 @@ func update_skyfall_flight(delta: float, surface_height: float) -> float:
 		if not airborne:
 			airborne=true
 			air_time=0.0
+			skyfall_vertical_speed=0.0
 			jump_launches+=1
+			if dive and speed>6.0:
+				# The summit transitions to a fast powered dive, not a slow coast.
+				speed=maxf(speed,chassis.max_forward_speed*1.06)
 		air_time+=delta
 		if crossing:
 			# A gentle first reveal: glide across genuine open space.
@@ -1550,7 +1558,12 @@ func update_skyfall_flight(delta: float, surface_height: float) -> float:
 			var input_trim: float=24.0 if boost_active else (-20.0 if brake else 0.0)
 			skyfall_trim=move_toward(skyfall_trim,input_trim,delta*13.0)
 			var target_height: float=surface_height+8.0+skyfall_trim
-			car.position.y=move_toward(car.position.y,target_height,maxf(30.0,absf(speed)*1.4)*delta)
+			# Smooth vertical response trails the contour instead of snapping
+			# the vehicle to a camera-invisible altitude spline each frame.
+			var descent_target: float=clampf((target_height-car.position.y)*1.15,-58.0,28.0)
+			skyfall_vertical_speed=move_toward(skyfall_vertical_speed,descent_target,delta*48.0)
+			car.position.y+=skyfall_vertical_speed*delta
+			car.position.y=clampf(car.position.y,target_height-17.0,target_height+26.0)
 		peak_height=maxf(peak_height,car.position.y)
 	else:
 		if airborne:
@@ -1561,11 +1574,36 @@ func update_skyfall_flight(delta: float, surface_height: float) -> float:
 			airborne=false
 			air_time=0.0
 		car.position.y=surface_height
+		skyfall_vertical_speed=0.0
 		skyfall_trim=move_toward(skyfall_trim,0.0,delta*20.0)
 	if hover_rings!=null:
 		hover_rings.visible=not airborne
 		hover_rings.rotation.x=0.0
-	return -0.10 if dive else 0.0
+	if dive:
+		var p: Vector3=route[route_index]
+		var q: Vector3=route[mini(route_index+1,COUNT-1)]
+		var downhill: float=maxf(0.0,p.y-q.y)/maxf(1.0,flat(q-p).length())
+		return -clampf(0.10+downhill*0.20,0.10,0.24)
+	return 0.0
+
+func update_skyfall_gates() -> void:
+	if skyfall_gate_next>=Skyfall.FlightWorld.GATES.size():
+		return
+	var gate_index: int=Skyfall.FlightWorld.GATES[skyfall_gate_next]
+	if route_index<gate_index:
+		return
+	var target: Vector3=Skyfall.FlightWorld.flight_gate_center(route,skyfall_gate_next)
+	var offset: Vector3=car.position-target
+	var sideways: Vector3=Skyfall.FlightWorld.right(route,gate_index)
+	var radius: float=Vector2(offset.dot(sideways),offset.y).length()
+	var passed: bool=radius<40.5
+	if passed:
+		boost_energy=minf(100.0,boost_energy+7.0)
+		lap_banner.text="AERIAL GATE %d / %d  ·  CLEAN LINE" % [skyfall_gate_next+1,Skyfall.FlightWorld.GATES.size()]
+	else:
+		lap_banner.text="AERIAL GATE %d / %d  ·  OFF LINE" % [skyfall_gate_next+1,Skyfall.FlightWorld.GATES.size()]
+	banner_time=1.9
+	skyfall_gate_next+=1
 
 func update_jump(delta: float, surface_height: float) -> float:
 	if track_id==Skyfall.ID:
@@ -1670,6 +1708,7 @@ func _physics_process(delta: float) -> void:
 	var gas := throttle or boost_requested or Input.is_physical_key_pressed(KEY_W) or Input.is_physical_key_pressed(KEY_UP)
 	var stopping := brake or Input.is_physical_key_pressed(KEY_S) or Input.is_physical_key_pressed(KEY_DOWN)
 	var turn := float(right or Input.is_physical_key_pressed(KEY_D) or Input.is_physical_key_pressed(KEY_RIGHT))-float(left or Input.is_physical_key_pressed(KEY_A) or Input.is_physical_key_pressed(KEY_LEFT))
+	var skyfall_dive: bool=track_id==Skyfall.ID and route_index>=Skyfall.FLIGHT_START and route_index<Skyfall.FLIGHT_END
 	update_boost(delta,boost_requested,stopping)
 	var previous_speed := speed
 	steering_feedback(left_button,turn < -0.1)
@@ -1693,12 +1732,12 @@ func _physics_process(delta: float) -> void:
 		if speed < 0:
 			speed = move_toward(speed,0,chassis.braking*delta)
 		else:
-			var limit: float = chassis.max_forward_speed + (chassis.boost_speed_bonus if boost_active else 0.0)
-			var push: float = chassis.acceleration * (chassis.boost_acceleration_multiplier if boost_active else 1.0) * (0.25 if airborne else 1.0)
+			var limit: float = chassis.max_forward_speed + (chassis.boost_speed_bonus if boost_active else 0.0) + (12.0 if skyfall_dive else 0.0)
+			var push: float = chassis.acceleration * (chassis.boost_acceleration_multiplier if boost_active else 1.0) * ((0.72 if skyfall_dive else 0.25) if airborne else 1.0)
 			speed = move_toward(speed,limit,(push if speed < limit else 5.0)*delta)
 	else:
 		reverse_hold = 0.0
-		speed = move_toward(speed,0,chassis.coast_drag*delta)
+		speed = move_toward(speed,0,chassis.coast_drag*(0.30 if skyfall_dive and airborne else 1.0)*delta)
 	update_steering(delta)
 	var forward := Vector3(sin(heading),0,cos(heading))
 	var speed_ratio := clampf(absf(speed)/chassis.max_forward_speed,0,1)
@@ -1729,6 +1768,8 @@ func _physics_process(delta: float) -> void:
 	var road_right := Vector3(road_forward.z,0,-road_forward.x)
 	var bank := bank_slope(route_index)
 	var surface_pitch := update_jump(delta,center.y+offset.dot(road_right)*bank)
+	if track_id==Skyfall.ID and route_index>=Skyfall.FLIGHT_START and route_index<Skyfall.FLIGHT_END:
+		update_skyfall_gates()
 	if hover_rings!=null:
 		hover_rings.rotation.z=atan(bank) if not airborne else 0.0
 	car.rotation = Vector3(0,heading,0)
@@ -1792,9 +1833,10 @@ func update_camera(delta: float) -> void:
 	if cockpit:
 		camera.global_transform = feedback.global_transform*Transform3D(Basis.from_euler(Vector3(chassis.cockpit_pitch,PI,0)),chassis.cockpit_eye)
 	else:
-		var desired := car.to_global(Vector3(0,2.8,-5.65) if near_chase else Vector3(0,3.6,-8.5))
-		camera.position = camera.position.lerp(desired,1-exp(-delta*8))
-		camera.look_at(car.to_global(Vector3(0,1.05,3.3) if near_chase else Vector3(0,1.15,4)))
+		var diving: bool=track_id==Skyfall.ID and route_index>=Skyfall.FLIGHT_START and route_index<Skyfall.FLIGHT_END
+		var desired := car.to_global(Vector3(0,5.6,-9.6) if diving else (Vector3(0,2.8,-5.65) if near_chase else Vector3(0,3.6,-8.5)))
+		camera.position = camera.position.lerp(desired,1-exp(-delta*6))
+		camera.look_at(car.to_global(Vector3(0,-5.5,23.0) if diving else (Vector3(0,1.05,3.3) if near_chase else Vector3(0,1.15,4))))
 
 func _process(_delta: float) -> void:
 	if "--capture" in OS.get_cmdline_user_args():
