@@ -1119,6 +1119,17 @@ func build_speed_effect() -> void:
 	speed_blur_rect.visible=false
 	layer.add_child(speed_blur_rect)
 
+func set_speed_effect_enabled(enabled: bool) -> void:
+	if speed_blur_rect==null:
+		return
+	speed_vfx_enabled=enabled
+	if not enabled:
+		speed_blur_level=0.0
+		speed_blur_rect.hide()
+		if speed_reduced_resolution:
+			speed_reduced_resolution=false
+			get_viewport().scaling_3d_scale=BASE_3D_SCALE
+
 func update_speed_effect(delta: float) -> void:
 	if not speed_vfx_enabled:
 		return
@@ -1265,6 +1276,16 @@ func build_ui() -> void:
 		button.add_theme_font_size_override("font_size",24)
 		button.pressed.connect(begin_event.bind(int(option["mode"])))
 		event_choices.add_child(button)
+	# Phone-side A/B comparison: disable the effect without a rebuild.
+	var speed_fx_button := Button.new()
+	speed_fx_button.text="SPEED EFFECTS: ON  /  TAP TO COMPARE"
+	speed_fx_button.custom_minimum_size=Vector2(1020,54)
+	speed_fx_button.disabled=speed_blur_rect==null
+	speed_fx_button.pressed.connect(func():
+		set_speed_effect_enabled(not speed_vfx_enabled)
+		speed_fx_button.text="SPEED EFFECTS: ON  /  TAP TO COMPARE" if speed_vfx_enabled else "SPEED EFFECTS: OFF  /  TAP TO COMPARE"
+	)
+	event_choices.add_child(speed_fx_button)
 	var back := Button.new()
 	back.text="RETURN TO CIRCUIT"
 	back.custom_minimum_size=Vector2(1020,62)
