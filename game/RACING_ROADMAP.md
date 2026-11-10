@@ -29,10 +29,14 @@ The first three layouts currently use a common city environment. Keep them as th
 | 1 | Skyway | Forgiving elevated city oval | Wide high-speed bank and landing | Existing / polish |
 | 2 | Viper Rift | City technical S-bends | Banked turns, long leap | Existing / polish |
 | 3 | Iron Harbor | Industrial port, container lanes, gantries | Inset-oval chicanes and harbor leap | First playable scene prototype committed; needs phone review |
-| 4 | Crimson Divide | Red-rock canyon, cuttings, bridge spans | Ravine jump; dramatic sightlines | First fully distinct outdoor biome |
-| 5 | Emerald Run | Forested mountain valley | Flowing bends, waterfall and tunnel landmarks | Expansion |
-| 6 | Orbital Velocity | Orbital structure above a planet | Dramatic inclined transitions; *not* fully free-flight physics | Expansion |
-| 7 | Stormbreak | Ocean platforms and stormfront | Long open-air leap, difficult late apexes | Final-tier circuit |
+| 4 | Crimson Serpent | Long red-rock canyon sprint | Ravine jump; dramatic sightlines | Playable / scenery refinement |
+| 5 | Red Mesa Circuit | Wide mesa circuit | Forgiving ridge leap | Playable / scenery polish |
+| 6 | Devil's Gate | Technical canyon circuit | Narrow rock gate sequence | Playable / scenery polish |
+| 7 | Tidal Relics | Flooded ruin city and lagoon | Water-to-cobblestone racing | First procedural pass / validation pending |
+| 8 | Frostline Wilds | Ice sheet, thaw basin and alpine valley | Ice/mud/grass transitions | First procedural pass / validation pending |
+| 9 | Skyfall Run | Platforms and floating islands in the sky | No-floor magnetic lift corridors and gates | First procedural pass / validation pending |
+
+**Backlog concepts:** Emerald Run, Orbital Velocity and Stormbreak remain future possibilities without reserved IDs. Do not overwrite IDs 5–9 with those early planning names.
 
 **Course specification for each circuit:** route centerline, left/right edge widths, surface elevation and bank, forward-facing checkpoints, visible start/finish, safe respawn anchors, gap launch and landing regions, AI/ghost racing line, production cameras, mobile geometry budget and one screenshot-worthy landmark. Every road feature must agree with vehicle-support physics and barriers.
 
