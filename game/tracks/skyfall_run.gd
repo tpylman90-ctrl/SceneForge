@@ -1,5 +1,7 @@
 extends RefCounted
 
+const FlightWorld = preload("res://tracks/skyfall_flight_world.gd")
+
 # Skyfall Run — original point-to-point hover stage.  192 evenly spaced samples
 # keep it compatible with the shared steering, garage and checkpoint controller.
 # No third-party meshes or procedural work at import time.
@@ -398,4 +400,7 @@ static func populate(root: Node3D, path: PackedVector3Array) -> Array[Vector3]:
 	label.position = finish+Vector3.UP*11.0
 	label.rotation.y = yaw
 	root.add_child(label)
+	# The old descent was mostly unrendered sky; the dedicated aerial world
+	# provides a gorge, rock needle landmarks, valley forest and 3D gates.
+	FlightWorld.populate(root,path)
 	return hazards
