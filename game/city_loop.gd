@@ -1268,7 +1268,7 @@ func build_ui() -> void:
 	for option in [
 		{"name":"FREE DRIVE", "detail":"Explore the selected circuit without a countdown", "mode":MODE_FREE},
 		{"name":"TIME TRIAL", "detail":"Standing start / timed laps / personal bests", "mode":MODE_TIME_TRIAL},
-		{"name":"SPRINT STAGE" if track_id==4 else "3-LAP CHALLENGE", "detail":"Standing start / one long canyon stage" if track_id==4 else "Standing start / three laps / event classification", "mode":MODE_SOLO_RACE}
+		{"name":"SPRINT STAGE" if track_id==4 or track_id==Skyfall.ID else "3-LAP CHALLENGE", "detail":"Standing start / mountain ascent and full-air descent" if track_id==Skyfall.ID else ("Standing start / one long canyon stage" if track_id==4 else "Standing start / three laps / event classification"), "mode":MODE_SOLO_RACE}
 	]:
 		var button := Button.new()
 		button.text=option["name"]+"   /   "+option["detail"]
@@ -1422,6 +1422,23 @@ func closest_segment(pos: Vector3, cursor: int = -1) -> Dictionary:
 	return result
 
 func track_progress(index: int) -> void:
+	if track_id==Skyfall.ID:
+		if checkpoint==0 and index>=Skyfall.FINISH_INDEX:
+			checkpoint=1
+			var record: bool=best==0.0 or lap_time<best
+			if record and lap_time>0.0:
+				best=lap_time
+				save_best()
+			lap_banner.text="SKYFALL RUN COMPLETE / %.1f s"%lap_time
+			banner_time=4.0
+			if race_mode==MODE_SOLO_RACE:
+				race_splits.append(lap_time)
+				finish_solo_race()
+			else:
+				hud.text="SKYFALL RUN / FINISH\n%.1f s  /  REPLAY: RESET"%lap_time
+				race_finished=true
+				clear_drive_input()
+		return
 	if checkpoint == 0 and index >= COUNT/4-2 and index <= COUNT/4+8:
 		checkpoint=1
 	elif checkpoint == 1 and index >= COUNT/2-2 and index <= COUNT/2+8:
@@ -1502,7 +1519,45 @@ func update_boost(delta: float, requested: bool, stopping: bool) -> void:
 		if boost_energy >= 25:
 			boost_locked=false
 
+func update_skyfall_flight(delta: float, surface_height: float) -> float:
+	var crossing: bool = route_index>=Skyfall.GAP_START and route_index<Skyfall.GAP_END
+	var dive: bool = route_index>=Skyfall.FLIGHT_START and route_index<Skyfall.FLIGHT_END
+	if crossing or dive:
+		if not airborne:
+			airborne=true
+			air_time=0.0
+			jump_launches+=1
+		air_time+=delta
+		if crossing:
+			# A gentle first reveal: glide across genuine open space.
+			car.position.y=lerpf(car.position.y,surface_height+3.0,clampf(delta*2.8,0.0,1.0))
+			skyfall_trim=move_toward(skyfall_trim,0.0,delta*10.0)
+		else:
+			# Assisted descent with meaningful lateral and limited vertical control.
+			# Boost trims upward; brake trims downward, preserving phone controls.
+			var input_trim: float=24.0 if boost_active else (-20.0 if brake else 0.0)
+			skyfall_trim=move_toward(skyfall_trim,input_trim,delta*13.0)
+			var target_height: float=surface_height+8.0+skyfall_trim
+			car.position.y=move_toward(car.position.y,target_height,maxf(30.0,absf(speed)*1.4)*delta)
+		peak_height=maxf(peak_height,car.position.y)
+	else:
+		if airborne:
+			jump_landings+=1
+			landing_kick=0.04
+			lap_banner.text="FLIGHT CORRIDOR CLEARED / %.1f s"%air_time
+			banner_time=2.8
+			airborne=false
+			air_time=0.0
+		car.position.y=surface_height
+		skyfall_trim=move_toward(skyfall_trim,0.0,delta*20.0)
+	if hover_rings!=null:
+		hover_rings.visible=not airborne
+		hover_rings.rotation.x=0.0
+	return -0.10 if dive else 0.0
+
 func update_jump(delta: float, surface_height: float) -> float:
+	if track_id==Skyfall.ID:
+		return update_skyfall_flight(delta,surface_height)
 	var p := route[route_index]
 	var q := route[(route_index+1)%COUNT]
 	var ramp_pitch := -atan2(q.y-p.y,flat(q-p).length())
@@ -1557,6 +1612,20 @@ func recover_jump() -> void:
 	banner_time=3
 
 func prepare_jump_capture() -> void:
+	if track_id==Skyfall.ID:
+		set_physics_process(false)
+		route_index=Skyfall.GAP_START
+		car.position=route[route_index]
+		var approach: Vector3=flat(route[route_index+1]-route[route_index]).normalized()
+		heading=atan2(approach.x,approach.z)
+		car.rotation.y=heading
+		speed=32.0
+		airborne=true
+		air_time=0.6
+		car.position.y+=2.5
+		update_camera(1.0)
+		hud.text="SKYFALL RUN / BRIDGE REVEAL\nHOVER GLIDE / OPEN AIR"
+		return
 	set_physics_process(false)
 	reset_car()
 	route_index=43
@@ -1621,7 +1690,7 @@ func _physics_process(delta: float) -> void:
 	update_steering(delta)
 	var forward := Vector3(sin(heading),0,cos(heading))
 	var speed_ratio := clampf(absf(speed)/chassis.max_forward_speed,0,1)
-	var grip: float = chassis.lateral_grip*lerpf(1.0,0.65,speed_ratio)*(0.45 if airborne else 1.0)
+	var grip: float = chassis.lateral_grip*lerpf(1.0,0.65,speed_ratio)*((0.70 if track_id==Skyfall.ID else 0.45) if airborne else 1.0)
 	wall_cooldown=maxf(0,wall_cooldown-delta)
 	var desired_velocity := forward*speed
 	if wall_cooldown>0:
@@ -1634,6 +1703,15 @@ func _physics_process(delta: float) -> void:
 	var center: Vector3 = nearest["point"]
 	var offset := flat(car.position-center)
 	resolve_wall(center,road_half_width(route_index)-2.0)
+	if track_id==Skyfall.ID and route_index>45 and route_index<121 and not airborne:
+		for obstacle in skyfall_hazards:
+			var separation: Vector3=flat(car.position-obstacle)
+			if absf(car.position.y-obstacle.y)<8.0 and separation.length_squared()<42.25:
+				var bounce: Vector3=separation.normalized() if separation.length_squared()>0.001 else Vector3.RIGHT
+				car.position+=bounce*1.0
+				speed*=0.74
+				travel_velocity=travel_velocity.slide(bounce)*0.8
+				break
 	offset=flat(car.position-center)
 	var road_forward := flat(route[(route_index+1)%COUNT]-route[route_index]).normalized()
 	var road_right := Vector3(road_forward.z,0,-road_forward.x)
@@ -1662,7 +1740,7 @@ func _physics_process(delta: float) -> void:
 	update_speed_effect(delta)
 	boost_button.text = "%s / %03d%%" % ["BOOST" if not boost_locked else "RECHARGING",int(boost_energy)]
 	if not race_finished:
-		var event_name := "FREE DRIVE" if race_mode==MODE_FREE else ("TIME TRIAL" if race_mode==MODE_TIME_TRIAL else ("SPRINT STAGE" if track_id==4 else "3-LAP CHALLENGE"))
+		var event_name := "FREE DRIVE" if race_mode==MODE_FREE else ("TIME TRIAL" if race_mode==MODE_TIME_TRIAL else ("SPRINT STAGE" if track_id==4 or track_id==Skyfall.ID else "3-LAP CHALLENGE"))
 		hud.text = track_name()+" / "+event_name+" / LAP %d\n%s %03d KM/H  ·  %.1f s\nBEST %s  ·  %d FPS\n%s" % [lap,"R" if speed < -0.05 else "D",int(absf(speed)*3.6),lap_time,"—" if best==0 else "%.1f s"%best,Engine.get_frames_per_second(),("AIRBORNE / %.1f s"%air_time) if airborne else region_name(int(nearest["index"]))]
 
 func resolve_wall(center: Vector3, limit: float) -> void:
@@ -1688,7 +1766,7 @@ func update_steering(delta: float) -> void:
 	# Short yaw spool gives weight; countersteer and release settle promptly.
 	var ratio := clampf(absf(speed)/chassis.max_forward_speed,0,1)
 	var authority := lerpf(1.0,0.90,ratio)
-	var target: float = -steer*chassis.yaw_rate*clampf(speed/8,-1,1)*authority*(0.3 if airborne else 1.0)
+	var target: float = -steer*chassis.yaw_rate*clampf(speed/8,-1,1)*authority*((0.68 if track_id==Skyfall.ID else 0.3) if airborne else 1.0)
 	var response := 8.0 if airborne else (11.0 if absf(steer)<0.1 or target*yaw_velocity<0 else 7.0)
 	yaw_velocity=lerpf(yaw_velocity,target,1-exp(-response*delta))
 	if absf(speed)<0.05:
