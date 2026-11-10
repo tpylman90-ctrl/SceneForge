@@ -40,6 +40,30 @@ func check() -> void:
 	# The reveal must not secretly have a road or replace its hovercraft.
 	var surface: MeshInstance3D=scene.get_node("SkyfallDriveSurface")
 	assert(surface.mesh.get_surface_count()==1)
+	# A road can exist in memory yet be invisible in Mobile/Vulkan if its
+	# triangles are back-facing. Check the exact face orientation, not just
+	# mesh existence. Godot treats clockwise winding as front-facing.
+	var road_material: StandardMaterial3D=surface.material_override as StandardMaterial3D
+	assert(road_material!=null)
+	assert(road_material.cull_mode==BaseMaterial3D.CULL_BACK)
+	assert(road_material.transparency==BaseMaterial3D.TRANSPARENCY_DISABLED)
+	var road_arrays: Array=surface.mesh.surface_get_arrays(0)
+	var verts: PackedVector3Array=road_arrays[Mesh.ARRAY_VERTEX]
+	var normals: PackedVector3Array=road_arrays[Mesh.ARRAY_NORMAL]
+	var segment_count: int=0
+	for segment in range(Skyfall.COUNT-1):
+		if (segment<Skyfall.GAP_START or segment>=Skyfall.GAP_END) and (segment<Skyfall.FLIGHT_START or segment>=Skyfall.FLIGHT_END):
+			segment_count+=1
+	assert(verts.size()==segment_count*6,"Only intentional flight and bridge gaps should have no road")
+	assert(normals.size()==verts.size())
+	for triangle in range(0,verts.size(),3):
+		var v0: Vector3=verts[triangle]
+		var v1: Vector3=verts[triangle+1]
+		var v2: Vector3=verts[triangle+2]
+		var clockwise_normal: Vector3=(v2-v0).cross(v1-v0).normalized()
+		assert(clockwise_normal.y>0.12,"Road top faces must point up, not under the Vulkan camera")
+		assert(normals[triangle].dot(clockwise_normal)>0.98,"Road lighting normals must agree with front-facing winding")
+	print("SKYFALL_ROAD_WINDING_OK triangles=%d" % (verts.size()/3))
 	scene.route_index=Skyfall.GAP_START
 	scene.car.position=points[Skyfall.GAP_START]
 	scene.update_jump(1.0/60.0,scene.car.position.y)
