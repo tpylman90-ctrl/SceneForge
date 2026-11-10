@@ -4,6 +4,7 @@ const Fleet = preload("res://vehicles/fleet_catalog.gd")
 const Parts = preload("res://vehicles/performance_parts.gd")
 const Crimson = preload("res://tracks/crimson_divide.gd")
 const HoverWorlds = preload("res://tracks/hover_worlds.gd")
+const NeonCrossRebuild = preload("res://tracks/neon_cross_rebuild.gd")
 const CanyonScenery = preload("res://tracks/canyon_scenery.gd")
 const SerpentCanyon = preload("res://tracks/serpent_canyon.gd")
 
@@ -501,6 +502,13 @@ func outer_building_position(index: int) -> Vector3:
 	return Vector3(104*cos(angle),0,66*sin(angle))
 
 func build_city() -> void:
+	if track_id==0:
+		# A clean, track-zero-only city rebuild. Existing spline/collision physics,
+		# lap times, jump recovery and circuit identities remain authoritative.
+		for index in range(COUNT):
+			route.append(route_position(index))
+		NeonCrossRebuild.populate(self,route)
+		return
 	if track_id>=HoverWorlds.FIRST_ID:
 		for index in range(COUNT):
 			route.append(route_position(index))
@@ -1459,7 +1467,7 @@ func update_jump(delta: float, surface_height: float) -> float:
 	else:
 		car.position.y=surface_height
 	if hover_rings!=null:
-		hover_rings.visible=not airborne and not HoverWorlds.is_air_channel(track_id,route_index)
+		hover_rings.visible=not airborne and not HoverWorlds.is_air_channel(track_id,route_index) and not (track_id==0 and not NeonCrossRebuild.has_deck(route_index))
 		hover_rings.rotation.x=ramp_pitch if not airborne else 0.0
 	return -clampf(vertical_speed*0.012,-0.085,0.085) if airborne else ramp_pitch
 
