@@ -75,6 +75,9 @@ func check() -> void:
 	scene.route_index=0
 	scene.update_jump(1.0/60.0,scene.route[0].y)
 	assert(scene.hover_rings.visible,"Repulsor rings reappear on anchored start deck")
+	# Save the test metrics before freeing the scene and its skyline nodes.
+	var hero_towers: int=int(world.get_meta("hero_3d_towers",0))
+	var facade_details: int=int(world.get_meta("batched_facade_details",0))
 	scene.feedback.stop_audio()
 	scene.free()
 	# Other established city courses must still use their original environment.
@@ -88,7 +91,7 @@ func check() -> void:
 	existing.feedback.stop_audio()
 	existing.free()
 	print("NEON_CROSS_AERIAL_REBUILD_OK decks=",deck_segments," air=",air_segments,
-		" towers=",towers," hero=",world.get_meta("hero_3d_towers"),
-		" facade=",world.get_meta("batched_facade_details"),
+		" towers=",towers," hero=",hero_towers,
+		" facade=",facade_details,
 		" multi=",multi_count," scene_nodes=",node_count)
 	quit()
