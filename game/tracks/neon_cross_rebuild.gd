@@ -141,17 +141,22 @@ static func _skyline(parent: Node3D, route: PackedVector3Array) -> void:
 		for iz in range(-8,9):
 			var x: float=float(ix)*GRID_STEP_X+3.0*sin(float(ix*11+iz*7))
 			var z: float=float(iz)*GRID_STEP_Z+2.2*cos(float(ix*5-iz*13))
+			# Deterministic 3/5 sampling balances visual density on both lobes.
+			if posmod(ix*17+iz*23,5)>=3:
+				continue
 			var distance: float=_distance_to_route_xz(route,x,z)
 			var w: float=rng.randf_range(8.0,12.5)
 			var d: float=rng.randf_range(8.0,13.0)
 			# Keep even the wider building corners away from the support field.
 			if distance<CLOSE_ROUTE_CLEARANCE+maxf(w,d)*0.75:
 				continue
-			if occupied>=MAX_BUILDINGS:
-				break
+			# Enforce a per-district ceiling instead of filling the west
+			# side first with a global row-major cap.
 			var h: float=rng.randf_range(30.0,69.0)
 			var p:=Vector3(x,BUILDING_LEVEL+h*0.5,z)
 			var sector: int=_district(p)
+			if near_groups[sector].size()>=int(MAX_BUILDINGS/4):
+				continue
 			var shade: float=0.70+0.29*rng.randf()
 			var tint: Color=Color("294257").lerp(Color("54647b"),shade)
 			if (ix+iz)%4==0:
