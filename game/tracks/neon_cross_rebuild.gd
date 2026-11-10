@@ -1,5 +1,5 @@
-const SkylineFeatures=preload("res://tracks/neon_cross_skyline.gd")
 extends RefCounted
+const SkylineFeatures=preload("res://tracks/neon_cross_skyline.gd")
 
 # Neon Cross / Aerial City Rebuild (track 0 only).
 #
