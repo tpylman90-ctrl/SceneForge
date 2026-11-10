@@ -136,7 +136,7 @@ static func _triangle(st: SurfaceTool, a: Vector3, b: Vector3, c: Vector3, tint:
 		st.set_uv(Vector2(p.x,p.z)*0.045)
 		st.add_vertex(p)
 
-static func _finish(owner: Node3D, name: String, st: SurfaceTool, mat: Material) -> void:
+static func _finish(owner, name: String, st: SurfaceTool, mat: Material) -> void:
 	var node := MeshInstance3D.new()
 	node.name=name
 	node.mesh=st.commit()
@@ -144,7 +144,7 @@ static func _finish(owner: Node3D, name: String, st: SurfaceTool, mat: Material)
 	node.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	owner.add_child(node)
 
-static func _road(owner: Node3D, route: PackedVector3Array, track_id: int) -> void:
+static func _road(owner, route: PackedVector3Array, track_id: int) -> void:
 	var styles: Array=[]
 	var uses: Array[int]=[0,0,0,0,0]
 	for style in range(5):
@@ -217,7 +217,7 @@ static func _road(owner: Node3D, route: PackedVector3Array, track_id: int) -> vo
 	owner.add_child(label)
 	owner.flush_batches()
 
-static func _beacons(owner: Node3D, route: PackedVector3Array, slots: Array, color: String) -> void:
+static func _beacons(owner, route: PackedVector3Array, slots: Array, color: String) -> void:
 	var mat: StandardMaterial3D=owner.material(color,true)
 	for idx in slots:
 		var i: int=int(idx)
@@ -230,7 +230,7 @@ static func _beacons(owner: Node3D, route: PackedVector3Array, slots: Array, col
 			owner.block(p+r*sign*(width(7,i)+1.0)+Vector3.UP*1.8,
 				Vector3(0.55,3.6,0.55),mat,yaw)
 
-static func _water_and_ground(owner: Node3D, track_id: int) -> void:
+static func _water_and_ground(owner, track_id: int) -> void:
 	var st:=SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	var rng: float=1.0 if track_id==7 else 0.62
@@ -250,7 +250,7 @@ static func _water_and_ground(owner: Node3D, track_id: int) -> void:
 			_triangle(st,a,c,d,tint)
 	_finish(owner,"HoverWorldLagoon" if track_id==7 else "HoverWorldFrozenValley",st,_vertex_mat(0.36 if track_id==7 else 0.94))
 
-static func _ruins(owner: Node3D, route: PackedVector3Array) -> void:
+static func _ruins(owner, route: PackedVector3Array) -> void:
 	# Four connected temple complexes, with overlapping stone tiers rather
 	# than hundreds of separate draw calls. Never intersect racing clearance.
 	var stone: StandardMaterial3D=owner.material("7c8076")
@@ -273,7 +273,7 @@ static func _ruins(owner: Node3D, route: PackedVector3Array) -> void:
 		owner.block(base+forward*0.0+side*6.0+Vector3.UP*12.0,
 			Vector3(25.0,1.1,2.5),pale,yaw)
 
-static func _frost_shards(owner: Node3D, route: PackedVector3Array) -> void:
+static func _frost_shards(owner, route: PackedVector3Array) -> void:
 	var st:=SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	for i in range(0,route.size(),7):
@@ -295,7 +295,7 @@ static func _frost_shards(owner: Node3D, route: PackedVector3Array) -> void:
 			_triangle(st,c,a,peak,cold.lightened(0.08))
 	_finish(owner,"HoverGlacialShards",st,_vertex_mat())
 
-static func _islands(owner: Node3D, route: PackedVector3Array) -> void:
+static func _islands(owner, route: PackedVector3Array) -> void:
 	var st:=SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	for n in range(11):
@@ -328,7 +328,7 @@ static func _islands(owner: Node3D, route: PackedVector3Array) -> void:
 	var color: StandardMaterial3D=owner.material("636483")
 	owner.block(p+Vector3.DOWN*4.0,Vector3(35,7,39),color)
 
-static func _air_gates(owner: Node3D, route: PackedVector3Array) -> void:
+static func _air_gates(owner, route: PackedVector3Array) -> void:
 	var st:=SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	for i in [76,87,98,108,131,140,147]:
@@ -348,7 +348,7 @@ static func _air_gates(owner: Node3D, route: PackedVector3Array) -> void:
 			_triangle(st,c0,v1,v0,tint)
 	_finish(owner,"HoverAirGateRings",st,_vertex_mat(0.25))
 
-static func populate(owner: Node3D, route: PackedVector3Array, track_id: int) -> void:
+static func populate(owner, route: PackedVector3Array, track_id: int) -> void:
 	assert(track_id>=FIRST_ID and track_id<=LAST_ID)
 	if track_id!=9:
 		_water_and_ground(owner,track_id)
