@@ -3,6 +3,7 @@ extends Node3D
 const Fleet = preload("res://vehicles/fleet_catalog.gd")
 const Parts = preload("res://vehicles/performance_parts.gd")
 const Crimson = preload("res://tracks/crimson_divide.gd")
+const HoverWorlds = preload("res://tracks/hover_worlds.gd")
 const CanyonScenery = preload("res://tracks/canyon_scenery.gd")
 const SerpentCanyon = preload("res://tracks/serpent_canyon.gd")
 
@@ -83,10 +84,13 @@ var wall_cooldown := 0.0
 var wall_normal := Vector3.ZERO
 var wall_recoil := Vector3.ZERO
 var wall_hits := 0
-const TRACK_NAMES := ["NEON CROSS","SKYWAY","VIPER RIFT","IRON HARBOR","CRIMSON SERPENT","RED MESA CIRCUIT","DEVIL'S GATE"]
-const TRACK_INFO := ["MEDIUM / Figure-eight crossing jump", "EASY / Elevated oval and forgiving jump", "HARD / S-bends, banked turns and extended leap", "MEDIUM / Dockside straights, technical chicanes and harbor leap", "MEDIUM / Long flowing single-stage canyon sprint", "EASY / Wide mesa loop and sweeping horseshoe turns", "HARD / Tight red-rock gates, crests and ridge chicanes"]
+const TRACK_NAMES := ["NEON CROSS","SKYWAY","VIPER RIFT","IRON HARBOR","CRIMSON SERPENT","RED MESA CIRCUIT","DEVIL'S GATE","TIDAL RELICS","FROSTLINE WILDS","SKYFALL RUN"]
+const TRACK_INFO := ["MEDIUM / Figure-eight crossing jump", "EASY / Elevated oval and forgiving jump", "HARD / S-bends, banked turns and extended leap", "MEDIUM / Dockside straights, technical chicanes and harbor leap", "MEDIUM / Long flowing single-stage canyon sprint", "EASY / Wide mesa loop and sweeping horseshoe turns", "HARD / Tight red-rock gates, crests and ridge chicanes","MEDIUM / Flooded ruins and cobble causeways","MEDIUM / Ice, mud and alpine grassland","HARD / Open-air repulsor racing"]
 
 func route_position(index: int) -> Vector3:
+	if track_id>=HoverWorlds.FIRST_ID:
+		var point: Vector2=HoverWorlds.point(track_id,index,COUNT)
+		return Vector3(point.x,deck_height(index),point.y)
 	if track_id>=Crimson.FIRST_ID:
 		var point: Vector2=Crimson.point(track_id,index,COUNT)
 		return Vector3(point.x,deck_height(index),point.y)
@@ -103,6 +107,8 @@ func route_position(index: int) -> Vector3:
 	return Vector3(80*cos(a),deck_height(index),z)
 
 func bank_slope(index: int) -> float:
+	if track_id>=HoverWorlds.FIRST_ID:
+		return HoverWorlds.bank(track_id,index,COUNT)
 	if track_id>=Crimson.FIRST_ID:
 		return Crimson.bank(track_id,index,COUNT)
 	if track_id!=2 or index>=26 and index<=70 or index>=132 and index<=156:
@@ -116,6 +122,8 @@ func challenge_laps() -> int:
 	return 1 if track_id==4 else RACE_LAPS
 
 func region_name(index: int) -> String:
+	if track_id>=HoverWorlds.FIRST_ID:
+		return HoverWorlds.sector(track_id,index,COUNT)
 	if track_id>=Crimson.FIRST_ID:
 		return Crimson.sector(track_id,index,COUNT)
 	return DISTRICTS[int(index)/(COUNT/4)]
@@ -279,7 +287,23 @@ func _ready() -> void:
 	var settings := Environment.new()
 	settings.background_mode = Environment.BG_SKY
 	var sky := Sky.new()
-	if track_id>=Crimson.FIRST_ID:
+	if track_id>=HoverWorlds.FIRST_ID:
+		var hover_sky := ProceduralSkyMaterial.new()
+		if track_id==7:
+			hover_sky.sky_top_color=Color("376987")
+			hover_sky.sky_horizon_color=Color("aad9cb")
+			hover_sky.ground_horizon_color=Color("4a9188")
+		elif track_id==8:
+			hover_sky.sky_top_color=Color("386188")
+			hover_sky.sky_horizon_color=Color("d1e2e7")
+			hover_sky.ground_horizon_color=Color("9fc2c8")
+		else:
+			hover_sky.sky_top_color=Color("202d68")
+			hover_sky.sky_horizon_color=Color("ceb3e6")
+			hover_sky.ground_horizon_color=Color("7778ad")
+		hover_sky.ground_bottom_color=Color("20304a")
+		sky.sky_material=hover_sky
+	elif track_id>=Crimson.FIRST_ID:
 		var desert_sky := ProceduralSkyMaterial.new()
 		desert_sky.sky_top_color=Color("41657f") if track_id==4 else Color("496b83")
 		desert_sky.sky_horizon_color=Color("d8b296") if track_id==4 else Color("e9ac83")
@@ -293,12 +317,12 @@ func _ready() -> void:
 	settings.sky=sky
 	settings.background_color = Color("172c42")
 	settings.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	settings.ambient_light_color = Color("a4b0ba") if track_id==4 else (Color("a9aeaa") if track_id>=Crimson.FIRST_ID else Color("91afc4") )
-	settings.ambient_light_energy = 0.53 if track_id==4 else (0.62 if track_id>=Crimson.FIRST_ID else 0.8)
+	settings.ambient_light_color = (Color("aecfd4") if track_id==7 else (Color("d4e4f0") if track_id==8 else Color("bac5e5"))) if track_id>=HoverWorlds.FIRST_ID else (Color("a4b0ba") if track_id==4 else (Color("a9aeaa") if track_id>=Crimson.FIRST_ID else Color("91afc4")))
+	settings.ambient_light_energy = 0.72 if track_id>=HoverWorlds.FIRST_ID else (0.53 if track_id==4 else (0.62 if track_id>=Crimson.FIRST_ID else 0.8))
 	settings.tonemap_mode = Environment.TONE_MAPPER_FILMIC
 	settings.fog_enabled = true
-	settings.fog_light_color = Color("c59b86") if track_id==4 else (Color("be8368") if track_id>=Crimson.FIRST_ID else Color("273c50"))
-	settings.fog_density = 0.0032 if track_id==4 else (0.0014 if track_id>=Crimson.FIRST_ID else 0.002)
+	settings.fog_light_color = (Color("7dbebc") if track_id==7 else (Color("ccdfed") if track_id==8 else Color("858cc3"))) if track_id>=HoverWorlds.FIRST_ID else (Color("c59b86") if track_id==4 else (Color("be8368") if track_id>=Crimson.FIRST_ID else Color("273c50")))
+	settings.fog_density = 0.002 if track_id>=HoverWorlds.FIRST_ID else (0.0032 if track_id==4 else (0.0014 if track_id>=Crimson.FIRST_ID else 0.002))
 	settings.fog_sky_affect = 0.0
 	if track_id==4:
 		# Lightweight distance haze, not expensive realtime volumetrics.
@@ -310,8 +334,8 @@ func _ready() -> void:
 	add_child(environment)
 	var sun := DirectionalLight3D.new()
 	sun.rotation_degrees = Vector3(-38, -28, 0)
-	sun.light_color = Color("ffe0b8") if track_id==4 else (Color("ffd3a5") if track_id>=Crimson.FIRST_ID else Color("b8d6ef"))
-	sun.light_energy = 1.01 if track_id==4 else (0.98 if track_id>=Crimson.FIRST_ID else 1.0)
+	sun.light_color = (Color("dbfff5") if track_id==7 else (Color("e7f7ff") if track_id==8 else Color("e0d1ff"))) if track_id>=HoverWorlds.FIRST_ID else (Color("ffe0b8") if track_id==4 else (Color("ffd3a5") if track_id>=Crimson.FIRST_ID else Color("b8d6ef")))
+	sun.light_energy = 1.0 if track_id>=HoverWorlds.FIRST_ID else (1.01 if track_id==4 else (0.98 if track_id>=Crimson.FIRST_ID else 1.0))
 	sun.shadow_enabled = true
 	sun.directional_shadow_max_distance = 70
 	sun.shadow_bias = 0.15
@@ -329,7 +353,7 @@ func _ready() -> void:
 	camera = Camera3D.new()
 	camera.current = true
 	camera.fov = 74
-	camera.far = 500 if track_id>=Crimson.FIRST_ID else 300
+	camera.far = 700 if track_id==9 else (500 if track_id>=Crimson.FIRST_ID else 300)
 	camera.near = 0.03
 	add_child(camera)
 	get_viewport().scaling_3d_scale = 0.85
@@ -377,10 +401,10 @@ func _ready() -> void:
 				break
 	if "--track-overview" in OS.get_cmdline_user_args():
 		set_physics_process(false)
-		camera.position=Vector3(25,390,-25) if track_id>=Crimson.FIRST_ID else Vector3(120,185,-120)
+		camera.position=Vector3(35,360,-25) if track_id==9 else (Vector3(25,390,-25) if track_id>=Crimson.FIRST_ID else Vector3(120,185,-120))
 		camera.far=850 if track_id>=Crimson.FIRST_ID else 450
 		camera.fov=54 if track_id>=Crimson.FIRST_ID else 48
-		camera.look_at(Vector3.ZERO)
+		camera.look_at(Vector3(0,75,0) if track_id==9 else Vector3.ZERO)
 		for child in get_node("DrivingUI").get_children():
 			if child != hud:
 				child.hide()
@@ -395,7 +419,7 @@ func flat(value: Vector3) -> Vector3:
 	return Vector3(value.x,0,value.z)
 
 func deck_height(index: int) -> float:
-	var base: float=Crimson.ground_height(track_id,index,COUNT) if track_id>=Crimson.FIRST_ID else (2.0 if track_id==1 else 0.0)
+	var base: float=HoverWorlds.height(track_id,index,COUNT) if track_id>=HoverWorlds.FIRST_ID else (Crimson.ground_height(track_id,index,COUNT) if track_id>=Crimson.FIRST_ID else (2.0 if track_id==1 else 0.0))
 	if track_id==2 and index>=96 and index<=128:
 		base=3.0*pow(sin(PI*float(index-96)/32.0),2)
 	var first: int=jump_start_index()
@@ -416,6 +440,9 @@ func is_jump_gap(index: int) -> bool:
 	return index>=jump_start_index() and index<jump_end_index()
 
 func road_half_width(index: int) -> float:
+	if track_id>=HoverWorlds.FIRST_ID:
+		var natural: float=HoverWorlds.width(track_id,index)
+		return natural+2.5*(1.0-clampf(float(index-jump_end_index())/10.0,0.0,1.0)) if index>=jump_end_index() and index<jump_end_index()+10 else natural
 	if track_id>=Crimson.FIRST_ID:
 		var natural: float=Crimson.half_width(track_id,index)
 		var finish: int=jump_end_index()
@@ -474,6 +501,11 @@ func outer_building_position(index: int) -> Vector3:
 	return Vector3(104*cos(angle),0,66*sin(angle))
 
 func build_city() -> void:
+	if track_id>=HoverWorlds.FIRST_ID:
+		for index in range(COUNT):
+			route.append(route_position(index))
+		HoverWorlds.populate(self,route,track_id)
+		return
 	if track_id>=Crimson.FIRST_ID:
 		build_crimson_circuit()
 		return
@@ -1427,7 +1459,7 @@ func update_jump(delta: float, surface_height: float) -> float:
 	else:
 		car.position.y=surface_height
 	if hover_rings!=null:
-		hover_rings.visible=not airborne
+		hover_rings.visible=not airborne and not HoverWorlds.is_air_channel(track_id,route_index)
 		hover_rings.rotation.x=ramp_pitch if not airborne else 0.0
 	return -clampf(vertical_speed*0.012,-0.085,0.085) if airborne else ramp_pitch
 
@@ -1555,7 +1587,7 @@ func _physics_process(delta: float) -> void:
 	boost_button.text = "%s / %03d%%" % ["BOOST" if not boost_locked else "RECHARGING",int(boost_energy)]
 	if not race_finished:
 		var event_name := "FREE DRIVE" if race_mode==MODE_FREE else ("TIME TRIAL" if race_mode==MODE_TIME_TRIAL else ("SPRINT STAGE" if track_id==4 else "3-LAP CHALLENGE"))
-		hud.text = track_name()+" / "+event_name+" / LAP %d\n%s %03d KM/H  ·  %.1f s\nBEST %s  ·  %d FPS\n%s" % [lap,"R" if speed < -0.05 else "D",int(absf(speed)*3.6),lap_time,"—" if best==0 else "%.1f s"%best,Engine.get_frames_per_second(),("AIRBORNE / %.1f s"%air_time) if airborne else region_name(int(nearest["index"]))]
+		hud.text = track_name()+" / "+event_name+" / LAP %d\n%s %03d KM/H  ·  %.1f s\nBEST %s  ·  %d FPS\n%s" % [lap,"R" if speed < -0.05 else "D",int(absf(speed)*3.6),lap_time,"—" if best==0 else "%.1f s"%best,Engine.get_frames_per_second(),("AIRBORNE / %.1f s"%air_time) if airborne else ("REPULSOR AIR CORRIDOR" if HoverWorlds.is_air_channel(track_id,route_index) else region_name(int(nearest["index"])))]
 
 func resolve_wall(center: Vector3, limit: float) -> void:
 	var offset := flat(car.position-center)
@@ -1606,7 +1638,7 @@ func _process(_delta: float) -> void:
 			if "--track-overview" in OS.get_cmdline_user_args():
 				file="NeonLoop-overview.png"
 			if track_id>0:
-				var circuit_prefix: String = ["NeonLoop","Skyway","ViperRift","IronHarbor","CrimsonSerpent","RedMesa","DevilsGate"][track_id]
+				var circuit_prefix: String = ["NeonLoop","Skyway","ViperRift","IronHarbor","CrimsonSerpent","RedMesa","DevilsGate","TidalRelics","FrostlineWilds","SkyfallRun"][track_id]
 				file=circuit_prefix+("-overview.png" if "--track-overview" in OS.get_cmdline_user_args() else ("-jump.png" if "--track-jump" in OS.get_cmdline_user_args() else "-cockpit.png"))
 			if track_id==4:
 				for landmark in [14,75,155]:
