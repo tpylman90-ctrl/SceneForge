@@ -55,7 +55,7 @@ def choose_captures(paths: list[str], scope: str = "auto") -> tuple[bool, tuple[
                             "tools/ensure_serpent_texture_import.py"}):
             # Dedicated sculpt passes never require Red Mesa / Devil's Gate captures.
             tracks.add(4)
-        elif path == "game/tracks/neon_cross_rebuild.gd":
+        elif path in {"game/tracks/neon_cross_rebuild.gd", "game/tracks/neon_cross_skyline.gd"}:
             tracks.add(0)
         elif path == "game/tracks/hover_worlds.gd":
             tracks.update(HOVER)
