@@ -75,6 +75,7 @@ var driving_touches: Dictionary = {}
 var track_id := 0
 var skyfall_hazards: Array[Vector3] = []
 var skyfall_trim := 0.0
+var skyfall_renderer_label := ""
 var track_menu: Control
 var event_menu: ColorRect
 var results_panel: ColorRect
@@ -367,6 +368,7 @@ func _ready() -> void:
 	get_viewport().msaa_3d = Viewport.MSAA_2X
 	build_speed_effect()
 	build_ui()
+	skyfall_renderer_label="RENDERER %s / %s" % [RenderingServer.get_current_rendering_method().to_upper(),RenderingServer.get_current_rendering_driver_name().to_upper()]
 	reset_car()
 	update_camera(1.0)
 	if "--track-cockpit" in OS.get_cmdline_user_args():
@@ -1416,6 +1418,9 @@ func closest_segment(pos: Vector3, cursor: int = -1) -> Dictionary:
 	var search := COUNT if cursor<0 else 29
 	for slot in range(search):
 		var i := slot if cursor<0 else posmod(cursor+slot-14,COUNT)
+		# This is a one-way stage: there is no invisible finish-to-start seam.
+		if track_id==Skyfall.ID and i==COUNT-1:
+			continue
 		var a := route[i]
 		var d := route[(i+1)%COUNT]-a
 		var test_d := d if cursor<0 else flat(d)
@@ -1749,6 +1754,8 @@ func _physics_process(delta: float) -> void:
 	if not race_finished:
 		var event_name := "FREE DRIVE" if race_mode==MODE_FREE else ("TIME TRIAL" if race_mode==MODE_TIME_TRIAL else ("SPRINT STAGE" if track_id==4 or track_id==Skyfall.ID else "3-LAP CHALLENGE"))
 		hud.text = track_name()+" / "+event_name+" / LAP %d\n%s %03d KM/H  ·  %.1f s\nBEST %s  ·  %d FPS\n%s" % [lap,"R" if speed < -0.05 else "D",int(absf(speed)*3.6),lap_time,"—" if best==0 else "%.1f s"%best,Engine.get_frames_per_second(),("AIRBORNE / %.1f s"%air_time) if airborne else region_name(int(nearest["index"]))]
+		if track_id==Skyfall.ID:
+			hud.text+="\n"+skyfall_renderer_label
 
 func resolve_wall(center: Vector3, limit: float) -> void:
 	var offset := flat(car.position-center)
