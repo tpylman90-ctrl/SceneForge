@@ -37,6 +37,27 @@ func check() -> void:
 	assert(scene.get_node_or_null("SlalomBoulders")!=null)
 	assert(scene.get_node_or_null("LowlandBase")!=null)
 	assert(scene.skyfall_hazards.size()>=4)
+	for section in range(3):
+		var cliff: MeshInstance3D=scene.get_node_or_null("SkyfallFlightValley_%d"%section)
+		assert(cliff!=null and cliff.mesh!=null)
+		var vertices: PackedVector3Array=cliff.mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX]
+		assert(vertices.size()>1000,"Aerial descent must render nearby land, not emptiness")
+	for name in ["SkyfallFlightRockNeedles","SkyfallFlightNeedleCrowns",
+		"SkyfallFlightForestCrowns","SkyfallFlightForestTrunks"]:
+		var markers: MultiMeshInstance3D=scene.get_node_or_null(name)
+		assert(markers!=null and markers.multimesh.instance_count>15)
+	var sky_gates: MeshInstance3D=scene.get_node_or_null("SkyfallFlightAerialGates")
+	assert(sky_gates!=null and sky_gates.mesh.get_surface_count()==1)
+	assert(sky_gates.mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX].size()>450)
+	assert(Skyfall.FlightWorld.GATES.size()==4)
+	for gate_index in range(Skyfall.FlightWorld.GATES.size()):
+		var ring_center: Vector3=Skyfall.FlightWorld.flight_gate_center(points,gate_index)
+		var course_point: Vector3=points[Skyfall.FlightWorld.GATES[gate_index]]
+		assert(ring_center.distance_to(course_point)<25.0,"Sky rings must be reachable by the player")
+	var valley_noise: FastNoiseLite=Skyfall.FlightWorld._noise()
+	var sky_start: Vector3=Skyfall.FlightWorld._valley_vertex(points,146,0.0,valley_noise)
+	assert(points[146].y-sky_start.y>35.0 and points[146].y-sky_start.y<150.0,
+		"Real ground must be visible below the airborne craft")
 	# The reveal must not secretly have a road or replace its hovercraft.
 	var surface: MeshInstance3D=scene.get_node("SkyfallDriveSurface")
 	assert(surface.mesh.get_surface_count()==1)
@@ -75,10 +96,18 @@ func check() -> void:
 	scene.car.position=points[Skyfall.FLIGHT_START+2]
 	scene.update_jump(1.0/60.0,scene.car.position.y)
 	assert(scene.airborne and scene.jump_launches==2)
+	assert(scene.speed>=scene.chassis.max_forward_speed*1.05,"Summit must launch at racing speed")
 	var lower: float=scene.skyfall_trim
 	scene.boost_active=true
 	scene.update_jump(0.4,points[Skyfall.FLIGHT_START+2].y)
 	assert(scene.skyfall_trim>lower,"Boost should lift the free-air trim")
+	scene.skyfall_gate_next=0
+	scene.route_index=Skyfall.FlightWorld.GATES[0]
+	scene.car.position=Skyfall.FlightWorld.flight_gate_center(points,0)
+	scene.boost_energy=75.0
+	scene.update_skyfall_gates()
+	assert(scene.skyfall_gate_next==1 and scene.boost_energy>75.0,
+		"A clean aerial gate must reward the chosen 3D racing line")
 	scene.route_index=Skyfall.FLIGHT_END+1
 	scene.update_jump(0.1,points[Skyfall.FLIGHT_END+1].y)
 	assert(not scene.airborne and scene.jump_landings==2)
@@ -87,5 +116,6 @@ func check() -> void:
 	assert(scene.race_finished and scene.checkpoint==1)
 	scene.feedback.stop_audio()
 	scene.free()
+	print("SKYFALL_AERIAL_WORLD_OK 3 chunks, 4 gates, forest and needles")
 	print("SKYFALL_ROUTE_FLIGHT_OK length=%.1f summit=%.1f obstacles=%d"%[traveled,summit,8])
 	quit()
