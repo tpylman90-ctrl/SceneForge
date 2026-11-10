@@ -303,7 +303,14 @@ func _ready() -> void:
 	var settings := Environment.new()
 	settings.background_mode = Environment.BG_SKY
 	var sky := Sky.new()
-	if (track_id>=Crimson.FIRST_ID and track_id<=Crimson.LAST_ID):
+	if track_id==Skyfall.ID:
+		var mountain_sky := ProceduralSkyMaterial.new()
+		mountain_sky.sky_top_color=Color("3d6e9d")
+		mountain_sky.sky_horizon_color=Color("d9c6ab")
+		mountain_sky.ground_horizon_color=Color("788c87")
+		mountain_sky.ground_bottom_color=Color("46514c")
+		sky.sky_material=mountain_sky
+	elif (track_id>=Crimson.FIRST_ID and track_id<=Crimson.LAST_ID):
 		var desert_sky := ProceduralSkyMaterial.new()
 		desert_sky.sky_top_color=Color("41657f") if track_id==4 else Color("496b83")
 		desert_sky.sky_horizon_color=Color("d8b296") if track_id==4 else Color("e9ac83")
@@ -317,12 +324,12 @@ func _ready() -> void:
 	settings.sky=sky
 	settings.background_color = Color("172c42")
 	settings.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	settings.ambient_light_color = Color("a4b0ba") if track_id==4 else (Color("a9aeaa") if (track_id>=Crimson.FIRST_ID and track_id<=Crimson.LAST_ID) else Color("91afc4") )
-	settings.ambient_light_energy = 0.53 if track_id==4 else (0.62 if (track_id>=Crimson.FIRST_ID and track_id<=Crimson.LAST_ID) else 0.8)
+	settings.ambient_light_color = Color("c4c9bc") if track_id==Skyfall.ID else (Color("a4b0ba") if track_id==4 else (Color("a9aeaa") if (track_id>=Crimson.FIRST_ID and track_id<=Crimson.LAST_ID) else Color("91afc4")))
+	settings.ambient_light_energy = 0.76 if track_id==Skyfall.ID else (0.53 if track_id==4 else (0.62 if (track_id>=Crimson.FIRST_ID and track_id<=Crimson.LAST_ID) else 0.8))
 	settings.tonemap_mode = Environment.TONE_MAPPER_FILMIC
 	settings.fog_enabled = true
-	settings.fog_light_color = Color("c59b86") if track_id==4 else (Color("be8368") if (track_id>=Crimson.FIRST_ID and track_id<=Crimson.LAST_ID) else Color("273c50"))
-	settings.fog_density = 0.0032 if track_id==4 else (0.0014 if (track_id>=Crimson.FIRST_ID and track_id<=Crimson.LAST_ID) else 0.002)
+	settings.fog_light_color = Color("b2c1c9") if track_id==Skyfall.ID else (Color("c59b86") if track_id==4 else (Color("be8368") if (track_id>=Crimson.FIRST_ID and track_id<=Crimson.LAST_ID) else Color("273c50")))
+	settings.fog_density = 0.00082 if track_id==Skyfall.ID else (0.0032 if track_id==4 else (0.0014 if (track_id>=Crimson.FIRST_ID and track_id<=Crimson.LAST_ID) else 0.002))
 	settings.fog_sky_affect = 0.0
 	if track_id==4:
 		# Lightweight distance haze, not expensive realtime volumetrics.
@@ -334,8 +341,8 @@ func _ready() -> void:
 	add_child(environment)
 	var sun := DirectionalLight3D.new()
 	sun.rotation_degrees = Vector3(-38, -28, 0)
-	sun.light_color = Color("ffe0b8") if track_id==4 else (Color("ffd3a5") if (track_id>=Crimson.FIRST_ID and track_id<=Crimson.LAST_ID) else Color("b8d6ef"))
-	sun.light_energy = 1.01 if track_id==4 else (0.98 if (track_id>=Crimson.FIRST_ID and track_id<=Crimson.LAST_ID) else 1.0)
+	sun.light_color = Color("fff0d5") if track_id==Skyfall.ID else (Color("ffe0b8") if track_id==4 else (Color("ffd3a5") if (track_id>=Crimson.FIRST_ID and track_id<=Crimson.LAST_ID) else Color("b8d6ef")))
+	sun.light_energy = 1.24 if track_id==Skyfall.ID else (1.01 if track_id==4 else (0.98 if (track_id>=Crimson.FIRST_ID and track_id<=Crimson.LAST_ID) else 1.0))
 	sun.shadow_enabled = true
 	sun.directional_shadow_max_distance = 70
 	sun.shadow_bias = 0.15
@@ -353,7 +360,7 @@ func _ready() -> void:
 	camera = Camera3D.new()
 	camera.current = true
 	camera.fov = 74
-	camera.far = 500 if (track_id>=Crimson.FIRST_ID and track_id<=Crimson.LAST_ID) else 300
+	camera.far = 2400 if track_id==Skyfall.ID else (500 if (track_id>=Crimson.FIRST_ID and track_id<=Crimson.LAST_ID) else 300)
 	camera.near = 0.03
 	add_child(camera)
 	get_viewport().scaling_3d_scale = BASE_3D_SCALE
@@ -402,10 +409,10 @@ func _ready() -> void:
 				break
 	if "--track-overview" in OS.get_cmdline_user_args():
 		set_physics_process(false)
-		camera.position=Vector3(25,390,-25) if (track_id>=Crimson.FIRST_ID and track_id<=Crimson.LAST_ID) else Vector3(120,185,-120)
-		camera.far=850 if (track_id>=Crimson.FIRST_ID and track_id<=Crimson.LAST_ID) else 450
-		camera.fov=54 if (track_id>=Crimson.FIRST_ID and track_id<=Crimson.LAST_ID) else 48
-		camera.look_at(Vector3.ZERO)
+		camera.position=Vector3(850,950,-300) if track_id==Skyfall.ID else (Vector3(25,390,-25) if (track_id>=Crimson.FIRST_ID and track_id<=Crimson.LAST_ID) else Vector3(120,185,-120))
+		camera.far=3400 if track_id==Skyfall.ID else (850 if (track_id>=Crimson.FIRST_ID and track_id<=Crimson.LAST_ID) else 450)
+		camera.fov=65 if track_id==Skyfall.ID else (54 if (track_id>=Crimson.FIRST_ID and track_id<=Crimson.LAST_ID) else 48)
+		camera.look_at(Vector3(850,140,970) if track_id==Skyfall.ID else Vector3.ZERO)
 		for child in get_node("DrivingUI").get_children():
 			if child != hud:
 				child.hide()
@@ -1233,7 +1240,7 @@ func build_ui() -> void:
 	title.text=chassis.display_name+" / CHOOSE YOUR CIRCUIT"
 	title.add_theme_font_size_override("font_size",30)
 	choices.add_child(title)
-	for index in range(TRACK_NAMES.size()):
+	for index in [Skyfall.ID,0,1,2,3,4,5,6]:
 		var choice := Button.new()
 		choice.text=TRACK_NAMES[index]+"  /  "+TRACK_INFO[index]
 		choice.custom_minimum_size=Vector2(1040,67)
