@@ -87,6 +87,20 @@ static func _quad(surface: SurfaceTool, a: Vector3, b: Vector3, c: Vector3, d: V
 	_triangle(surface,a,c,b,tint)
 	_triangle(surface,a,d,c,tint)
 
+# The driving surface is viewed from above. Godot's SurfaceTool expects
+# clockwise front-facing triangles; generic terrain triangles are wound for
+# the opposite side and only appear because terrain disables face culling.
+# Keep road winding and lighting normals explicit so Vulkan does not cull it.
+static func _road_triangle(surface: SurfaceTool, a: Vector3, b: Vector3, c: Vector3) -> void:
+	var top_normal: Vector3=(c-a).cross(b-a).normalized()
+	for vertex in [a,b,c]:
+		surface.set_normal(top_normal)
+		surface.add_vertex(vertex)
+
+static func _road_quad(surface: SurfaceTool, a: Vector3, b: Vector3, c: Vector3, d: Vector3) -> void:
+	_road_triangle(surface,a,b,c)
+	_road_triangle(surface,a,c,d)
+
 # Local vertex tinting is baked once on the CPU. It needs neither large
 # textures nor an expensive per-pixel procedural terrain shader on Android.
 static func _shaded_triangle(surface: SurfaceTool, a: Vector3, b: Vector3, c: Vector3, ca: Color, cb: Color, cc: Color) -> void:
@@ -225,7 +239,7 @@ static func populate(root: Node3D, path: PackedVector3Array) -> Array[Vector3]:
 			var c: Vector3 = q+n2*w2
 			var d: Vector3 = q-n2*w2
 			# Road follows genuine altitude changes, rather than a flat ribbon.
-			_quad(road,a,b,c,d,Color.WHITE)
+			_road_quad(road,a,b,c,d)
 			if i<37 or i>=FLIGHT_END:
 				var angle: float = atan2(tangent_at(path,i).x,tangent_at(path,i).z)
 				var pitch: float = -atan2(q.y-p.y,Vector2(q.x-p.x,q.z-p.z).length())
