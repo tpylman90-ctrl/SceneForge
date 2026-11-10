@@ -45,7 +45,9 @@ def choose_captures(paths: list[str], scope: str = "auto") -> tuple[bool, tuple[
         path = raw.strip().lower().replace("\\", "/")
         if not path:
             continue
-        if path == "game/tracks/skyfall_run.gd" or path == "game/tests/skyfall_run_test.gd":
+        if path in {"game/tracks/skyfall_run.gd", "game/tracks/skyfall_flight_world.gd",
+                    "game/tests/skyfall_run_test.gd", "tools/ci_capture_tracks.sh",
+                    "tools/ci_capture_plan.py"}:
             tracks.add(7)
         elif (path.startswith("game/tracks/serpent_sculpt/")
                 or path.startswith("game/tracks/serpent_textures/")
