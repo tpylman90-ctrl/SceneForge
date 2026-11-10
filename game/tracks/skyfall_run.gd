@@ -87,6 +87,42 @@ static func _quad(surface: SurfaceTool, a: Vector3, b: Vector3, c: Vector3, d: V
 	_triangle(surface,a,c,b,tint)
 	_triangle(surface,a,d,c,tint)
 
+# Local vertex tinting is baked once on the CPU. It needs neither large
+# textures nor an expensive per-pixel procedural terrain shader on Android.
+static func _shaded_triangle(surface: SurfaceTool, a: Vector3, b: Vector3, c: Vector3, ca: Color, cb: Color, cc: Color) -> void:
+	var normal: Vector3=(b-a).cross(c-a).normalized()
+	for vertex in [a,b,c]:
+		var tint: Color=ca if vertex==a else (cb if vertex==b else cc)
+		surface.set_normal(normal)
+		surface.set_color(tint)
+		surface.add_vertex(vertex)
+
+static func _shaded_quad(surface: SurfaceTool, a: Vector3, b: Vector3, c: Vector3, d: Vector3, ca: Color, cb: Color, cc: Color, cd: Color) -> void:
+	_shaded_triangle(surface,a,c,b,ca,cc,cb)
+	_shaded_triangle(surface,a,d,c,ca,cd,cc)
+
+static func _valley_height(x: float, z: float, noise: FastNoiseLite) -> float:
+	return -11.0+noise.get_noise_2d(x,z)*6.0
+
+static func _valley_tint(x: float, z: float, noise: FastNoiseLite) -> Color:
+	var n: float=noise.get_noise_2d(x+970.0,z-310.0)
+	var k: float=clampf(0.48+n*0.60,0.0,1.0)
+	return Color("455d4b").lerp(Color("7b795d"),k)
+
+static func _slope_vertex(p: Vector3, normal: Vector3, side: float, width: float, distance: float, noise: FastNoiseLite) -> Vector3:
+	var pos: Vector3=p+normal*side*(width+0.35+distance)
+	var altitude_factor: float=clampf((p.y-30.0)/250.0,0.25,1.0)
+	var descent: float=0.6+distance*0.17+pow(distance/255.0,1.35)*100.0*altitude_factor
+	var breakup: float=noise.get_noise_2d(pos.x,pos.z)*minf(9.0,distance*0.11)
+	pos.y-=descent+breakup
+	return pos
+
+static func _slope_tint(p: Vector3, distance: float, noise: FastNoiseLite) -> Color:
+	var n: float=noise.get_noise_2d(p.x+310.0,p.z+810.0)
+	var rockiness: float=clampf((distance-18.0)/178.0+absf(n)*0.30,0.0,1.0)
+	var base: Color=Color("47644d").lerp(Color("69685b"),rockiness)
+	return base.lerp(Color("857864"),clampf(0.12+0.16*n+rockiness*0.15,0.0,0.35))
+
 static func _instance_mesh(root: Node3D, mesh: Mesh, mat: Material, transforms: Array[Transform3D], name: String) -> void:
 	if transforms.is_empty():
 		return
@@ -104,26 +140,48 @@ static func _instance_mesh(root: Node3D, mesh: Mesh, mat: Material, transforms: 
 	root.add_child(node)
 
 static func populate(root: Node3D, path: PackedVector3Array) -> Array[Vector3]:
-	var asphalt := paint("343c40",0.91)
+	var asphalt := paint("30383b",0.90)
 	var chalk := paint("d4cdb7")
 	var warning := paint("e3a354")
 	var slab := paint("656d69")
 	var dark_rock := paint("3c4040")
-	var grass := paint("718363")
+	var grass := paint("ffffff")
+	grass.vertex_color_use_as_albedo=true
 	var pine := paint("304b3a")
+	var pine_mid := paint("3a5a42")
+	var pine_light := paint("456447")
 	var bark := paint("4d4032")
 	var rocky := paint("66645e")
 	var water := paint("436c7f",0.24)
 	water.metallic = 0.18
 
-	var valley := PlaneMesh.new()
-	valley.size = Vector2(4100,3500)
-	valley.material = grass
+	# The old giant flat plane was plainly visible from above. Replace it
+	# with an undulating valley floor using a single gradient-colored mesh.
+	var valley_noise := FastNoiseLite.new()
+	valley_noise.seed=11547
+	valley_noise.noise_type=FastNoiseLite.TYPE_SIMPLEX_SMOOTH
+	valley_noise.frequency=0.008
+	valley_noise.fractal_type=FastNoiseLite.FRACTAL_FBM
+	valley_noise.fractal_octaves=3
+	var floor_builder := SurfaceTool.new()
+	floor_builder.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for row in range(42):
+		for column in range(48):
+			var x0: float=-1100.0+float(column)*85.0
+			var x1: float=x0+85.0
+			var z0: float=-750.0+float(row)*88.0
+			var z1: float=z0+88.0
+			var a: Vector3=Vector3(x0,_valley_height(x0,z0,valley_noise),z0)
+			var b: Vector3=Vector3(x1,_valley_height(x1,z0,valley_noise),z0)
+			var c: Vector3=Vector3(x1,_valley_height(x1,z1,valley_noise),z1)
+			var d: Vector3=Vector3(x0,_valley_height(x0,z1,valley_noise),z1)
+			_shaded_quad(floor_builder,a,b,c,d,_valley_tint(x0,z0,valley_noise),_valley_tint(x1,z0,valley_noise),
+				_valley_tint(x1,z1,valley_noise),_valley_tint(x0,z1,valley_noise))
 	var valley_node := MeshInstance3D.new()
-	valley_node.name = "LowlandBase"
-	valley_node.mesh = valley
-	valley_node.position = Vector3(850,0,1030)
-	valley_node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	valley_node.name="LowlandBase"
+	valley_node.mesh=floor_builder.commit()
+	valley_node.material_override=grass
+	valley_node.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	root.add_child(valley_node)
 
 	# Below the fractured span: a genuine open gorge, with reflective blue
@@ -142,6 +200,12 @@ static func populate(root: Node3D, path: PackedVector3Array) -> Array[Vector3]:
 	road.begin(Mesh.PRIMITIVE_TRIANGLES)
 	var terrain := SurfaceTool.new()
 	terrain.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var relief_noise := FastNoiseLite.new()
+	relief_noise.seed=73019
+	relief_noise.noise_type=FastNoiseLite.TYPE_SIMPLEX_SMOOTH
+	relief_noise.frequency=0.023
+	relief_noise.fractal_type=FastNoiseLite.FRACTAL_FBM
+	relief_noise.fractal_octaves=3
 	var rock_material := paint("ffffff")
 	rock_material.vertex_color_use_as_albedo = true
 	rock_material.cull_mode = BaseMaterial3D.CULL_DISABLED
@@ -175,25 +239,22 @@ static func populate(root: Node3D, path: PackedVector3Array) -> Array[Vector3]:
 				for side2 in [-1.0,1.0]:
 					root.call("block",(p+q)*0.5+n*side2*(w-1.0)+Vector3.UP*0.05,
 						Vector3(0.35,0.08,9.0),warning,angle2)
-		# A sculpted route-hugging landscape, deliberately absent from the
-		# open-air section. The lowland is a separate low-cost plane.
+		# Contoured mountain shoulders: tighter subdivisions near the course
+		# and irregular downhill strata. No immense pale three-strip slabs.
 		if i>=37 and i<FLIGHT_START:
+			var distances := PackedFloat32Array([0.0,7.0,18.0,36.0,62.0,96.0,138.0,190.0,255.0])
 			for side3 in [-1.0,1.0]:
-				var start: Vector3 = p+n*side3*(w+0.1)
-				var end: Vector3 = q+n2*side3*(w2+0.1)
-				for ring in range(3):
-					var low: float = float(ring)*48.0
-					var high: float = float(ring+1)*48.0
-					var p0: Vector3 = start+n*side3*low
-					var p1: Vector3 = start+n*side3*high
-					var q0: Vector3 = end+n2*side3*low
-					var q1: Vector3 = end+n2*side3*high
-					p0.y -= 0.6+low*0.10
-					q0.y -= 0.6+low*0.10
-					p1.y -= 0.6+high*0.10+4.0*sin(float(i)*0.38+side3+float(ring))
-					q1.y -= 0.6+high*0.10+4.0*sin(float(i+1)*0.38+side3+float(ring))
-					var tone: Color = Color("6e8066") if ring==0 else (Color("737269") if ring==1 else Color("535952"))
-					_quad(terrain,p0,p1,q1,q0,tone)
+				for ring in range(distances.size()-1):
+					var low: float=distances[ring]
+					var high: float=distances[ring+1]
+					var p0: Vector3=_slope_vertex(p,n,side3,w,low,relief_noise)
+					var p1: Vector3=_slope_vertex(p,n,side3,w,high,relief_noise)
+					var q0: Vector3=_slope_vertex(q,n2,side3,w2,low,relief_noise)
+					var q1: Vector3=_slope_vertex(q,n2,side3,w2,high,relief_noise)
+					_shaded_quad(terrain,p0,p1,q1,q0,
+						_slope_tint(p0,low,relief_noise),_slope_tint(p1,high,relief_noise),
+						_slope_tint(q1,high,relief_noise),_slope_tint(q0,low,relief_noise))
+
 	var road_mesh := MeshInstance3D.new()
 	road_mesh.name = "SkyfallDriveSurface"
 	road_mesh.mesh = road.commit()
@@ -211,9 +272,9 @@ static func populate(root: Node3D, path: PackedVector3Array) -> Array[Vector3]:
 	var rng := RandomNumberGenerator.new()
 	rng.seed=721933
 	var cone := CylinderMesh.new()
-	cone.top_radius = 0.12
-	cone.bottom_radius = 3.4
-	cone.height = 11.0
+	cone.top_radius = 0.4
+	cone.bottom_radius = 3.5
+	cone.height = 6.5
 	cone.radial_segments = 7
 	var trunk := CylinderMesh.new()
 	trunk.top_radius = 0.55
@@ -226,6 +287,8 @@ static func populate(root: Node3D, path: PackedVector3Array) -> Array[Vector3]:
 	stone.radial_segments = 8
 	stone.rings = 4
 	var cone_transforms: Array[Transform3D] = []
+	var crown_transforms: Array[Transform3D] = []
+	var tip_transforms: Array[Transform3D] = []
 	var trunk_transforms: Array[Transform3D] = []
 	var rock_transforms: Array[Transform3D] = []
 	var hazards: Array[Vector3] = []
@@ -235,18 +298,22 @@ static func populate(root: Node3D, path: PackedVector3Array) -> Array[Vector3]:
 		for side in [-1.0,1.0]:
 			for line in range(3):
 				if rng.randf()>0.67: continue
-				var offset: float = half_width(i)+8.0+float(line)*22.0+rng.randf_range(-5,5)
-				var place: Vector3 = p+n*side*offset
-				place.y -= 0.5+(offset-half_width(i))*0.11
-				var height_scale: float = rng.randf_range(0.72,1.45)
-				cone_transforms.append(Transform3D(Basis().scaled(Vector3(height_scale, height_scale, height_scale)),place+Vector3.UP*5.8*height_scale))
-				trunk_transforms.append(Transform3D(Basis().scaled(Vector3(height_scale,height_scale,height_scale)),place+Vector3.UP*2.1*height_scale))
+				var offset: float=8.0+float(line)*22.0+rng.randf_range(-5,5)
+				var place: Vector3=_slope_vertex(p,n,side,half_width(i),offset,relief_noise)
+				var height_scale: float=rng.randf_range(0.9,1.65)
+				var basis: Basis=Basis(Vector3.UP,rng.randf_range(0.0,TAU))
+				cone_transforms.append(Transform3D(basis.scaled(Vector3.ONE*height_scale),place+Vector3.UP*6.0*height_scale))
+				crown_transforms.append(Transform3D(basis.scaled(Vector3.ONE*height_scale*0.78),place+Vector3.UP*9.0*height_scale))
+				tip_transforms.append(Transform3D(basis.scaled(Vector3.ONE*height_scale*0.54),place+Vector3.UP*11.7*height_scale))
+				trunk_transforms.append(Transform3D(basis.scaled(Vector3.ONE*height_scale),place+Vector3.UP*2.1*height_scale))
 		if i>=46 and i<117 and i%5==1:
 			var lane: float = (-1.0 if i%2==0 else 1.0)*rng.randf_range(9.0,23.0)
 			var rock_pos: Vector3 = p+n*lane
 			hazards.append(rock_pos)
 			rock_transforms.append(Transform3D(Basis(Vector3.UP,rng.randf_range(0,TAU)).scaled(Vector3(rng.randf_range(1.4,2.0),1.1,rng.randf_range(1.0,1.7))),rock_pos+Vector3.UP*1.8))
 	_instance_mesh(root,cone,pine,cone_transforms,"InstancedPineCanopies")
+	_instance_mesh(root,cone,pine_mid,crown_transforms,"InstancedPineCrowns")
+	_instance_mesh(root,cone,pine_light,tip_transforms,"InstancedPineTips")
 	_instance_mesh(root,trunk,bark,trunk_transforms,"InstancedPineTrunks")
 	_instance_mesh(root,stone,rocky,rock_transforms,"SlalomBoulders")
 
