@@ -4,6 +4,7 @@ extends SceneTree
 # driving/crossing/jump physics; these gates verify the scene is rebuilt with
 # spatial instancing, large open-air exposure and safe route continuity.
 const Skyline=preload("res://tracks/neon_cross_rebuild.gd")
+const Skyline3D=preload("res://tracks/neon_cross_skyline.gd")
 
 func _initialize() -> void:
 	call_deferred("check")
@@ -34,7 +35,7 @@ func check() -> void:
 	assert(world.get_node_or_null("NeonDirectionArches")!=null)
 	assert(world.get_node_or_null("NeonCrossRebuildStart")!=null)
 	var floor: MeshInstance3D=world.get_node_or_null("NeonCityDepthFloor")
-	assert(floor!=null and floor.position.y < -70.0)
+	assert(floor!=null and floor.position.y < -55.0)
 	assert(floor.cast_shadow==GeometryInstance3D.SHADOW_CASTING_SETTING_OFF)
 	var towers: int=int(world.get_meta("instanced_buildings",0))
 	assert(towers>=60 and towers<=Skyline.MAX_BUILDINGS)
@@ -50,9 +51,17 @@ func check() -> void:
 		assert(mm.cast_shadow==GeometryInstance3D.SHADOW_CASTING_SETTING_OFF)
 		multi_count+=1
 		instanced_vertices+=mm.multimesh.instance_count
-	assert(multi_count>=10 and multi_count<=12,"City must use four-sector near/light/far MultiMeshes")
-	assert(instanced_vertices>=towers+64)
-	assert(node_count<24,"Too many scene nodes for an intentionally batched map")
+	assert(multi_count>=24 and multi_count<=28,"3D near/mid skyline must batch by spatial district")
+	assert(instanced_vertices>=towers+200)
+	assert(int(world.get_meta("hero_3d_towers",0))==Skyline3D.HERO_SITES.size())
+	assert(int(world.get_meta("midrise_towers",0))>=45)
+	assert(int(world.get_meta("batched_facade_details",0))>80)
+	assert(world.get_node_or_null("NeonPanoramaLayerNear")!=null)
+	assert(world.get_node_or_null("NeonPanoramaLayerFar")!=null)
+	for site in Skyline3D.HERO_SITES:
+		assert(Skyline3D.safe_footprint(scene.route,site,16.4,14.0))
+	assert(Skyline3D.HERO_HEIGHTS[0]+Skyline3D.BASE_Y>60.0,"High rises must surround the racing flight plane")
+	assert(node_count<48,"Too many scene nodes for an intentionally batched skyline")
 	for i in range(192):
 		var p: Vector3=scene.route[i]
 		var closest: Dictionary=scene.closest_segment(p)
@@ -79,5 +88,7 @@ func check() -> void:
 	existing.feedback.stop_audio()
 	existing.free()
 	print("NEON_CROSS_AERIAL_REBUILD_OK decks=",deck_segments," air=",air_segments,
-		" towers=",towers," multi=",multi_count," scene_nodes=",node_count)
+		" towers=",towers," hero=",world.get_meta("hero_3d_towers"),
+		" facade=",world.get_meta("batched_facade_details"),
+		" multi=",multi_count," scene_nodes=",node_count)
 	quit()
