@@ -113,6 +113,8 @@ static func populate(root: Node3D, path: PackedVector3Array) -> Array[Vector3]:
 	var pine := paint("304b3a")
 	var bark := paint("4d4032")
 	var rocky := paint("66645e")
+	var water := paint("436c7f",0.24)
+	water.metallic = 0.18
 
 	var valley := PlaneMesh.new()
 	valley.size = Vector2(4100,3500)
@@ -123,6 +125,18 @@ static func populate(root: Node3D, path: PackedVector3Array) -> Array[Vector3]:
 	valley_node.position = Vector3(850,0,1030)
 	valley_node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	root.add_child(valley_node)
+
+	# Below the fractured span: a genuine open gorge, with reflective blue
+	# water well below the hovercraft. One low-cost opaque mesh, no SSR.
+	var basin := PlaneMesh.new()
+	basin.size=Vector2(730,720)
+	basin.material=water
+	var basin_node := MeshInstance3D.new()
+	basin_node.name="BrokenBridgeGorgeWater"
+	basin_node.mesh=basin
+	basin_node.position=Vector3(130,0.35,670)
+	basin_node.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	root.add_child(basin_node)
 
 	var road := SurfaceTool.new()
 	road.begin(Mesh.PRIMITIVE_TRIANGLES)
@@ -227,7 +241,7 @@ static func populate(root: Node3D, path: PackedVector3Array) -> Array[Vector3]:
 				var height_scale: float = rng.randf_range(0.72,1.45)
 				cone_transforms.append(Transform3D(Basis().scaled(Vector3(height_scale, height_scale, height_scale)),place+Vector3.UP*5.8*height_scale))
 				trunk_transforms.append(Transform3D(Basis().scaled(Vector3(height_scale,height_scale,height_scale)),place+Vector3.UP*2.1*height_scale))
-		if i>=46 and i<117 and i%9==1:
+		if i>=46 and i<117 and i%5==1:
 			var lane: float = (-1.0 if i%2==0 else 1.0)*rng.randf_range(9.0,23.0)
 			var rock_pos: Vector3 = p+n*lane
 			hazards.append(rock_pos)
