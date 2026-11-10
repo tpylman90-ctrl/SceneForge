@@ -1,11 +1,14 @@
 import unittest
 
-from tools.ci_capture_plan import ACTIVE_CRAFT, CRIMSON, FLEET, TRACKS, choose_captures
+from tools.ci_capture_plan import ACTIVE_CRAFT, CRIMSON, HOVER, FLEET, TRACKS, choose_captures
 
 
 class CapturePlanTests(unittest.TestCase):
     def test_scenery_only_skips_approved_fleet(self):
         self.assertEqual(choose_captures(["game/tracks/canyon_scenery.gd"]), (False, CRIMSON, ()))
+
+    def test_new_hover_biomes_only(self):
+        self.assertEqual(choose_captures(["game/tracks/hover_worlds.gd"]), (False, HOVER, ()))
 
     def test_sculpted_serpent_isolated(self):
         self.assertEqual(

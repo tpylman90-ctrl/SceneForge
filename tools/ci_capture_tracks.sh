@@ -18,6 +18,9 @@ for circuit in ${CAPTURE_TRACKS:-}; do
     4) name=CrimsonSerpent; jump=CrimsonSerpent ;;
     5) name=RedMesa; jump=RedMesa ;;
     6) name=DevilsGate; jump=DevilsGate ;;
+    7) name=TidalRelics; jump=TidalRelics ;;
+    8) name=FrostlineWilds; jump=FrostlineWilds ;;
+    9) name=SkyfallRun; jump=SkyfallRun ;;
     *) echo "Unknown circuit $circuit"; exit 1 ;;
   esac
   capture_track "track-$circuit-overview" --track-overview --circuit-"$circuit"
