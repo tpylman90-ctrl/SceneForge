@@ -94,6 +94,7 @@ func check() -> void:
 	assert(not scene.airborne and scene.jump_landings==1)
 	scene.route_index=Skyfall.FLIGHT_START+2
 	scene.car.position=points[Skyfall.FLIGHT_START+2]
+	scene.speed=scene.chassis.max_forward_speed*0.88
 	scene.update_jump(1.0/60.0,scene.car.position.y)
 	assert(scene.airborne and scene.jump_launches==2)
 	assert(scene.speed>=scene.chassis.max_forward_speed*1.05,"Summit must launch at racing speed")
