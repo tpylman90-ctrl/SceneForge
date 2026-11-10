@@ -10,8 +10,9 @@ import argparse
 from pathlib import Path
 
 FLEET = tuple(range(10))
-TRACKS = tuple(range(7))
+TRACKS = tuple(range(10))
 CRIMSON = (4, 5, 6)
+HOVER = (7, 8, 9)
 ACTIVE_CRAFT = (0, 2, 7, 9)  # Current Kestrel fairing and other active bodywork
 NAMES = {
     0: ("kestrel",),
@@ -54,6 +55,8 @@ def choose_captures(paths: list[str], scope: str = "auto") -> tuple[bool, tuple[
                             "tools/ensure_serpent_texture_import.py"}):
             # Dedicated sculpt passes never require Red Mesa / Devil's Gate captures.
             tracks.add(4)
+        elif path == "game/tracks/hover_worlds.gd":
+            tracks.update(HOVER)
         elif path.startswith("game/tracks/") and not path.endswith(".md"):
             tracks.update(CRIMSON)
         if path in {"game/city_loop.gd", "game/city_loop.tscn"}:
