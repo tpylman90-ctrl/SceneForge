@@ -5,6 +5,7 @@ const Parts = preload("res://vehicles/performance_parts.gd")
 const Crimson = preload("res://tracks/crimson_divide.gd")
 const CanyonScenery = preload("res://tracks/canyon_scenery.gd")
 const SerpentCanyon = preload("res://tracks/serpent_canyon.gd")
+const Skyfall = preload("res://tracks/skyfall_run.gd")
 
 # A bounded first driving prototype: one closed city loop, no external assets.
 const COUNT := 192
@@ -72,6 +73,8 @@ var sound_button: Button
 var shutting_down := false
 var driving_touches: Dictionary = {}
 var track_id := 0
+var skyfall_hazards: Array[Vector3] = []
+var skyfall_trim := 0.0
 var track_menu: Control
 var event_menu: ColorRect
 var results_panel: ColorRect
@@ -92,11 +95,13 @@ var wall_cooldown := 0.0
 var wall_normal := Vector3.ZERO
 var wall_recoil := Vector3.ZERO
 var wall_hits := 0
-const TRACK_NAMES := ["NEON CROSS","SKYWAY","VIPER RIFT","IRON HARBOR","CRIMSON SERPENT","RED MESA CIRCUIT","DEVIL'S GATE"]
-const TRACK_INFO := ["MEDIUM / Figure-eight crossing jump", "EASY / Elevated oval and forgiving jump", "HARD / S-bends, banked turns and extended leap", "MEDIUM / Dockside straights, technical chicanes and harbor leap", "MEDIUM / Long flowing single-stage canyon sprint", "EASY / Wide mesa loop and sweeping horseshoe turns", "HARD / Tight red-rock gates, crests and ridge chicanes"]
+const TRACK_NAMES := ["NEON CROSS","SKYWAY","VIPER RIFT","IRON HARBOR","CRIMSON SERPENT","RED MESA CIRCUIT","DEVIL'S GATE","SKYFALL RUN"]
+const TRACK_INFO := ["MEDIUM / Figure-eight crossing jump", "EASY / Elevated oval and forgiving jump", "HARD / S-bends, banked turns and extended leap", "MEDIUM / Dockside straights, technical chicanes and harbor leap", "MEDIUM / Long flowing single-stage canyon sprint", "EASY / Wide mesa loop and sweeping horseshoe turns", "HARD / Tight red-rock gates, crests and ridge chicanes", "OPENING SPRINT / Bridge glide, mountain ascent, airborne finish"]
 
 func route_position(index: int) -> Vector3:
-	if track_id>=Crimson.FIRST_ID:
+	if track_id==Skyfall.ID:
+		return Skyfall.route_points(COUNT)[posmod(index,COUNT)]
+	if (track_id>=Crimson.FIRST_ID and track_id<=Crimson.LAST_ID):
 		var point: Vector2=Crimson.point(track_id,index,COUNT)
 		return Vector3(point.x,deck_height(index),point.y)
 	var a := TAU*index/COUNT
@@ -112,7 +117,9 @@ func route_position(index: int) -> Vector3:
 	return Vector3(80*cos(a),deck_height(index),z)
 
 func bank_slope(index: int) -> float:
-	if track_id>=Crimson.FIRST_ID:
+	if track_id==Skyfall.ID:
+		return 0.02*sin(float(index)*TAU/float(COUNT)*3.0)
+	if (track_id>=Crimson.FIRST_ID and track_id<=Crimson.LAST_ID):
 		return Crimson.bank(track_id,index,COUNT)
 	if track_id!=2 or index>=26 and index<=70 or index>=132 and index<=156:
 		return 0.0
@@ -122,18 +129,20 @@ func track_name() -> String:
 	return TRACK_NAMES[track_id]
 
 func challenge_laps() -> int:
-	return 1 if track_id==4 else RACE_LAPS
+	return 1 if track_id==4 or track_id==Skyfall.ID else RACE_LAPS
 
 func region_name(index: int) -> String:
-	if track_id>=Crimson.FIRST_ID:
+	if track_id==Skyfall.ID:
+		return Skyfall.sector(index)
+	if (track_id>=Crimson.FIRST_ID and track_id<=Crimson.LAST_ID):
 		return Crimson.sector(track_id,index,COUNT)
 	return DISTRICTS[int(index)/(COUNT/4)]
 
 func jump_start_index() -> int:
-	return JUMP_START
+	return Skyfall.GAP_START if track_id==Skyfall.ID else JUMP_START
 
 func jump_end_index() -> int:
-	return 48 if track_id>=Crimson.FIRST_ID else JUMP_END
+	return Skyfall.GAP_END if track_id==Skyfall.ID else (48 if (track_id>=Crimson.FIRST_ID and track_id<=Crimson.LAST_ID) else JUMP_END)
 
 func load_best() -> void:
 	var records := ConfigFile.new()
@@ -208,7 +217,7 @@ func finish_solo_race() -> void:
 		race_best_total=total
 		save_race_best()
 	var credits_earned: int=Parts.award_race(total,personal_best)
-	var race_title: String="SPRINT STAGE COMPLETE" if track_id==4 else "3-LAP SOLO CHALLENGE COMPLETE"
+	var race_title: String="SPRINT STAGE COMPLETE" if track_id==4 or track_id==Skyfall.ID else "3-LAP SOLO CHALLENGE COMPLETE"
 	var report := "%s  /  %s\n%s\nTOTAL  %.2f s\n" % [track_name(),chassis.display_name,race_title,total]
 	for i in range(race_splits.size()):
 		report+="LAP %d   %.2f s\n" % [i+1,race_splits[i]]
@@ -294,7 +303,7 @@ func _ready() -> void:
 	var settings := Environment.new()
 	settings.background_mode = Environment.BG_SKY
 	var sky := Sky.new()
-	if track_id>=Crimson.FIRST_ID:
+	if (track_id>=Crimson.FIRST_ID and track_id<=Crimson.LAST_ID):
 		var desert_sky := ProceduralSkyMaterial.new()
 		desert_sky.sky_top_color=Color("41657f") if track_id==4 else Color("496b83")
 		desert_sky.sky_horizon_color=Color("d8b296") if track_id==4 else Color("e9ac83")
@@ -308,12 +317,12 @@ func _ready() -> void:
 	settings.sky=sky
 	settings.background_color = Color("172c42")
 	settings.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	settings.ambient_light_color = Color("a4b0ba") if track_id==4 else (Color("a9aeaa") if track_id>=Crimson.FIRST_ID else Color("91afc4") )
-	settings.ambient_light_energy = 0.53 if track_id==4 else (0.62 if track_id>=Crimson.FIRST_ID else 0.8)
+	settings.ambient_light_color = Color("a4b0ba") if track_id==4 else (Color("a9aeaa") if (track_id>=Crimson.FIRST_ID and track_id<=Crimson.LAST_ID) else Color("91afc4") )
+	settings.ambient_light_energy = 0.53 if track_id==4 else (0.62 if (track_id>=Crimson.FIRST_ID and track_id<=Crimson.LAST_ID) else 0.8)
 	settings.tonemap_mode = Environment.TONE_MAPPER_FILMIC
 	settings.fog_enabled = true
-	settings.fog_light_color = Color("c59b86") if track_id==4 else (Color("be8368") if track_id>=Crimson.FIRST_ID else Color("273c50"))
-	settings.fog_density = 0.0032 if track_id==4 else (0.0014 if track_id>=Crimson.FIRST_ID else 0.002)
+	settings.fog_light_color = Color("c59b86") if track_id==4 else (Color("be8368") if (track_id>=Crimson.FIRST_ID and track_id<=Crimson.LAST_ID) else Color("273c50"))
+	settings.fog_density = 0.0032 if track_id==4 else (0.0014 if (track_id>=Crimson.FIRST_ID and track_id<=Crimson.LAST_ID) else 0.002)
 	settings.fog_sky_affect = 0.0
 	if track_id==4:
 		# Lightweight distance haze, not expensive realtime volumetrics.
@@ -325,8 +334,8 @@ func _ready() -> void:
 	add_child(environment)
 	var sun := DirectionalLight3D.new()
 	sun.rotation_degrees = Vector3(-38, -28, 0)
-	sun.light_color = Color("ffe0b8") if track_id==4 else (Color("ffd3a5") if track_id>=Crimson.FIRST_ID else Color("b8d6ef"))
-	sun.light_energy = 1.01 if track_id==4 else (0.98 if track_id>=Crimson.FIRST_ID else 1.0)
+	sun.light_color = Color("ffe0b8") if track_id==4 else (Color("ffd3a5") if (track_id>=Crimson.FIRST_ID and track_id<=Crimson.LAST_ID) else Color("b8d6ef"))
+	sun.light_energy = 1.01 if track_id==4 else (0.98 if (track_id>=Crimson.FIRST_ID and track_id<=Crimson.LAST_ID) else 1.0)
 	sun.shadow_enabled = true
 	sun.directional_shadow_max_distance = 70
 	sun.shadow_bias = 0.15
@@ -344,7 +353,7 @@ func _ready() -> void:
 	camera = Camera3D.new()
 	camera.current = true
 	camera.fov = 74
-	camera.far = 500 if track_id>=Crimson.FIRST_ID else 300
+	camera.far = 500 if (track_id>=Crimson.FIRST_ID and track_id<=Crimson.LAST_ID) else 300
 	camera.near = 0.03
 	add_child(camera)
 	get_viewport().scaling_3d_scale = BASE_3D_SCALE
@@ -393,9 +402,9 @@ func _ready() -> void:
 				break
 	if "--track-overview" in OS.get_cmdline_user_args():
 		set_physics_process(false)
-		camera.position=Vector3(25,390,-25) if track_id>=Crimson.FIRST_ID else Vector3(120,185,-120)
-		camera.far=850 if track_id>=Crimson.FIRST_ID else 450
-		camera.fov=54 if track_id>=Crimson.FIRST_ID else 48
+		camera.position=Vector3(25,390,-25) if (track_id>=Crimson.FIRST_ID and track_id<=Crimson.LAST_ID) else Vector3(120,185,-120)
+		camera.far=850 if (track_id>=Crimson.FIRST_ID and track_id<=Crimson.LAST_ID) else 450
+		camera.fov=54 if (track_id>=Crimson.FIRST_ID and track_id<=Crimson.LAST_ID) else 48
 		camera.look_at(Vector3.ZERO)
 		for child in get_node("DrivingUI").get_children():
 			if child != hud:
@@ -411,7 +420,9 @@ func flat(value: Vector3) -> Vector3:
 	return Vector3(value.x,0,value.z)
 
 func deck_height(index: int) -> float:
-	var base: float=Crimson.ground_height(track_id,index,COUNT) if track_id>=Crimson.FIRST_ID else (2.0 if track_id==1 else 0.0)
+	if track_id==Skyfall.ID:
+		return route[posmod(index,COUNT)].y if route.size()==COUNT else Skyfall.route_points(COUNT)[posmod(index,COUNT)].y
+	var base: float=Crimson.ground_height(track_id,index,COUNT) if (track_id>=Crimson.FIRST_ID and track_id<=Crimson.LAST_ID) else (2.0 if track_id==1 else 0.0)
 	if track_id==2 and index>=96 and index<=128:
 		base=3.0*pow(sin(PI*float(index-96)/32.0),2)
 	var first: int=jump_start_index()
@@ -432,7 +443,9 @@ func is_jump_gap(index: int) -> bool:
 	return index>=jump_start_index() and index<jump_end_index()
 
 func road_half_width(index: int) -> float:
-	if track_id>=Crimson.FIRST_ID:
+	if track_id==Skyfall.ID:
+		return Skyfall.half_width(index)
+	if (track_id>=Crimson.FIRST_ID and track_id<=Crimson.LAST_ID):
 		var natural: float=Crimson.half_width(track_id,index)
 		var finish: int=jump_end_index()
 		return natural+2.5*(1.0-clampf(float(index-finish)/10.0,0.0,1.0)) if index>=finish and index<finish+10 else natural
@@ -442,7 +455,7 @@ func outward_at(index: int) -> Vector3:
 	var p := route[index]
 	var forward := flat(route[(index+1)%COUNT]-p).normalized()
 	var normal := Vector3(forward.z,0,-forward.x)
-	if track_id>=Crimson.FIRST_ID:
+	if (track_id>=Crimson.FIRST_ID and track_id<=Crimson.LAST_ID):
 		return normal if normal.dot(flat(p))>=0.0 else -normal
 	var center := Vector3(43 if p.x>0 else -43,0,0)
 	return normal if (p+normal*14).distance_squared_to(center)>(p-normal*14).distance_squared_to(center) else -normal
@@ -490,7 +503,12 @@ func outer_building_position(index: int) -> Vector3:
 	return Vector3(104*cos(angle),0,66*sin(angle))
 
 func build_city() -> void:
-	if track_id>=Crimson.FIRST_ID:
+	if track_id==Skyfall.ID:
+		route=Skyfall.route_points(COUNT)
+		skyfall_hazards=Skyfall.populate(self,route)
+		flush_batches()
+		return
+	if (track_id>=Crimson.FIRST_ID and track_id<=Crimson.LAST_ID):
 		build_crimson_circuit()
 		return
 	var asphalt := road_material()
@@ -1291,6 +1309,7 @@ func build_ui() -> void:
 	countdown_label.hide()
 
 func reset_car() -> void:
+	skyfall_trim=0.0
 	car.position = route[0]
 	route_index=0
 	airborne=false
@@ -1674,7 +1693,7 @@ func _process(_delta: float) -> void:
 			if "--track-overview" in OS.get_cmdline_user_args():
 				file="NeonLoop-overview.png"
 			if track_id>0:
-				var circuit_prefix: String = ["NeonLoop","Skyway","ViperRift","IronHarbor","CrimsonSerpent","RedMesa","DevilsGate"][track_id]
+				var circuit_prefix: String = ["NeonLoop","Skyway","ViperRift","IronHarbor","CrimsonSerpent","RedMesa","DevilsGate","SkyfallRun"][track_id]
 				file=circuit_prefix+("-overview.png" if "--track-overview" in OS.get_cmdline_user_args() else ("-jump.png" if "--track-jump" in OS.get_cmdline_user_args() else "-cockpit.png"))
 			if track_id==4:
 				for landmark in [14,75,155]:
