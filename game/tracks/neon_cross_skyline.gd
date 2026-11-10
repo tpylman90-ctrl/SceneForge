@@ -25,6 +25,7 @@ static func _material(hex: String, unlit: bool=false) -> StandardMaterial3D:
 	m.albedo_color=Color(hex)
 	m.roughness=0.86
 	m.cull_mode=BaseMaterial3D.CULL_DISABLED
+	m.vertex_color_use_as_albedo=true
 	if unlit:
 		m.shading_mode=BaseMaterial3D.SHADING_MODE_UNSHADED
 	return m
@@ -224,7 +225,6 @@ static func _silhouette_ring(parent: Node3D, name: String, radius_x: float, radi
 	mesh.name=name
 	mesh.mesh=st.commit()
 	mesh.material_override=_material("ffffff",true)
-	mesh.material_override.vertex_color_use_as_albedo=true
 	mesh.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	parent.add_child(mesh)
 
