@@ -285,6 +285,9 @@ jobs:
           timeout 120 godot --headless --path game --script res://tests/figure8_test.gd 2>&1 | tee build/figure8.log
           if grep -E 'SCRIPT ERROR:|ERROR:' build/figure8.log; then exit 1; fi
           grep FIGURE8_RECOVERY_OK build/figure8.log
+          timeout 120 godot --headless --path game --script res://tests/neon_cross_rebuild_test.gd 2>&1 | tee build/neon-cross-rebuild.log
+          if grep -E 'SCRIPT ERROR:|ERROR:' build/neon-cross-rebuild.log; then exit 1; fi
+          grep NEON_CROSS_AERIAL_REBUILD_OK build/neon-cross-rebuild.log
           timeout 120 godot --headless --path game --script res://tests/circuits_test.gd 2>&1 | tee build/circuits.log
           if grep -E 'SCRIPT ERROR:|ERROR:' build/circuits.log; then exit 1; fi
           grep CIRCUITS_OK build/circuits.log
