@@ -5,6 +5,9 @@ config/name="SceneForge"
 run/main_scene="res://main.tscn"
 config/features=PackedStringArray("4.5", "Mobile")
 
+[autoload]
+TrackLoader="*res://track_loader.gd"
+
 [display]
 window/size/viewport_width=1280
 window/size/viewport_height=720
@@ -15,6 +18,8 @@ window/handheld/orientation=0
 [rendering]
 renderer/rendering_method="mobile"
 renderer/rendering_method.mobile="mobile"
+rendering_device/driver.android="vulkan"
+rendering_device/fallback_to_opengl3=true
 environment/defaults/default_clear_color=Color(0.025, 0.04, 0.065, 1)
 
 textures/vram_compression/import_etc2_astc=true
