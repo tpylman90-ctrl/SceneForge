@@ -143,6 +143,11 @@ func _build_screen() -> void:
 
 
 func begin(scene_path: String = TRACK_SCENE) -> void:
+	# Script-only headless regression tests never construct the visual overlay.
+	# Use the ordinary synchronous scene transition in that environment.
+	if DisplayServer.get_name() == "headless" and "--script" in OS.get_cmdline_args():
+		get_tree().change_scene_to_file(scene_path)
+		return
 	if _busy:
 		return
 	_busy = true
