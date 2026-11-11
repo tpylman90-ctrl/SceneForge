@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Only preview tracks selected by tools/ci_capture_plan.py.
 set -euo pipefail
-export VK_ICD_FILENAMES="${VK_ICD_FILENAMES:-/usr/share/vulkan/icd.d/lvp_icd.x86_64.json}"
+export VK_ICD_FILENAMES="${VK_ICD_FILENAMES:-/usr/share/vulkan/icd.d/lvp_icd.json}"
 mkdir -p build
 
 capture_track() {

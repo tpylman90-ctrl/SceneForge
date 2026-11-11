@@ -264,12 +264,12 @@ jobs:
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y xvfb libvulkan1 mesa-vulkan-drivers vulkan-tools
-          test -s /usr/share/vulkan/icd.d/lvp_icd.x86_64.json
-          VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/lvp_icd.x86_64.json vulkaninfo --summary | tee build/vulkan-driver.txt
+          test -s /usr/share/vulkan/icd.d/lvp_icd.json
+          VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/lvp_icd.json vulkaninfo --summary | tee build/vulkan-driver.txt
           grep -q 'deviceName' build/vulkan-driver.txt
       - name: Verify Foundry doors and comparison benchmark
         env:
-          VK_ICD_FILENAMES: /usr/share/vulkan/icd.d/lvp_icd.x86_64.json
+          VK_ICD_FILENAMES: /usr/share/vulkan/icd.d/lvp_icd.json
         shell: bash
         run: |
           set -euo pipefail
@@ -312,7 +312,7 @@ jobs:
       - name: Capture only changed tracks
         if: env.CAPTURE_TRACKS != ''
         env:
-          VK_ICD_FILENAMES: /usr/share/vulkan/icd.d/lvp_icd.x86_64.json
+          VK_ICD_FILENAMES: /usr/share/vulkan/icd.d/lvp_icd.json
         run: bash tools/ci_capture_tracks.sh
       - name: Verify every vehicle and Foundry selection
         shell: bash
@@ -336,7 +336,7 @@ jobs:
       - name: Capture Foundry only when affected
         if: env.CAPTURE_FOUNDRY == '1'
         env:
-          VK_ICD_FILENAMES: /usr/share/vulkan/icd.d/lvp_icd.x86_64.json
+          VK_ICD_FILENAMES: /usr/share/vulkan/icd.d/lvp_icd.json
         shell: bash
         run: |
           set -euo pipefail
@@ -364,7 +364,7 @@ jobs:
       - name: Capture only modified or requested craft
         if: env.CAPTURE_FLEET != ''
         env:
-          VK_ICD_FILENAMES: /usr/share/vulkan/icd.d/lvp_icd.x86_64.json
+          VK_ICD_FILENAMES: /usr/share/vulkan/icd.d/lvp_icd.json
         run: bash tools/ci_capture_fleet.sh
       - name: Export and verify APK
         shell: bash
