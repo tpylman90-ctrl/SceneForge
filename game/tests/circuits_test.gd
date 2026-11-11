@@ -61,6 +61,13 @@ func check() -> void:
 	assert(current_scene.track_id==2 and current_scene.track_menu.visible==false)
 	current_scene.set_physics_process(false)
 	current_scene.feedback.stop_audio()
+	# The test manually owns its final scene. Tear it down before exiting;
+	# otherwise the new persistent TrackLoader autoload holds resources live
+	# when Godot checks for leaks at engine shutdown.
+	var final_scene: Node3D=current_scene
+	current_scene=null
+	final_scene.free()
+	await process_frame
 	print("CIRCUIT_SWITCH_OK")
 	print("CIRCUITS_OK")
 	quit()
