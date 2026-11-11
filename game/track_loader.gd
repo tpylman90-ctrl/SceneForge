@@ -30,6 +30,11 @@ var _back_button: Button
 func _ready() -> void:
 	layer = 120
 	process_mode = Node.PROCESS_MODE_ALWAYS
+	# Script-based CI checks use the headless display server and never open
+	# the transition screen. Avoid allocating persistent themed GUI resources
+	# in these short-lived tests; the visual Android game still builds it.
+	if DisplayServer.get_name() == "headless" and "--script" in OS.get_cmdline_args():
+		return
 	_build_screen()
 	_screen.hide()
 
