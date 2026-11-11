@@ -971,4 +971,7 @@ func leave_foundry(destination: String) -> void:
 	sound.stop()
 	sound.stream=null
 	await get_tree().create_timer(.15).timeout
-	get_tree().change_scene_to_file(destination)
+	if destination == "res://city_loop.tscn":
+		TrackLoader.begin(destination)
+	else:
+		get_tree().change_scene_to_file(destination)
