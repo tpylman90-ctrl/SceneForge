@@ -38,6 +38,7 @@ jobs:
         run: |
           set -euo pipefail
           python3 -m unittest discover -s tools/tests -p 'test_ci_capture_plan.py'
+          python3 -m unittest discover -s tools/tests -p 'test_track_loading.py'
           mkdir -p build
           : > build/changed-files.txt
           if [[ "$GITHUB_EVENT_NAME" == "push" && -n "$BEFORE_SHA" && "$BEFORE_SHA" != "0000000000000000000000000000000000000000" ]]; then
