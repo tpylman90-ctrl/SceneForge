@@ -52,6 +52,10 @@ class CapturePlanTests(unittest.TestCase):
     def test_shared_track_logic(self):
         self.assertEqual(choose_captures(["game/city_loop.gd"]), (False, TRACKS, ()))
 
+    def test_vulkan_standard_captures_three_styles_and_foundry(self):
+        self.assertEqual(choose_captures(["game/project.godot"]), (True, (0,4,7), ()))
+        self.assertEqual(choose_captures(["tools/verify_vulkan_pipeline.py"]), (True, (0,4,7), ()))
+
     def test_docs_only_skips_images(self):
         self.assertEqual(choose_captures(["README.md", "docs/notes.md"]), (False, (), ()))
 

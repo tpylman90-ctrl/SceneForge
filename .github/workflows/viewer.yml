@@ -33,7 +33,10 @@ jobs:
         run: |
           set -euo pipefail
           sudo apt-get update -qq
-          sudo apt-get install -y -qq xvfb libgl1-mesa-dri
+          sudo apt-get install -y -qq xvfb libvulkan1 mesa-vulkan-drivers vulkan-tools
+          test -s /usr/share/vulkan/icd.d/lvp_icd.x86_64.json
+          VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/lvp_icd.x86_64.json vulkaninfo --summary | tee /tmp/viewer-vulkan.txt
+          grep -q 'deviceName' /tmp/viewer-vulkan.txt
           curl -fL --retry 3 https://github.com/godotengine/godot/releases/download/4.5.1-stable/Godot_v4.5.1-stable_linux.x86_64.zip -o /tmp/godot.zip
           unzip -q /tmp/godot.zip -d /tmp/godot
           sudo install /tmp/godot/Godot_v4.5.1-stable_linux.x86_64 /usr/local/bin/godot
@@ -84,7 +87,7 @@ jobs:
           if grep -E 'SCRIPT ERROR:|ERROR:' build/viewer-import.log; then exit 1; fi
       - name: Render selected vehicle viewer
         env:
-          LIBGL_ALWAYS_SOFTWARE: '1'
+          VK_ICD_FILENAMES: /usr/share/vulkan/icd.d/lvp_icd.x86_64.json
         run: |
           set -euo pipefail
           views=(front rear side top cockpit)
@@ -94,35 +97,35 @@ jobs:
           if [ "$PREVIEW_CRAFT" = 7 ]; then views=(hero rear-quarter front rear side top cockpit); fi
           for view in "${views[@]}"; do
             args="--fleet-$view"
-            timeout 120 xvfb-run -a godot --audio-driver Dummy --path game --rendering-method gl_compatibility --resolution 1280x720 res://fleet_hangar.tscn -- --capture --craft-$PREVIEW_CRAFT $args 2>&1 | tee build/viewer-$view.log
+            timeout 120 xvfb-run -a godot --audio-driver Dummy --path game --rendering-method mobile --rendering-driver vulkan --resolution 1280x720 res://fleet_hangar.tscn -- --capture --craft-$PREVIEW_CRAFT $args 2>&1 | tee build/viewer-$view.log
           done
           if [ "$PREVIEW_CRAFT" = 2 ]; then
             for view in hero rear-quarter; do
-              timeout 120 xvfb-run -a godot --audio-driver Dummy --path game --rendering-method gl_compatibility --resolution 1280x720 res://fleet_hangar.tscn -- --capture --craft-2 --fleet-$view --fleet-clean 2>&1 | tee build/viewer-$view-clean.log
+              timeout 120 xvfb-run -a godot --audio-driver Dummy --path game --rendering-method mobile --rendering-driver vulkan --resolution 1280x720 res://fleet_hangar.tscn -- --capture --craft-2 --fleet-$view --fleet-clean 2>&1 | tee build/viewer-$view-clean.log
               test -s "build/Fleet-shrike-$view-clean.png"
             done
             for diagnostic in clay wire; do
               for view in front side top; do
-                timeout 120 xvfb-run -a godot --audio-driver Dummy --path game --rendering-method gl_compatibility --resolution 1280x720 res://fleet_hangar.tscn -- --capture --craft-2 --fleet-$view --fleet-$diagnostic 2>&1 | tee build/viewer-$view-$diagnostic.log
+                timeout 120 xvfb-run -a godot --audio-driver Dummy --path game --rendering-method mobile --rendering-driver vulkan --resolution 1280x720 res://fleet_hangar.tscn -- --capture --craft-2 --fleet-$view --fleet-$diagnostic 2>&1 | tee build/viewer-$view-$diagnostic.log
                 test -s "build/Fleet-shrike-$view-$diagnostic.png"
               done
             done
           fi
           if [ "$PREVIEW_CRAFT" = 5 ]; then
             for view in hero rear-quarter; do
-              timeout 120 xvfb-run -a godot --audio-driver Dummy --path game --rendering-method gl_compatibility --resolution 1280x720 res://fleet_hangar.tscn -- --capture --craft-5 --fleet-$view --fleet-clean 2>&1 | tee build/viewer-$view-clean.log
+              timeout 120 xvfb-run -a godot --audio-driver Dummy --path game --rendering-method mobile --rendering-driver vulkan --resolution 1280x720 res://fleet_hangar.tscn -- --capture --craft-5 --fleet-$view --fleet-clean 2>&1 | tee build/viewer-$view-clean.log
               test -s "build/Fleet-forge-$view-clean.png"
             done
-            timeout 120 xvfb-run -a godot --audio-driver Dummy --path game --rendering-method gl_compatibility --resolution 1280x720 res://fleet_hangar.tscn -- --capture --craft-5 --fleet-cockpit --fleet-clean 2>&1 | tee build/viewer-cockpit-clean.log
+            timeout 120 xvfb-run -a godot --audio-driver Dummy --path game --rendering-method mobile --rendering-driver vulkan --resolution 1280x720 res://fleet_hangar.tscn -- --capture --craft-5 --fleet-cockpit --fleet-clean 2>&1 | tee build/viewer-cockpit-clean.log
             test -s build/Fleet-forge-cockpit-clean.png
           fi
           if [ "$PREVIEW_CRAFT" = 7 ]; then
             for view in hero rear-quarter; do
-              timeout 120 xvfb-run -a godot --audio-driver Dummy --path game --rendering-method gl_compatibility --resolution 1280x720 res://fleet_hangar.tscn -- --capture --craft-7 --fleet-$view --fleet-clean 2>&1 | tee build/viewer-$view-clean.log
+              timeout 120 xvfb-run -a godot --audio-driver Dummy --path game --rendering-method mobile --rendering-driver vulkan --resolution 1280x720 res://fleet_hangar.tscn -- --capture --craft-7 --fleet-$view --fleet-clean 2>&1 | tee build/viewer-$view-clean.log
               test -s "build/Fleet-tremor-$view-clean.png"
             done
             for view in front side top; do
-              timeout 120 xvfb-run -a godot --audio-driver Dummy --path game --rendering-method gl_compatibility --resolution 1280x720 res://fleet_hangar.tscn -- --capture --craft-7 --fleet-$view --fleet-wire 2>&1 | tee build/viewer-$view-wire.log
+              timeout 120 xvfb-run -a godot --audio-driver Dummy --path game --rendering-method mobile --rendering-driver vulkan --resolution 1280x720 res://fleet_hangar.tscn -- --capture --craft-7 --fleet-$view --fleet-wire 2>&1 | tee build/viewer-$view-wire.log
               test -s "build/Fleet-tremor-$view-wire.png"
             done
           fi
@@ -131,12 +134,12 @@ jobs:
             if [ "$SHOWROOM_SHRIKE_GLTF" = true ]; then
               grep -q SCENEFORGE_SHRIKE_UPLOADED_SHOWROOM_OK build/viewer-hero.log
               # Distinct real Foundry scene, not another Fleet showroom angle.
-              timeout 120 xvfb-run -a godot --audio-driver Dummy --path game --rendering-method gl_compatibility --resolution 1280x720 -- --capture --craft-2 2>&1 | tee build/viewer-foundry-shrike.log
+              timeout 120 xvfb-run -a godot --audio-driver Dummy --path game --rendering-method mobile --rendering-driver vulkan --resolution 1280x720 -- --capture --craft-2 2>&1 | tee build/viewer-foundry-shrike.log
               test -s build/Foundry-shrike.png
               grep -q SCENEFORGE_SHRIKE_UPLOADED_SHOWROOM_OK build/viewer-foundry-shrike.log
               # New reversible windshield-only driver inspection captures.
               grep -q SCENEFORGE_SHRIKE_WINDSCREEN_SEPARATED build/viewer-cockpit.log
-              timeout 120 xvfb-run -a godot --audio-driver Dummy --path game --rendering-method gl_compatibility --resolution 1280x720 -- --capture --craft-2 --seat-view 2>&1 | tee build/viewer-foundry-shrike-seat.log
+              timeout 120 xvfb-run -a godot --audio-driver Dummy --path game --rendering-method mobile --rendering-driver vulkan --resolution 1280x720 -- --capture --craft-2 --seat-view 2>&1 | tee build/viewer-foundry-shrike-seat.log
               test -s build/Foundry-shrike-seat.png
             else
               grep -q SCENEFORGE_SHRIKE_HUD_IN_COCKPIT_OK build/viewer-cockpit.log
@@ -161,7 +164,7 @@ jobs:
             cp game/assets/fleet/$name.glb build/SelectedCraft.glb
           fi
           if [ "$PREVIEW_CRAFT" = 0 ]; then
-            timeout 120 xvfb-run -a godot --audio-driver Dummy --path game --rendering-method gl_compatibility --resolution 1280x720 -- --door-motion-smoke 2>&1 | tee build/viewer-door-test.log
+            timeout 120 xvfb-run -a godot --audio-driver Dummy --path game --rendering-method mobile --rendering-driver vulkan --resolution 1280x720 -- --door-motion-smoke 2>&1 | tee build/viewer-door-test.log
             grep SCENEFORGE_DOOR_MOTION_OK build/viewer-door-test.log
             timeout 120 godot --headless --path game --script res://tests/fleet_test.gd 2>&1 | tee build/viewer-fleet-test.log
             grep FLEET_OK build/viewer-fleet-test.log

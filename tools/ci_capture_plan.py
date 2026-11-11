@@ -93,8 +93,11 @@ def choose_captures(paths: list[str], scope: str = "auto") -> tuple[bool, tuple[
             if path.startswith("game/vehicles/") and not found_match and path != "game/vehicles/performance_parts.gd":
                 craft.update(FLEET)
         # Renderer settings and scene-wide lighting can change all previews.
-        if path == "game/project.godot":
-            tracks.add(7)  # Vulkan evaluation: isolate the new visual target
+        if path in {"game/project.godot", "tools/verify_vulkan_pipeline.py",
+                    ".github/workflows/android.yml", ".github/workflows/viewer.yml",
+                    "tools/ci_capture_tracks.sh", "tools/ci_capture_fleet.sh"}:
+            tracks.update((0,4,7))  # Representative neon, canyon and skyfall Vulkan views
+            foundry = True
     return foundry, tuple(sorted(tracks)), tuple(sorted(craft))
 
 

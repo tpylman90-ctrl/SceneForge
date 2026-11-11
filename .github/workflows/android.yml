@@ -251,6 +251,8 @@ jobs:
           python3 tools/ensure_serpent_texture_import.py verify | tee build/texture-import-verification.log
           test "$(grep -c SERPENT_ETC2_MIPMAP_OK build/texture-import-verification.log)" = 3
           if grep -E 'SCRIPT ERROR:|ERROR:' build/import-initial.log build/import-recompressed.log; then exit 1; fi
+      - name: Enforce SceneForge Vulkan standard
+        run: python3 tools/verify_vulkan_pipeline.py
       - name: Import and smoke test
         shell: bash
         run: |
@@ -260,17 +262,20 @@ jobs:
       - name: Install headless renderer
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y xvfb libgl1-mesa-dri
+          sudo apt-get install -y xvfb libvulkan1 mesa-vulkan-drivers vulkan-tools
+          test -s /usr/share/vulkan/icd.d/lvp_icd.x86_64.json
+          VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/lvp_icd.x86_64.json vulkaninfo --summary | tee build/vulkan-driver.txt
+          grep -q 'deviceName' build/vulkan-driver.txt
       - name: Verify Foundry doors and comparison benchmark
         env:
-          LIBGL_ALWAYS_SOFTWARE: '1'
+          VK_ICD_FILENAMES: /usr/share/vulkan/icd.d/lvp_icd.x86_64.json
         shell: bash
         run: |
           set -euo pipefail
-          timeout 120 xvfb-run -a godot --audio-driver Dummy --path game --rendering-method gl_compatibility --resolution 1280x720 -- --door-motion-smoke 2>&1 | tee build/door-motion.log
+          timeout 120 xvfb-run -a godot --audio-driver Dummy --path game --rendering-method mobile --rendering-driver vulkan --resolution 1280x720 -- --door-motion-smoke 2>&1 | tee build/door-motion.log
           if grep -E 'SCRIPT ERROR:|ERROR:' build/door-motion.log; then exit 1; fi
           grep SCENEFORGE_DOOR_MOTION_OK build/door-motion.log
-          timeout 120 xvfb-run -a godot --audio-driver Dummy --path game --rendering-method gl_compatibility --resolution 1280x720 -- --benchmark-smoke 2>&1 | tee build/comparison-smoke.log
+          timeout 120 xvfb-run -a godot --audio-driver Dummy --path game --rendering-method mobile --rendering-driver vulkan --resolution 1280x720 -- --benchmark-smoke 2>&1 | tee build/comparison-smoke.log
           if grep -E 'SCRIPT ERROR:|ERROR:' build/comparison-smoke.log; then exit 1; fi
           grep SCENEFORGE_COMPARISON build/comparison-smoke.log
       - name: Run all driving and circuit tests
@@ -306,7 +311,7 @@ jobs:
       - name: Capture only changed tracks
         if: env.CAPTURE_TRACKS != ''
         env:
-          LIBGL_ALWAYS_SOFTWARE: '1'
+          VK_ICD_FILENAMES: /usr/share/vulkan/icd.d/lvp_icd.x86_64.json
         run: bash tools/ci_capture_tracks.sh
       - name: Verify every vehicle and Foundry selection
         shell: bash
@@ -330,13 +335,13 @@ jobs:
       - name: Capture Foundry only when affected
         if: env.CAPTURE_FOUNDRY == '1'
         env:
-          LIBGL_ALWAYS_SOFTWARE: '1'
+          VK_ICD_FILENAMES: /usr/share/vulkan/icd.d/lvp_icd.x86_64.json
         shell: bash
         run: |
           set -euo pipefail
           capture() {
             local log="$1"; shift
-            timeout 120 xvfb-run -a godot --audio-driver Dummy --path game --rendering-method gl_compatibility --resolution 1280x720 -- --capture "$@" 2>&1 | tee "build/$log.log"
+            timeout 120 xvfb-run -a godot --audio-driver Dummy --path game --rendering-method mobile --rendering-driver vulkan --resolution 1280x720 -- --capture "$@" 2>&1 | tee "build/$log.log"
             if grep -E 'SCRIPT ERROR:|ERROR:' "build/$log.log"; then return 1; fi
           }
           capture foundry-ingame-render
@@ -358,7 +363,7 @@ jobs:
       - name: Capture only modified or requested craft
         if: env.CAPTURE_FLEET != ''
         env:
-          LIBGL_ALWAYS_SOFTWARE: '1'
+          VK_ICD_FILENAMES: /usr/share/vulkan/icd.d/lvp_icd.x86_64.json
         run: bash tools/ci_capture_fleet.sh
       - name: Export and verify APK
         shell: bash

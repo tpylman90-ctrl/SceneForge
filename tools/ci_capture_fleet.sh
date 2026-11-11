@@ -2,11 +2,12 @@
 # Fleet correctness is always checked by Godot tests. This runs only the
 # expensive screenshots requested by change impact analysis or manual scope.
 set -euo pipefail
+export VK_ICD_FILENAMES="${VK_ICD_FILENAMES:-/usr/share/vulkan/icd.d/lvp_icd.x86_64.json}"
 mkdir -p build
 
 capture_fleet() {
   local log="$1"; shift
-  timeout 120 xvfb-run -a godot --audio-driver Dummy --path game --rendering-method gl_compatibility --resolution 1280x720 "$@" 2>&1 | tee "build/$log.log"
+  timeout 120 xvfb-run -a godot --audio-driver Dummy --path game --rendering-method mobile --rendering-driver vulkan --resolution 1280x720 "$@" 2>&1 | tee "build/$log.log"
   if grep -E 'SCRIPT ERROR:|ERROR:' "build/$log.log"; then exit 1; fi
 }
 

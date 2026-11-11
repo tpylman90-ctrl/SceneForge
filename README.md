@@ -7,6 +7,13 @@ Open [latest pipeline build](https://github.com/tpylman90-ctrl/SceneForge/releas
 ## Pipeline
 Godot 4.5.1 stable, Java 17, Android build tools 35.0.0. Push to main or run Android pipeline manually. Pull requests validate and export without publishing.
 
+### Standard graphics backend: Vulkan
+All SceneForge **game** tracks (Neon Cross, Skyway, Viper Rift, Iron Harbor, Crimson Serpent, Red Mesa, Devil's Gate and Skyfall), racing craft, Foundry and Fleet use Godot **Mobile/Vulkan** on Android. The Godot game project explicitly selects Mobile and Vulkan for Android and Linux. It does not silently fall back to OpenGL. Vulkan-capable Android hardware is required for this distribution. Godot's Mobile renderer is deliberately preferred to Forward+ to preserve phone performance.
+
+Screenshot CI and vehicle-viewer previews now explicitly use Mobile/Vulkan too. CI runs on Mesa Lavapipe software Vulkan under Xvfb, so its *performance numbers are not representative of phone GPU frame rates*; only native phone tests establish FPS. The separate Terrain3D **desktop authoring editor** uses Forward+/Vulkan. Native Android GLB Inspector and Blender are not Godot runtime renderers and are unchanged.
+
+The Vulkan configuration and preview invocation rules are verified by `tools/verify_vulkan_pipeline.py` during Android CI. If a device doesn't support Vulkan, restore a separate legacy build from Git history instead of silently changing this build's backend.
+
 The initial app is a pipeline check screen, not the Neon Foundry environment. Android hardware testing remains necessary.
 
 ## Signing
