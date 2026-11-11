@@ -14,7 +14,10 @@ for line in (
     'rendering_device/driver.linuxbsd="vulkan"',
     'rendering_device/fallback_to_opengl3=false',
 ):
-    assert line in GAME.splitlines(), f"Game lost required Vulkan setting: {line}"
+    assert GAME.splitlines().count(line) == 1, f"Game Vulkan setting missing or duplicated: {line}"
+assert not any(line.startswith("rendering_device/fallback_to_opengl3=") and line != "rendering_device/fallback_to_opengl3=false" for line in GAME.splitlines()), (
+    "Another source change has re-enabled OpenGL fallback"
+)
 
 for line in (
     'renderer/rendering_method="forward_plus"',
