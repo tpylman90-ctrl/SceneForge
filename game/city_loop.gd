@@ -2088,6 +2088,12 @@ func test_loop() -> void:
 	print("SCENEFORGE_CITY_LOOP_OK")
 	shutdown()
 
+# Called only after the persistent loading screen has covered scene creation
+# and initial Mobile/Vulkan pipeline warm-up. Race clocks remain frozen until now.
+func finish_track_load() -> void:
+	clear_drive_input()
+	set_physics_process(not (track_menu.visible or event_menu.visible or results_panel.visible))
+
 func shutdown(next_scene: String = "") -> void:
 	if shutting_down:
 		return
@@ -2098,6 +2104,9 @@ func shutdown(next_scene: String = "") -> void:
 	if next_scene.is_empty():
 		get_tree().quit()
 	else:
-		get_tree().change_scene_to_file(next_scene)
+		if next_scene == "res://city_loop.tscn":
+			TrackLoader.begin(next_scene)
+		else:
+			get_tree().change_scene_to_file(next_scene)
 
 
