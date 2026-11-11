@@ -246,7 +246,10 @@ func action(label: String) -> void:
 		busy=true
 		visual.stop_audio()
 		await get_tree().create_timer(.15).timeout
-		get_tree().change_scene_to_file("res://city_loop.tscn" if label=="DRIVE" else "res://main.tscn")
+		if label == "DRIVE":
+			TrackLoader.begin("res://city_loop.tscn")
+		else:
+			get_tree().change_scene_to_file("res://main.tscn")
 		return
 	cockpit=label=="COCKPIT"
 	fleet_panel.visible=not cockpit
