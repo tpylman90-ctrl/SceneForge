@@ -17,7 +17,7 @@ func check() -> void:
 			model.follow_surface(1.0 / float(hz), 0.45, 25.0)
 		assert(absf(model.height - 0.45) < 0.06, "Hover spring should climb a shallow change")
 		assert(absf(model.vertical_velocity) < 0.7, "Hover spring should not oscillate indefinitely")
-		var forward := Vector3.FORWARD
+		var forward := Vector3.BACK # SceneForge racers travel along Godot +Z
 		var current := Vector3(8.0, 0.0, 10.0)
 		for tick in range(hz):
 			current = Motion.horizontal_velocity(current, forward, 25.0, 6.0, 1.0 / float(hz), false)
