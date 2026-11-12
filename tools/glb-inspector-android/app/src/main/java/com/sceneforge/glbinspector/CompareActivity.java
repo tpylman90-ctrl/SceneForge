@@ -584,6 +584,183 @@ public final class CompareActivity extends Activity implements Choreographer.Fra
         },"compare-mode").start();
     }
 
+    /** Create/edit a view-anchored defect pin with structured issue classification. */
+    private void editNote(Pane pane,float u,float v,FeedbackStore.Note existing) {
+        if(pane.original==null || pane.hash.isEmpty()) {
+            error("Load a GLB before marking defects.");
+            return;
+        }
+        LinearLayout content=new LinearLayout(this);
+        content.setOrientation(LinearLayout.VERTICAL);
+        content.setPadding(dp(20),dp(8),dp(20),dp(6));
+
+        TextView help=new TextView(this);
+        help.setText("Describe the exact shape or modeling correction here. The camera viewpoint and marker location are saved with the note.");
+        help.setTextSize(12);
+        help.setTextColor(MUTED);
+        content.addView(help);
+
+        TextView typeLabel=new TextView(this);
+        typeLabel.setText("Issue category");
+        typeLabel.setTextColor(TEXT);
+        content.addView(typeLabel);
+        Spinner category=new Spinner(this);
+        ArrayAdapter<String> categories=new ArrayAdapter<>(this,android.R.layout.simple_spinner_dropdown_item,FeedbackStore.TYPES);
+        category.setAdapter(categories);
+        content.addView(category);
+
+        TextView severityLabel=new TextView(this);
+        severityLabel.setText("Priority");
+        severityLabel.setTextColor(TEXT);
+        content.addView(severityLabel);
+        Spinner severity=new Spinner(this);
+        ArrayAdapter<String> priorities=new ArrayAdapter<>(this,android.R.layout.simple_spinner_dropdown_item,FeedbackStore.SEVERITIES);
+        severity.setAdapter(priorities);
+        content.addView(severity);
+
+        EditText note=new EditText(this);
+        note.setHint("e.g. Rear haunch transitions into the cab too abruptly; blend roof armor back toward twin boosters");
+        note.setTextColor(TEXT);
+        note.setHintTextColor(MUTED);
+        note.setMinLines(3);
+        note.setMaxLines(5);
+        note.setInputType(android.text.InputType.TYPE_CLASS_TEXT |
+                android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE |
+                android.text.InputType.TYPE_TEXT_FLAG_CAP_SENTENCES);
+        content.addView(note,new LinearLayout.LayoutParams(-1,dp(119)));
+
+        if(existing!=null){
+            for(int i=0;i<FeedbackStore.TYPES.length;i++)
+                if(FeedbackStore.TYPES[i].equals(existing.issueType))category.setSelection(i);
+            for(int i=0;i<FeedbackStore.SEVERITIES.length;i++)
+                if(FeedbackStore.SEVERITIES[i].equals(existing.severity))severity.setSelection(i);
+            note.setText(existing.description);
+        }
+
+        AlertDialog dialog=new AlertDialog.Builder(this)
+                .setTitle((existing==null?"New defect":"Edit defect")+"  •  "+(pane.index==0?"A":"B"))
+                .setView(content)
+                .setPositiveButton("SAVE",null)
+                .setNegativeButton("CANCEL",(d,which)->{})
+                .create();
+        dialog.setOnShowListener(ignored->{
+            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(vbutton->{
+                String description=note.getText().toString().trim();
+                if(description.isEmpty()) {
+                    note.setError("Describe the correction you want");
+                    return;
+                }
+                FeedbackStore.Note item=existing==null?new FeedbackStore.Note():existing;
+                if(existing==null) {
+                    item.id="issue-"+System.currentTimeMillis()+"-"+(feedback.all().size()+1);
+                    item.createdUtcMillis=System.currentTimeMillis();
+                    item.pane=pane.index;
+                    item.modelName=pane.name;
+                    item.modelSha256=pane.hash;
+                    item.u=u;item.v=v;
+                    item.azimuth=pane.azimuth;item.elevation=pane.elevation;
+                    item.distance=pane.distance;
+                    item.orthographic=orthographic;
+                    item.mode=mode.name();
+                }
+                item.issueType=FeedbackStore.TYPES[category.getSelectedItemPosition()];
+                item.severity=FeedbackStore.SEVERITIES[severity.getSelectedItemPosition()];
+                item.description=description;
+                if(existing==null)feedback.add(item);else feedback.save();
+                marking=false;
+                syncMarkButton();
+                updateIssueCount();
+                message.setText("Issue saved • "+item.issueType+". Export JSON to share with AssetWright.");
+                dialog.dismiss();
+            });
+        });
+        dialog.show();
+    }
+
+    private void showIssues() {
+        java.util.ArrayList<FeedbackStore.Note> active=new java.util.ArrayList<>();
+        for(FeedbackStore.Note n:feedback.all()){
+            if(n.modelSha256.equals(panes[0].hash)||n.modelSha256.equals(panes[1].hash))active.add(n);
+        }
+        if(active.isEmpty()){
+            new AlertDialog.Builder(this).setTitle("No annotations yet")
+                    .setMessage("Tap MARK PANEL, then tap the area of a loaded GLB that needs work. Describe the defect and save it.")
+                    .setPositiveButton("OK",null).show();
+            return;
+        }
+        String[] entries=new String[active.size()];
+        for(int i=0;i<active.size();i++){
+            FeedbackStore.Note n=active.get(i);
+            String description=n.description;
+            if(description.length()>54)description=description.substring(0,54)+"…";
+            entries[i]=(i+1)+". ["+(n.pane==0?"A":"B")+"] "+n.issueType+" / "+n.severity+"\n"+description;
+        }
+        new AlertDialog.Builder(this).setTitle("Recorded model corrections")
+                .setItems(entries,(dialog,index)->issueActions(active.get(index)))
+                .setNegativeButton("DONE",null).show();
+    }
+
+    private void issueActions(FeedbackStore.Note n) {
+        new AlertDialog.Builder(this)
+                .setTitle(n.issueType+" • "+(n.pane==0?"A":"B"))
+                .setMessage(n.description)
+                .setItems(new String[]{"Restore camera & locate pin","Edit description","Delete this issue"},(d,which)->{
+                    if(which==0){
+                        Pane pane=panes[n.pane];
+                        pane.azimuth=n.azimuth;
+                        pane.elevation=n.elevation;
+                        pane.distance=n.distance;
+                        if(sync)copyAngles(pane,panes[1-n.pane]);
+                        orthographic=n.orthographic;
+                        projectionButton.setText(orthographic?"ORTHO":"3D");
+                        updateCameras();
+                        try {
+                            GlbInspectionVariants.Mode saved=GlbInspectionVariants.Mode.valueOf(n.mode);
+                            if(saved!=mode)selectMode(saved);
+                        }catch(Exception ignored){}
+                        message.setText("Restored issue camera: "+n.issueType);
+                    } else if(which==1){
+                        Pane pane=panes[n.pane];
+                        editNote(pane,n.u,n.v,n);
+                    } else {
+                        new AlertDialog.Builder(this).setTitle("Delete issue?")
+                                .setMessage("Remove this recorded correction from local feedback?")
+                                .setPositiveButton("DELETE",(dialog,button)->{
+                                    feedback.remove(n);updateIssueCount();
+                                })
+                                .setNegativeButton("CANCEL",null).show();
+                    }
+                })
+                .setNegativeButton("CLOSE",null).show();
+    }
+
+    private void exportFeedback() {
+        if(panes[0].hash.isEmpty()&&panes[1].hash.isEmpty()){
+            error("Load at least one GLB before exporting.");
+            return;
+        }
+        try {
+            JSONObject json=feedback.export(
+                    panes[0].original==null?"":panes[0].name,panes[0].hash,
+                    panes[1].original==null?"":panes[1].name,panes[1].hash,
+                    referenceWindow.referenceName(),sync,mode.name());
+            if(json.getJSONArray("issues").length()==0) {
+                new AlertDialog.Builder(this).setTitle("No defect notes recorded")
+                        .setMessage("Tap MARK PANEL, describe at least one defect, then export the feedback JSON.")
+                        .setPositiveButton("OK",null).show();
+                return;
+            }
+            pendingFeedbackExport=json.toString(2);
+            String filename="SceneForge_Feedback_"+
+                    new SimpleDateFormat("yyyyMMdd_HHmmss",Locale.US).format(new Date())+".json";
+            Intent save=new Intent(Intent.ACTION_CREATE_DOCUMENT);
+            save.addCategory(Intent.CATEGORY_OPENABLE);
+            save.setType("application/json");
+            save.putExtra(Intent.EXTRA_TITLE,filename);
+            startActivityForResult(save,EXPORT_JSON);
+        }catch(Exception ex){error("Could not prepare JSON: "+ex.getMessage());}
+    }
+
     private void captureBoth(){
         if(panes[0].original==null||panes[1].original==null){
             error("Load both GLBs before exporting a comparison.");return;
