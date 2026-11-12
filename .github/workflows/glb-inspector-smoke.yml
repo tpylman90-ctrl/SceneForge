@@ -57,6 +57,12 @@ jobs:
             grep -n -C 5 -E 'FATAL EXCEPTION|Fatal signal|AndroidRuntime|sceneforge.glbinspector' inspector-smoke-logcat.txt | tail -n 140 || true
             test -s inspector-pid.txt
             grep -q 'SCENEFORGE_MODE_TEST.*ALL_MODES_PASSED' inspector-smoke-logcat.txt
+            adb logcat -c
+            adb shell am start -W -n com.sceneforge.glbinspector/.CompareActivity --ez sceneforge_verify_compare true
+            sleep 7
+            adb logcat -d -v time > compare-smoke-logcat.txt
+            grep -q 'SCENEFORGE_COMPARE_TEST.*TWO_LIVE_GLB_VIEWERS_PASSED' compare-smoke-logcat.txt
+            adb shell pidof com.sceneforge.glbinspector
       - name: Preserve smoke diagnostic logs
         if: always()
         uses: actions/upload-artifact@v4
@@ -64,5 +70,6 @@ jobs:
           name: GLB-Inspector-Smoke-Logs
           path: |
             inspector-smoke-logcat.txt
+            compare-smoke-logcat.txt
             inspector-pid.txt
           if-no-files-found: warn
