@@ -245,6 +245,12 @@ public final class ReferenceWindow extends FrameLayout {
         }, "reference-decoder").start();
     }
 
+    /** Optional reference image for combined A/B evidence exports; never edits the source. */
+    public Bitmap referenceBitmap() {
+        android.graphics.drawable.Drawable drawable=image.getDrawable();
+        return drawable instanceof android.graphics.drawable.BitmapDrawable ?
+                ((android.graphics.drawable.BitmapDrawable)drawable).getBitmap() : null;
+    }
     public String referenceName() { return referenceName; }
     public boolean hasImage() { return image.getDrawable() != null; }
     public boolean isPinned() { return pinned; }
