@@ -815,9 +815,9 @@ public final class CompareActivity extends Activity implements Choreographer.Fra
                                     (availableH-6f)/Math.max(1,reference.getHeight()));
                             int displayW=Math.max(1,Math.round(reference.getWidth()*ratio));
                             int displayH=Math.max(1,Math.round(reference.getHeight()*ratio));
-                            int left=((w1+w2+6)-displayW)/2;
+                            int referenceLeft=((w1+w2+6)-displayW)/2;
                             c.drawBitmap(reference,null,new android.graphics.Rect(
-                                    left,top+35,left+displayW,top+35+displayH),new Paint(3));
+                                    referenceLeft,top+35,referenceLeft+displayW,top+35+displayH),new Paint(3));
                         }
                         String file="SceneForge_AB_"+new SimpleDateFormat("yyyyMMdd_HHmmss",Locale.US)
                                 .format(new Date())+"_"+(++snapshotNumber)+".png";
