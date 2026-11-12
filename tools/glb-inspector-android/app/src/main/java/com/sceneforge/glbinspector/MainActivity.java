@@ -118,6 +118,12 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
         });
         surface.setOnTouchListener((v, e) -> onModelTouch(e));
         Intent intent = getIntent();
+        // Launch the non-exported comparison screen through this application's own UID.
+        // This exists only for the Android emulator integration test.
+        if (intent.getBooleanExtra("sceneforge_launch_compare_test", false)) {
+            handler.postDelayed(() -> startActivity(new Intent(this, CompareActivity.class)
+                    .putExtra("sceneforge_verify_compare", true)), 1100);
+        }
         if (intent.getBooleanExtra("sceneforge_verify_modes", false)) {
             handler.postDelayed(this::verifyModesForCi, 1500L);
         }
