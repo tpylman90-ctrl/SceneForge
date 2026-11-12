@@ -789,6 +789,17 @@ public final class CompareActivity extends Activity implements Choreographer.Fra
                         pp.setColor(TEXT);pp.setTextSize(22f);
                         c.drawText("A: "+panes[0].name,12,30,pp);
                         c.drawText("B: "+panes[1].name,w1+18,30,pp);
+                        // Keep numbered feedback pins in the exported real-render PNG.
+                        if(panes[0].markers!=null){
+                            c.save();c.translate(0,44);
+                            panes[0].markers.drawOnExport(c,w1,height);
+                            c.restore();
+                        }
+                        if(panes[1].markers!=null){
+                            c.save();c.translate(w1+6,44);
+                            panes[1].markers.drawOnExport(c,w2,height);
+                            c.restore();
+                        }
                         String file="SceneForge_AB_"+new SimpleDateFormat("yyyyMMdd_HHmmss",Locale.US)
                                 .format(new Date())+"_"+(++snapshotNumber)+".png";
                         savePng(merged,file);
