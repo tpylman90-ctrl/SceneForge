@@ -161,13 +161,18 @@ public final class FeedbackStore {
                 .put("display_mode",viewMode)
                 .put("reference_photo_filename",referencePhotoName==null?"":referencePhotoName));
         JSONArray issues=new JSONArray();
-        for(Note n:notes){
-            if(n.modelSha256.equals(hashA)||n.modelSha256.equals(hashB))issues.put(n.toJson());
+        for(int i=0;i<notes.size();i++){
+            Note n=notes.get(i);
+            if(n.modelSha256.equals(hashA)||n.modelSha256.equals(hashB)){
+                JSONObject note=n.toJson();
+                note.put("marker_number",i+1);
+                issues.put(note);
+            }
         }
         result.put("issues",issues);
         result.put("instructions_for_ai",
                 "Use each issue's description, severity, target GLB SHA-256 and recorded camera pose. " +
-                "Match any attached A/B PNG to the normalized viewport anchor. " +
+                "Match marker_number in the annotated A/B PNG to each issue and its normalized viewport anchor. " +
                 "Inspect and change model geometry only after confirming the defect; do not treat anchors as 3D vertex positions.");
         return result;
     }
