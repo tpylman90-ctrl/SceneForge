@@ -75,6 +75,8 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
     private boolean wasPinching;
     private String modelName = "model";
     private int imageIndex = 1;
+    private boolean studioEnabled = true;
+    private Button studioButton;
     private byte[] sourceGlb;
     private ByteBuffer displayedGlb;
     private GlbInspectionVariants.Mode displayMode = GlbInspectionVariants.Mode.TEXTURED;
@@ -230,6 +232,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
         LinearLayout presets = new LinearLayout(this);
         presets.setOrientation(LinearLayout.HORIZONTAL);
         presets.setPadding(dp(8), dp(9), dp(8), dp(8));
+        addPreset(presets, "SIDE", 90, 0);
         addPreset(presets, "ISO", 33, 18);
         addPreset(presets, "FRONT", 180, 0);
         addPreset(presets, "REAR", 0, 0);
@@ -249,6 +252,29 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
         addModeButton(modeRow, "WIREFRAME", GlbInspectionVariants.Mode.WIREFRAME, 2);
         main.addView(modeRow);
         syncModeButtons();
+
+        LinearLayout utilities = new LinearLayout(this);
+        utilities.setGravity(Gravity.CENTER_VERTICAL);
+        utilities.setPadding(dp(12), dp(3), dp(12), dp(3));
+        Button compareButton = button("COMPARE TWO GLBs");
+        compareButton.setOnClickListener(v ->
+                startActivity(new Intent(this, CompareActivity.class)));
+        utilities.addView(compareButton, new LinearLayout.LayoutParams(0, dp(44), 1f));
+        studioButton = button("STUDIO ON");
+        studioButton.setBackgroundTintList(android.content.res.ColorStateList.valueOf(ACCENT));
+        studioButton.setTextColor(BG);
+        studioButton.setOnClickListener(v -> {
+            studioEnabled = !studioEnabled;
+            studioButton.setText(studioEnabled ? "STUDIO ON" : "STUDIO OFF");
+            studioButton.setBackgroundTintList(android.content.res.ColorStateList.valueOf(
+                    studioEnabled ? ACCENT : PANEL));
+            studioButton.setTextColor(studioEnabled ? BG : TEXT);
+            if (modelLoaded) displayAs(displayMode, true);
+        });
+        LinearLayout.LayoutParams studioParams = new LinearLayout.LayoutParams(0, dp(44), 0.65f);
+        studioParams.leftMargin = dp(8);
+        utilities.addView(studioButton, studioParams);
+        main.addView(utilities);
 
         LinearLayout actions = new LinearLayout(this);
         actions.setPadding(dp(12), dp(4), dp(12), dp(13));
@@ -287,6 +313,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
                 .color(0.095f, 0.12f, 0.16f, 1.0f)
                 .build(engine);
         viewer.getScene().setSkybox(studioBackground);
+        // Sun built into ModelViewer casts the floor shadow; retain it in studio mode.
 
         reflectionCube = new Texture.Builder()
                 .width(32).height(32).levels(6)
@@ -410,19 +437,28 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
     }
 
     private void displayAs(GlbInspectionVariants.Mode mode) {
+        displayAs(mode, false);
+    }
+
+    private void displayAs(GlbInspectionVariants.Mode mode, boolean forceReload) {
         if (!modelLoaded || sourceGlb == null) {
             error("Open a GLB model first.");
             return;
         }
-        if (modeBusy || displayMode == mode) return;
+        if (modeBusy || (displayMode == mode && !forceReload)) return;
         modeBusy = true;
         syncModeButtons();
         status.setText("Preparing " + mode.name().toLowerCase(Locale.US) + " geometry...");
         byte[] original = sourceGlb;
         long revision = openRequest;
+        final boolean floor = studioEnabled;
         new Thread(() -> {
             try {
                 byte[] variant = GlbInspectionVariants.create(original, mode);
+                if (floor && mode != GlbInspectionVariants.Mode.WIREFRAME) {
+                    try { variant = StudioGlb.withFloor(variant); }
+                    catch (Exception ignored) { /* retain inspectable GLB */ }
+                }
                 ByteBuffer buffer = ByteBuffer.allocateDirect(variant.length);
                 buffer.put(variant);
                 buffer.flip();
@@ -561,8 +597,13 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
                         || data[2] != 'T' || data[3] != 'F')
                     throw new IllegalArgumentException("Not a valid binary GLB");
                 String summary = inspect(data);
-                ByteBuffer buffer = ByteBuffer.allocateDirect(data.length);
-                buffer.put(data);
+                byte[] preview = data;
+                if (studioEnabled) {
+                    try { preview = StudioGlb.withFloor(data); }
+                    catch (Exception ignored) { /* original always remains available */ }
+                }
+                ByteBuffer buffer = ByteBuffer.allocateDirect(preview.length);
+                buffer.put(preview);
                 buffer.flip();
                 runOnUiThread(() -> {
                     if (revision != openRequest) return;
