@@ -286,6 +286,13 @@ jobs:
           timeout 120 godot --headless --path game --script res://tests/hover_handling_test.gd 2>&1 | tee build/hover-handling.log
           if grep -E 'SCRIPT ERROR:|ERROR:' build/hover-handling.log; then exit 1; fi
           grep SCENEFORGE_HOVER_HANDLING_OK build/hover-handling.log
+      - name: Verify physical lift in the standalone hover proving ground
+        shell: bash
+        run: |
+          set -euo pipefail
+          timeout 120 godot --headless --path game --script res://tests/hover_rigidbody_test.gd 2>&1 | tee build/hover-rigidbody.log
+          if grep -E 'SCRIPT ERROR:|ERROR:' build/hover-rigidbody.log; then exit 1; fi
+          grep SCENEFORGE_RIGIDBODY_HOVER_OK build/hover-rigidbody.log
       - name: Run all driving and circuit tests
         shell: bash
         run: |

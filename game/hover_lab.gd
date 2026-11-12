@@ -5,7 +5,7 @@ extends Node3D
 const Rig = preload("res://vehicles/hover_rig.gd")
 const Touch = preload("res://vehicles/hover_touch_input.gd")
 
-var rig: RigidBody3D
+var rig # Script-backed RigidBody3D; dynamic interface from hover_rig.gd
 var camera: Camera3D
 var hud: Label
 var touches: Dictionary = {}

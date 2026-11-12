@@ -1266,6 +1266,13 @@ func build_ui() -> void:
 	title.text=chassis.display_name+" / CHOOSE YOUR CIRCUIT"
 	title.add_theme_font_size_override("font_size",30)
 	choices.add_child(title)
+	# A separate physics scene, not a racer GLB or an unfinished Neon Foundry map.
+	var proving_ground := Button.new()
+	proving_ground.text="HOVER PHYSICS LAB / TRUE SURFACE PROBES + DRIFT + AIR CONTROL"
+	proving_ground.custom_minimum_size=Vector2(1040,67)
+	proving_ground.add_theme_font_size_override("font_size",23)
+	proving_ground.pressed.connect(func(): shutdown("res://hover_lab.tscn"))
+	choices.add_child(proving_ground)
 	for index in [Skyfall.ID,0,1,2,3,4,5,6]:
 		var choice := Button.new()
 		choice.text=TRACK_NAMES[index]+"  /  "+TRACK_INFO[index]
