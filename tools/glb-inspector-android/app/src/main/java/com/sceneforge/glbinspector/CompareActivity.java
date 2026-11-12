@@ -9,6 +9,12 @@ import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
+import android.widget.EditText;
+import android.widget.Spinner;
+import android.widget.ArrayAdapter;
+import android.app.AlertDialog;
+import org.json.JSONObject;
+import java.nio.charset.StandardCharsets;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -65,11 +71,17 @@ public final class CompareActivity extends Activity implements Choreographer.Fra
     private static final int TEXT=Color.rgb(228,236,245);
     private static final int MUTED=Color.rgb(166,181,198);
     private static final int ACCENT=Color.rgb(29,186,180);
-    private static final int PICK_A=8121, PICK_B=8122;
+    private static final int PICK_A=8121, PICK_B=8122, PICK_PHOTO=8123, EXPORT_JSON=8124;
 
     private final Handler handler=new Handler(Looper.getMainLooper());
     private final Pane[] panes=new Pane[2];
     private LinearLayout viewportRow;
+    private FrameLayout viewportContainer;
+    private ReferenceWindow referenceWindow;
+    private FeedbackStore feedback;
+    private boolean marking=false;
+    private Button markButton, issueButton;
+    private String pendingFeedbackExport = "";
     private TextView message;
     private Button syncButton, projectionButton;
     private boolean sync=true, orthographic=true, running=false;
@@ -85,6 +97,9 @@ public final class CompareActivity extends Activity implements Choreographer.Fra
         SurfaceView surface;
         FrameLayout frame;
         TextView caption;
+        FeedbackStore.MarkerOverlay markers;
+        String hash = "";
+        float downX, downY;
         ModelViewer viewer;
         ByteBuffer currentDirect;
         byte[] original;
@@ -105,6 +120,7 @@ public final class CompareActivity extends Activity implements Choreographer.Fra
         getWindow().setStatusBarColor(BG);
         getWindow().setNavigationBarColor(BG);
         Gltfio.init();
+        feedback=new FeedbackStore(this);
         buildUi();
         for(int i=0;i<2;i++) createRenderer(panes[i]);
         updateCameras();
@@ -186,6 +202,9 @@ public final class CompareActivity extends Activity implements Choreographer.Fra
             p.caption.setPadding(dp(9),dp(5),dp(9),dp(5));
             FrameLayout.LayoutParams cp=new FrameLayout.LayoutParams(-2,-2,Gravity.TOP|Gravity.LEFT);
             cp.setMargins(dp(8),dp(8),0,0);p.frame.addView(p.caption,cp);
+            p.markers=new FeedbackStore.MarkerOverlay(this,feedback,i);
+            p.frame.addView(p.markers,new FrameLayout.LayoutParams(-1,-1));
+            p.caption.bringToFront();
             panes[i]=p;
             LinearLayout.LayoutParams fp=wide?
                     new LinearLayout.LayoutParams(0,-1,1f):
@@ -193,7 +212,16 @@ public final class CompareActivity extends Activity implements Choreographer.Fra
             if(i==1){if(wide)fp.leftMargin=dp(3);else fp.topMargin=dp(3);}
             viewportRow.addView(p.frame,fp);
         }
-        root.addView(viewportRow,new LinearLayout.LayoutParams(-1,0,1f));
+        viewportContainer=new FrameLayout(this);
+        viewportContainer.addView(viewportRow,new FrameLayout.LayoutParams(-1,-1));
+        referenceWindow=new ReferenceWindow(this,()->choosePhoto());
+        viewportContainer.addView(referenceWindow,new FrameLayout.LayoutParams(dp(270),dp(188),
+                Gravity.TOP | Gravity.LEFT));
+        viewportContainer.addOnLayoutChangeListener((v,l,t,r,b,ol,ot,oright,ob)->{
+            if(r-l!=oright-ol || b-t!=ob-ot) referenceWindow.post(referenceWindow::restorePosition);
+        });
+        root.addView(viewportContainer,new LinearLayout.LayoutParams(-1,0,1f));
+        referenceWindow.post(referenceWindow::restorePosition);
 
         HorizontalScrollView cameraScroll=new HorizontalScrollView(this);
         cameraScroll.setHorizontalScrollBarEnabled(false);
@@ -217,6 +245,34 @@ public final class CompareActivity extends Activity implements Choreographer.Fra
         proj.leftMargin=dp(4);bottom.addView(projectionButton,proj);
         root.addView(bottom);
 
+        HorizontalScrollView feedbackScroll=new HorizontalScrollView(this);
+        feedbackScroll.setHorizontalScrollBarEnabled(false);
+        LinearLayout feedbackRow=new LinearLayout(this);
+        feedbackRow.setPadding(dp(7),dp(1),dp(7),dp(2));
+        Button photoButton=button("REF PHOTO");
+        photoButton.setOnClickListener(v->referenceWindow.showPanel());
+        feedbackRow.addView(photoButton,new LinearLayout.LayoutParams(dp(105),dp(38)));
+        markButton=button("MARK PANEL");
+        markButton.setOnClickListener(v->{
+            marking=!marking;
+            syncMarkButton();
+            message.setText(marking ? "Tap a body panel in A or B to describe a defect." :
+                    "Orbit mode • drag to rotate, pinch to zoom.");
+        });
+        LinearLayout.LayoutParams markP=new LinearLayout.LayoutParams(dp(113),dp(38));
+        markP.leftMargin=dp(5);feedbackRow.addView(markButton,markP);
+        issueButton=button("ISSUES 0");
+        issueButton.setOnClickListener(v->showIssues());
+        LinearLayout.LayoutParams issueP=new LinearLayout.LayoutParams(dp(105),dp(38));
+        issueP.leftMargin=dp(5);feedbackRow.addView(issueButton,issueP);
+        Button exportButton=button("EXPORT JSON");
+        exportButton.setOnClickListener(v->exportFeedback());
+        LinearLayout.LayoutParams exportP=new LinearLayout.LayoutParams(dp(116),dp(38));
+        exportP.leftMargin=dp(5);feedbackRow.addView(exportButton,exportP);
+        feedbackScroll.addView(feedbackRow);
+        root.addView(feedbackScroll);
+        syncMarkButton();
+
         LinearLayout actions=new LinearLayout(this);actions.setPadding(dp(8),0,dp(8),dp(7));
         Button png=button("SAVE A/B PNG");png.setOnClickListener(v->captureBoth());
         Button reset=button("RESET VIEWS");reset.setOnClickListener(v->{
@@ -227,6 +283,19 @@ public final class CompareActivity extends Activity implements Choreographer.Fra
         resetP.leftMargin=dp(7);actions.addView(reset,resetP);
         root.addView(actions);
         syncModeButtons();
+        updateIssueCount();
+    }
+
+    private void syncMarkButton() {
+        if(markButton==null)return;
+        markButton.setText(marking ? "TAP TO MARK" : "MARK PANEL");
+        markButton.setBackgroundTintList(android.content.res.ColorStateList.valueOf(marking?ACCENT:PANEL));
+        markButton.setTextColor(marking?BG:TEXT);
+    }
+    private void updateIssueCount() {
+        if(issueButton!=null && panes[0]!=null && panes[1]!=null)
+            issueButton.setText("ISSUES "+feedback.countFor(panes[0].hash,panes[1].hash));
+        for(Pane p:panes)if(p!=null&&p.markers!=null)p.markers.invalidate();
     }
 
     private void addPreset(LinearLayout row,String label,float az,float el) {
@@ -265,7 +334,10 @@ public final class CompareActivity extends Activity implements Choreographer.Fra
                 if(i==1){if(wide)p.leftMargin=dp(3);else p.topMargin=dp(3);}
                 panes[i].frame.setLayoutParams(p);
             }
-            handler.postDelayed(this::updateCameras,150);
+            handler.postDelayed(()->{
+                updateCameras();
+                if(referenceWindow!=null)referenceWindow.restorePosition();
+            },150);
         }
     }
 
@@ -290,17 +362,28 @@ public final class CompareActivity extends Activity implements Choreographer.Fra
         pane.scale.onTouchEvent(e);
         switch(e.getActionMasked()){
             case MotionEvent.ACTION_DOWN:
-                pane.lastX=e.getX();pane.lastY=e.getY();pane.pinching=false;return true;
+                pane.lastX=e.getX();pane.lastY=e.getY();
+                pane.downX=e.getX();pane.downY=e.getY();
+                pane.pinching=false;return true;
             case MotionEvent.ACTION_POINTER_DOWN:pane.pinching=true;return true;
             case MotionEvent.ACTION_MOVE:
-                if(e.getPointerCount()==1&&!pane.pinching){
+                if(e.getPointerCount()==1&&!pane.pinching&&!marking){
                     pane.azimuth+=(e.getX()-pane.lastX)*0.42f;
                     pane.elevation=Math.max(-89,Math.min(89,pane.elevation-(e.getY()-pane.lastY)*0.33f));
                     if(sync)copyAngles(pane,panes[1-pane.index]);
                     updateCameras();
                 }
                 pane.lastX=e.getX();pane.lastY=e.getY();return true;
-            case MotionEvent.ACTION_UP:case MotionEvent.ACTION_CANCEL:
+            case MotionEvent.ACTION_UP:
+                if(marking && !pane.pinching && pane.original!=null &&
+                        Math.abs(e.getX()-pane.downX)<dp(12) &&
+                        Math.abs(e.getY()-pane.downY)<dp(12)) {
+                    float u=Math.max(0f,Math.min(1f,e.getX()/Math.max(1f,pane.surface.getWidth())));
+                    float v=Math.max(0f,Math.min(1f,e.getY()/Math.max(1f,pane.surface.getHeight())));
+                    editNote(pane,u,v,null);
+                }
+                pane.pinching=false;return true;
+            case MotionEvent.ACTION_CANCEL:
                 pane.pinching=false;return true;
         }
         return true;
@@ -320,6 +403,8 @@ public final class CompareActivity extends Activity implements Choreographer.Fra
             p.viewer.getCamera().lookAt(x,y,z,0,0,-4,0,upY,upZ);
             int w=Math.max(1,p.surface.getWidth()),h=Math.max(1,p.surface.getHeight());
             double aspect=(double)w/h;
+            if(p.markers!=null)
+                p.markers.update(p.hash,p.azimuth,p.elevation,p.distance,orthographic);
             if(orthographic){
                 // Fixed world-space framing on both panes (not an unequal perspective distortion).
                 double halfY=Math.max(1.15,1.65*(p.distance/4.1));
@@ -374,6 +459,12 @@ public final class CompareActivity extends Activity implements Choreographer.Fra
         p.viewer.getScene().addEntity(e);return e;
     }
 
+    private void choosePhoto() {
+        Intent intent=new Intent(Intent.ACTION_OPEN_DOCUMENT);
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
+        intent.setType("image/*");
+        startActivityForResult(intent,PICK_PHOTO);
+    }
     private void choose(int request){
         Intent pick=new Intent(Intent.ACTION_OPEN_DOCUMENT);
         pick.addCategory(Intent.CATEGORY_OPENABLE);pick.setType("*/*");
@@ -381,9 +472,26 @@ public final class CompareActivity extends Activity implements Choreographer.Fra
     }
     @Override protected void onActivityResult(int request,int result,Intent data){
         super.onActivityResult(request,result,data);
-        if(result==RESULT_OK&&data!=null&&data.getData()!=null
-                &&(request==PICK_A||request==PICK_B)){
+        if(result!=RESULT_OK || data==null || data.getData()==null)return;
+        if(request==PICK_A || request==PICK_B) {
             loadUri(panes[request==PICK_A?0:1],data.getData());
+        } else if(request==PICK_PHOTO) {
+            Uri uri=data.getData();
+            try {
+                getContentResolver().takePersistableUriPermission(uri,Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            } catch(SecurityException ignored){}
+            referenceWindow.loadImage(uri,displayName(uri));
+            referenceWindow.showPanel();
+        } else if(request==EXPORT_JSON) {
+            Uri dest=data.getData();
+            String json=pendingFeedbackExport;
+            new Thread(()->{
+                try(OutputStream out=getContentResolver().openOutputStream(dest)) {
+                    if(out==null)throw new IllegalArgumentException("Destination unavailable");
+                    out.write(json.getBytes(StandardCharsets.UTF_8));
+                    runOnUiThread(()->Toast.makeText(this,"Feedback JSON exported",Toast.LENGTH_LONG).show());
+                }catch(Exception ex){runOnUiThread(()->error("JSON export failed: "+ex.getMessage()));}
+            },"feedback-json-export").start();
         }
     }
     private String displayName(Uri uri) {
@@ -412,6 +520,7 @@ public final class CompareActivity extends Activity implements Choreographer.Fra
                     }
                 }
                 byte[] bytes=data.toByteArray();
+                String originalHash=FeedbackStore.sha256(bytes);
                 if(bytes.length<20||bytes[0]!='g'||bytes[1]!='l'||bytes[2]!='T'||bytes[3]!='F')
                     throw new IllegalArgumentException("Invalid GLB binary");
                 byte[] renderBytes=prepareForView(bytes,mode);
@@ -421,7 +530,9 @@ public final class CompareActivity extends Activity implements Choreographer.Fra
                     if(p.request!=revision)return;
                     try{
                         loadInViewer(p,direct);
-                        p.original=bytes;p.name=name;
+                        p.original=bytes;p.name=name;p.hash=originalHash;
+                        if(p.markers!=null)p.markers.update(p.hash,p.azimuth,p.elevation,p.distance,orthographic);
+                        updateIssueCount();
                         p.caption.setText((p.index==0?"A":"B")+" • "+name);
                         message.setText("A/B ready • rotate for side-by-side • drag either view to orbit");
                     }catch(Exception ex){error("GLB render: "+ex.getMessage());}
