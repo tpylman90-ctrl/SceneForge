@@ -279,6 +279,13 @@ jobs:
           timeout 120 xvfb-run -a godot --audio-driver Dummy --path game --rendering-method mobile --rendering-driver vulkan --resolution 1280x720 -- --benchmark-smoke 2>&1 | tee build/comparison-smoke.log
           if grep -E 'SCRIPT ERROR:|ERROR:' build/comparison-smoke.log; then exit 1; fi
           grep SCENEFORGE_COMPARISON build/comparison-smoke.log
+      - name: Verify portable hover suspension and multitouch controls
+        shell: bash
+        run: |
+          set -euo pipefail
+          timeout 120 godot --headless --path game --script res://tests/hover_handling_test.gd 2>&1 | tee build/hover-handling.log
+          if grep -E 'SCRIPT ERROR:|ERROR:' build/hover-handling.log; then exit 1; fi
+          grep SCENEFORGE_HOVER_HANDLING_OK build/hover-handling.log
       - name: Run all driving and circuit tests
         shell: bash
         run: |
