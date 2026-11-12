@@ -63,6 +63,8 @@ jobs:
             sleep 7
             adb logcat -d -v time > compare-smoke-logcat.txt
             grep -q 'SCENEFORGE_COMPARE_TEST.*TWO_LIVE_GLB_VIEWERS_PASSED' compare-smoke-logcat.txt
+            grep -q 'SCENEFORGE_COMPARE_TEST.*REFERENCE_WINDOW_PASSED' compare-smoke-logcat.txt
+            grep -q 'SCENEFORGE_COMPARE_TEST.*FEEDBACK_JSON_PASSED' compare-smoke-logcat.txt
             adb shell pidof com.sceneforge.glbinspector
       - name: Preserve smoke diagnostic logs
         if: always()
