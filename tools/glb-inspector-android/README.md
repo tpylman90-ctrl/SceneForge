@@ -1,6 +1,23 @@
 # SceneForge GLB Inspector — Android (native)
 Standalone offline Android GLB inspector for SceneForge and AssetWright.
 
+## Photo reference and AI feedback (v0.6)
+- Compare screen: **REF PHOTO** opens a floating native reference window. Tap the photo
+  area to select a local image. Drag the header to move, PIN to lock, bottom-right grip
+  to resize, expand to enlarge, percentage button to alter opacity, × to hide.
+- The reference window remembers its last image, size, position and pin state locally.
+- **MARK PANEL** then tap either real GLB model to create a numbered correction marker.
+  Select issue type, severity, and describe the intended geometry correction.
+- **ISSUES** shows saved annotations for the current GLB hashes and offers restore-view,
+  edit and delete. Notes survive app restarts.
+- **EXPORT JSON** invokes Android's Save document picker and exports portable
+  `sceneforge.model-feedback/v1` JSON, including model SHA-256 and recorded camera pose.
+- Screen-space anchors (0..1 within each viewport) are **not** 3D raycast positions;
+  the JSON labels them honestly so an AI system can use the saved camera view and PNG.
+- The A/B PNG export includes the numbered defect pins currently visible at the
+  recorded camera angle.
+- Original GLB files and source artwork are never modified by the inspector.
+
 ## Studio and two-model comparison
 - Studio preview adds a **temporary PBR floor** to a model's in-memory GLB to receive
   real directional shadows. It never changes the saved GLB; toggle STUDIO ON/OFF.
