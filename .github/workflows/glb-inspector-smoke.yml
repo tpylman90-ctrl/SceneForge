@@ -65,6 +65,8 @@ jobs:
             grep -q 'SCENEFORGE_COMPARE_TEST.*TWO_LIVE_GLB_VIEWERS_PASSED' compare-smoke-logcat.txt
             grep -q 'SCENEFORGE_COMPARE_TEST.*REFERENCE_WINDOW_PASSED' compare-smoke-logcat.txt
             grep -q 'SCENEFORGE_COMPARE_TEST.*FEEDBACK_JSON_PASSED' compare-smoke-logcat.txt
+            adb shell screencap -p /sdcard/sceneforge-compare-ci.png
+            adb pull /sdcard/sceneforge-compare-ci.png compare-smoke-preview.png
             adb shell pidof com.sceneforge.glbinspector
       - name: Preserve smoke diagnostic logs
         if: always()
@@ -74,5 +76,6 @@ jobs:
           path: |
             inspector-smoke-logcat.txt
             compare-smoke-logcat.txt
+            compare-smoke-preview.png
             inspector-pid.txt
           if-no-files-found: warn
