@@ -58,7 +58,8 @@ jobs:
             test -s inspector-pid.txt
             grep -q 'SCENEFORGE_MODE_TEST.*ALL_MODES_PASSED' inspector-smoke-logcat.txt
             adb logcat -c
-            adb shell am start -W -n com.sceneforge.glbinspector/.CompareActivity --ez sceneforge_verify_compare true
+            adb shell am force-stop com.sceneforge.glbinspector
+            adb shell am start -W -n com.sceneforge.glbinspector/.MainActivity --ez sceneforge_launch_compare_test true
             sleep 7
             adb logcat -d -v time > compare-smoke-logcat.txt
             grep -q 'SCENEFORGE_COMPARE_TEST.*TWO_LIVE_GLB_VIEWERS_PASSED' compare-smoke-logcat.txt
