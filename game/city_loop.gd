@@ -2,6 +2,8 @@ extends Node3D
 
 const Fleet = preload("res://vehicles/fleet_catalog.gd")
 const Parts = preload("res://vehicles/performance_parts.gd")
+const HoverMotion = preload("res://vehicles/hover_motion.gd")
+const HoverTouchInput = preload("res://vehicles/hover_touch_input.gd")
 const Crimson = preload("res://tracks/crimson_divide.gd")
 const CanyonScenery = preload("res://tracks/canyon_scenery.gd")
 const SerpentCanyon = preload("res://tracks/serpent_canyon.gd")
@@ -72,6 +74,9 @@ var travel_velocity := Vector3.ZERO
 var sound_button: Button
 var shutting_down := false
 var driving_touches: Dictionary = {}
+# Independent physics module; switchable A/B against the proven classic model.
+var hover_response = HoverMotion.new()
+var hover_handling_enabled := true
 var track_id := 0
 var skyfall_hazards: Array[Vector3] = []
 var skyfall_trim := 0.0
@@ -1314,6 +1319,16 @@ func build_ui() -> void:
 		speed_fx_button.text="SPEED EFFECTS: ON  /  TAP TO COMPARE" if speed_vfx_enabled else "SPEED EFFECTS: OFF  /  TAP TO COMPARE"
 	)
 	event_choices.add_child(speed_fx_button)
+	# Compare real spring suspension and retained lateral momentum on the phone.
+	var hover_mode_button := Button.new()
+	hover_mode_button.text="HANDLING: HOVER PHYSICS / TAP FOR CLASSIC"
+	hover_mode_button.custom_minimum_size=Vector2(1020,54)
+	hover_mode_button.pressed.connect(func():
+		hover_handling_enabled=not hover_handling_enabled
+		hover_response.reset(car.position.y)
+		hover_mode_button.text="HANDLING: HOVER PHYSICS / TAP FOR CLASSIC" if hover_handling_enabled else "HANDLING: CLASSIC / TAP FOR HOVER"
+	)
+	event_choices.add_child(hover_mode_button)
 	var back := Button.new()
 	back.text="RETURN TO CIRCUIT"
 	back.custom_minimum_size=Vector2(1020,62)
@@ -1362,6 +1377,7 @@ func reset_car() -> void:
 	skyfall_vertical_speed=0.0
 	skyfall_gate_next=0
 	car.position = route[0]
+	hover_response.reset(car.position.y)
 	route_index=0
 	airborne=false
 	vertical_speed=0
@@ -1507,10 +1523,8 @@ func _input(event: InputEvent) -> void:
 	if track_menu.visible or event_menu.visible or results_panel.visible or race_countdown>0.0:
 		return
 	var screen := get_viewport().get_visible_rect().size
-	var control_top := screen.y-160
-	var pedal_left := screen.x-410
 	if event is InputEventScreenTouch:
-		if event.pressed and (event.position.y >= control_top or Rect2(screen.x-410,screen.y-210,390,80).has_point(event.position)):
+		if event.pressed and HoverTouchInput.is_drive_area(event.position,screen):
 			driving_touches[event.index] = event.position
 		elif not event.pressed:
 			driving_touches.erase(event.index)
@@ -1520,21 +1534,12 @@ func _input(event: InputEvent) -> void:
 		driving_touches[event.index] = event.position
 	else:
 		return
-	left=false
-	right=false
-	throttle=false
-	brake=false
-	boost=false
-	for point in driving_touches.values():
-		if Rect2(screen.x-410,screen.y-210,390,80).has_point(point):
-			boost=true
-			continue
-		if point.y < control_top:
-			continue
-		left = left or (point.x >= 0 and point.x < 240)
-		right = right or (point.x >= 240 and point.x < 480)
-		brake = brake or (point.x >= pedal_left and point.x < pedal_left+178)
-		throttle = throttle or (point.x >= pedal_left+178 and point.x < screen.x-20)
+	var decoded: Dictionary=HoverTouchInput.decode(driving_touches,screen)
+	left=bool(decoded["left"])
+	right=bool(decoded["right"])
+	throttle=bool(decoded["throttle"])
+	brake=bool(decoded["brake"])
+	boost=bool(decoded["boost"])
 	get_viewport().set_input_as_handled()
 
 func update_boost(delta: float, requested: bool, stopping: bool) -> void:
@@ -1763,7 +1768,10 @@ func _physics_process(delta: float) -> void:
 	var desired_velocity := forward*speed
 	if wall_cooldown>0:
 		desired_velocity-=wall_normal*maxf(0,desired_velocity.dot(wall_normal))
-	travel_velocity = travel_velocity.lerp(desired_velocity,1-exp(-grip*delta))
+	if hover_handling_enabled:
+		travel_velocity=HoverMotion.horizontal_velocity(travel_velocity,forward,speed,grip,delta,airborne)
+	else:
+		travel_velocity = travel_velocity.lerp(desired_velocity,1-exp(-grip*delta))
 	car.position += (travel_velocity+wall_recoil)*delta
 	wall_recoil=wall_recoil.lerp(Vector3.ZERO,1-exp(-8.0*delta))
 	var nearest := closest_segment(car.position,route_index)
@@ -1784,7 +1792,16 @@ func _physics_process(delta: float) -> void:
 	var road_forward := flat(route[(route_index+1)%COUNT]-route[route_index]).normalized()
 	var road_right := Vector3(road_forward.z,0,-road_forward.x)
 	var bank := bank_slope(route_index)
-	var surface_pitch := update_jump(delta,center.y+offset.dot(road_right)*bank)
+	var surface_height: float=center.y+offset.dot(road_right)*bank
+	var was_airborne := airborne
+	var surface_pitch := update_jump(delta,surface_height)
+	if hover_handling_enabled:
+		if airborne:
+			hover_response.reset(car.position.y)
+		else:
+			if was_airborne:
+				hover_response.reset(car.position.y)
+			car.position.y=hover_response.follow_surface(delta,surface_height,speed)
 	if track_id==Skyfall.ID and route_index>=Skyfall.FLIGHT_START and route_index<Skyfall.FLIGHT_END:
 		update_skyfall_gates()
 	if hover_rings!=null:
