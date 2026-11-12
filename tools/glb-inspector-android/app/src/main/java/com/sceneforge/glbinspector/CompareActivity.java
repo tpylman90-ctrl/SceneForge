@@ -783,7 +783,9 @@ public final class CompareActivity extends Activity implements Choreographer.Fra
                         int height=Math.min(1400,Math.max(left.getHeight(),right.getHeight()));
                         int w1=Math.max(1,Math.round(height*(float)left.getWidth()/left.getHeight()));
                         int w2=Math.max(1,Math.round(height*(float)right.getWidth()/right.getHeight()));
-                        merged=Bitmap.createBitmap(w1+w2+6,height+44,Bitmap.Config.ARGB_8888);
+                        Bitmap reference=referenceWindow.referenceBitmap();
+                        int footer=reference==null?0:Math.max(145,Math.min(320,height/3));
+                        merged=Bitmap.createBitmap(w1+w2+6,height+44+footer,Bitmap.Config.ARGB_8888);
                         Canvas c=new Canvas(merged);c.drawColor(Color.rgb(18,22,28));
                         Paint pp=new Paint(3);c.drawBitmap(left,null,new android.graphics.Rect(0,44,w1,height+44),pp);
                         c.drawBitmap(right,null,new android.graphics.Rect(w1+6,44,w1+6+w2,height+44),pp);
@@ -800,6 +802,22 @@ public final class CompareActivity extends Activity implements Choreographer.Fra
                             c.save();c.translate(w1+6,44);
                             panes[1].markers.drawOnExport(c,w2,height);
                             c.restore();
+                        }
+                        if(reference!=null) {
+                            int top=height+44;
+                            pp.setColor(Color.rgb(45,55,64));
+                            c.drawRect(0,top,w1+w2+6,top+footer,pp);
+                            pp.setColor(Color.rgb(227,236,243));
+                            pp.setTextSize(21f);
+                            c.drawText("PHOTO REFERENCE: "+referenceWindow.referenceName(),14,top+29,pp);
+                            int availableH=footer-38;
+                            float ratio=Math.min((w1+w2-24f)/Math.max(1,reference.getWidth()),
+                                    (availableH-6f)/Math.max(1,reference.getHeight()));
+                            int displayW=Math.max(1,Math.round(reference.getWidth()*ratio));
+                            int displayH=Math.max(1,Math.round(reference.getHeight()*ratio));
+                            int left=((w1+w2+6)-displayW)/2;
+                            c.drawBitmap(reference,null,new android.graphics.Rect(
+                                    left,top+35,left+displayW,top+35+displayH),new Paint(3));
                         }
                         String file="SceneForge_AB_"+new SimpleDateFormat("yyyyMMdd_HHmmss",Locale.US)
                                 .format(new Date())+"_"+(++snapshotNumber)+".png";
