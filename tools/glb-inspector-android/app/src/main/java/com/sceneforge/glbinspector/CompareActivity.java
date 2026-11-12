@@ -587,7 +587,7 @@ public final class CompareActivity extends Activity implements Choreographer.Fra
                 if(p.sky!=null)e.destroySkybox(p.sky);
                 if(p.reflections!=null)e.destroyTexture(p.reflections);
                 for(int light:p.fillLights)if(light!=0){
-                    p.viewer.getScene().removeEntity(light);
+                    p.viewer.getScene().remove(light);
                     e.destroyEntity(light);EntityManager.get().destroy(light);
                 }
                 p.viewer.destroy();
