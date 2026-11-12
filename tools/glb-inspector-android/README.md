@@ -1,6 +1,16 @@
 # SceneForge GLB Inspector — Android (native)
 Standalone offline Android GLB inspector for SceneForge and AssetWright.
 
+## Studio and two-model comparison
+- Studio preview adds a **temporary PBR floor** to a model's in-memory GLB to receive
+  real directional shadows. It never changes the saved GLB; toggle STUDIO ON/OFF.
+- Native A/B comparison opens **two independent GLB files** in actual 3D using separate
+  Filament viewports; synchronized orbit and zoom can be turned off for independent inspection.
+- Portrait shows two models stacked; rotate to landscape for two live side-by-side views.
+- Orthographic SIDE and other presets for profile/silhouette review.
+- A/B PNG capture exports both viewports horizontally as one gallery image.
+- Comparison renders at up to ~30 fps to reduce GPU pressure on entry-level Android phones.
+
 ## Inspection view modes
 - **TEXTURED:** reloads the original GLB, including its authored materials.
 - **CLAY:** temporary neutral opaque materials, exposing uninterrupted geometry and silhouette.
