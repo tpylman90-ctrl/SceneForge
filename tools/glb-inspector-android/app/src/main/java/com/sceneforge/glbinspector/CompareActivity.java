@@ -217,8 +217,9 @@ public final class CompareActivity extends Activity implements Choreographer.Fra
         referenceWindow=new ReferenceWindow(this,()->choosePhoto());
         viewportContainer.addView(referenceWindow,new FrameLayout.LayoutParams(dp(270),dp(188),
                 Gravity.TOP | Gravity.LEFT));
-        viewportContainer.addOnLayoutChangeListener((v,l,t,r,b,ol,ot,oright,ob)->{
-            if(r-l!=oright-ol || b-t!=ob-ot) referenceWindow.post(referenceWindow::restorePosition);
+        viewportContainer.addOnLayoutChangeListener((view,left,top,right,bottom,oldLeft,oldTop,oldRight,oldBottom)->{
+            if(right-left!=oldRight-oldLeft || bottom-top!=oldBottom-oldTop)
+                referenceWindow.post(referenceWindow::restorePosition);
         });
         root.addView(viewportContainer,new LinearLayout.LayoutParams(-1,0,1f));
         referenceWindow.post(referenceWindow::restorePosition);
