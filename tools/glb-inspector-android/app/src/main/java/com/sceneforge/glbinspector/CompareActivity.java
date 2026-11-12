@@ -854,6 +854,38 @@ public final class CompareActivity extends Activity implements Choreographer.Fra
                             panes[i].caption.setText(panes[i].name);
                         }
                         sync=true;updateCameras();
+                        referenceWindow.showPanel();
+                        if(referenceWindow.getVisibility()!=View.VISIBLE)
+                            throw new IllegalStateException("Reference photo window unavailable");
+                        android.util.Log.i("SCENEFORGE_COMPARE_TEST","REFERENCE_WINDOW_PASSED");
+
+                        FeedbackStore.Note sampleNote=new FeedbackStore.Note();
+                        sampleNote.id="diagnostic-feedback-1";
+                        sampleNote.modelName=panes[0].name;
+                        sampleNote.modelSha256=FeedbackStore.sha256(sample);
+                        panes[0].hash=sampleNote.modelSha256;
+                        sampleNote.pane=0;
+                        sampleNote.u=0.61f;sampleNote.v=0.44f;
+                        sampleNote.azimuth=panes[0].azimuth;
+                        sampleNote.elevation=panes[0].elevation;
+                        sampleNote.distance=panes[0].distance;
+                        sampleNote.orthographic=orthographic;
+                        sampleNote.issueType="Surface continuity";
+                        sampleNote.severity="High";
+                        sampleNote.description="Smooth the rear cab-to-haunch panel transition";
+                        sampleNote.createdUtcMillis=System.currentTimeMillis();
+                        sampleNote.mode=mode.name();
+                        feedback.add(sampleNote);
+                        JSONObject exported=feedback.export(panes[0].name,panes[0].hash,
+                                panes[1].name,panes[1].hash,referenceWindow.referenceName(),sync,mode.name());
+                        if(exported.getJSONArray("issues").length()!=1)
+                            throw new IllegalStateException("JSON issue export missing");
+                        JSONObject anchor=exported.getJSONArray("issues").getJSONObject(0).getJSONObject("anchor");
+                        if(anchor.getBoolean("is_surface_raycast"))
+                            throw new IllegalStateException("Anchor accuracy mislabeled");
+                        feedback.remove(sampleNote);
+                        updateIssueCount();
+                        android.util.Log.i("SCENEFORGE_COMPARE_TEST","FEEDBACK_JSON_PASSED");
                         android.util.Log.i("SCENEFORGE_COMPARE_TEST","TWO_LIVE_GLB_VIEWERS_PASSED");
                     }catch(Throwable ex){
                         android.util.Log.e("SCENEFORGE_COMPARE_TEST","FAILED",ex);
