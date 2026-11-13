@@ -12,7 +12,7 @@ public final class SurfaceLabSmoke {
     private static final String TAG="SCENEFORGE_SHAPE_TEST";
     private static final int JSON=0x4e4f534a, BIN=0x004e4942;
     private SurfaceLabSmoke(){}
-    private static JSONArray arr(float... numbers){
+    private static JSONArray arr(float... numbers) throws Exception {
         JSONArray a=new JSONArray();
         for(float x:numbers)a.put(x);
         return a;
