@@ -118,6 +118,10 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
         });
         surface.setOnTouchListener((v, e) -> onModelTouch(e));
         Intent intent = getIntent();
+        if(intent.getBooleanExtra("sceneforge_launch_shape_lab_test",false)) {
+            handler.postDelayed(() -> startActivity(new Intent(this, ShapeLabActivity.class)
+                    .putExtra("sceneforge_verify_shape_lab",true)), 1000);
+        }
         // Launch the non-exported comparison screen through this application's own UID.
         // This exists only for the Android emulator integration test.
         if (intent.getBooleanExtra("sceneforge_launch_compare_test", false)) {
