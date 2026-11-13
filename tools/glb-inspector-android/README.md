@@ -1,6 +1,17 @@
 # SceneForge GLB Inspector — Android (native)
 Standalone offline Android GLB inspector for SceneForge and AssetWright.
 
+## Shape Lab: direct surface correction (v0.7 experimental)
+- Open any **standard, uncompressed GLB with applied transforms** from SceneForge Inspector and press **SHAPE LAB — EDIT ACTUAL GEOMETRY**. Or select another file from Shape Lab's native OPEN GLB picker.
+- Select an independently modeled mesh component from the drop-down; SIDE, TOP and FRONT display its real triangle edges plus an **editable control cage grid**. The yellow squares are deformation-region guides, **not the original quad edge-loop topology**.
+- Drag over the cyan mesh to move underlying **real FLOAT32 POSITION vertices** with a smooth Gaussian falloff (brush radius in meters). This allows manually correcting nose taper, canopy shape, shoulder curvature and rear panel sections.
+- **MIRROR** makes equivalent PORT/STBD parts follow mirrored edits when both are present, or mirrors deformation within a symmetric central part. Turn it off for asymmetric sculpting.
+- **UNDO** restores the previous stroke; **RESET PART** reverts the selected mesh. **REF PHOTO** loads an optional local image below the wireframe (image fitting is visual, not automatic camera registration).
+- **SAVE NEW GLB** exports a genuine modified binary GLB through Android's system document picker. Its material and texture BIN bytes are retained; float POSITION accessors, bounds and existing normals are updated. The original GLB is NEVER overwritten by the app.
+- Reopen the saved GLB in the inspector's actual 3D renderer or A/B comparison view to verify the edited shape. The 2D cage is not a substitute for visual checking in three dimensions.
+- **Important first-pass limits:** Not full Blender: no arbitrary topology edits, UV rework, boolean cuts or guaranteed G2/C2 continuity. Rejection of sparse, GPU-compressed, transformed/skinned and multi-buffer inputs is deliberate to prevent corrupt model exports. Changes to rigid parts or intersecting objects can still require re-fitting their interfaces.
+- No network permission, cloud account, AI subscription or paid tool. Native Android UI.
+
 ## Photo reference and AI feedback (v0.6)
 - Compare screen: **REF PHOTO** opens a floating native reference window. Tap the photo
   area to select a local image. Drag the header to move, PIN to lock, bottom-right grip
