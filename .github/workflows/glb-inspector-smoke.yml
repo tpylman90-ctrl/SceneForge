@@ -68,6 +68,14 @@ jobs:
             adb shell screencap -p /sdcard/sceneforge-compare-ci.png
             adb pull /sdcard/sceneforge-compare-ci.png compare-smoke-preview.png
             adb shell pidof com.sceneforge.glbinspector
+            adb logcat -c
+            adb shell am force-stop com.sceneforge.glbinspector
+            adb shell am start -W -n com.sceneforge.glbinspector/.MainActivity --ez sceneforge_launch_shape_lab_test true
+            sleep 6
+            adb logcat -d -v time > shape-lab-smoke-logcat.txt
+            grep -q 'SCENEFORGE_SHAPE_TEST.*REAL_VERTEX_DEFORM_UNDO_EXPORT_REIMPORT_PASSED' shape-lab-smoke-logcat.txt
+            ! grep -q 'SCENEFORGE_SHAPE_TEST.*SHAPE_LAB_SELF_TEST_FAILED' shape-lab-smoke-logcat.txt
+            adb shell pidof com.sceneforge.glbinspector
       - name: Preserve smoke diagnostic logs
         if: always()
         uses: actions/upload-artifact@v4
@@ -78,4 +86,5 @@ jobs:
             compare-smoke-logcat.txt
             compare-smoke-preview.png
             inspector-pid.txt
+            shape-lab-smoke-logcat.txt
           if-no-files-found: warn
