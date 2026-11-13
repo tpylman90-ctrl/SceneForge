@@ -282,6 +282,14 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
         utilities.addView(studioButton, studioParams);
         main.addView(utilities);
 
+        Button shapeLab=button("SHAPE LAB  •  EDIT ACTUAL GEOMETRY");
+        shapeLab.setBackgroundTintList(android.content.res.ColorStateList.valueOf(ACCENT));
+        shapeLab.setTextColor(BG);
+        shapeLab.setOnClickListener(v -> openShapeLab());
+        LinearLayout.LayoutParams shapeParams=new LinearLayout.LayoutParams(-1,dp(43));
+        shapeParams.setMargins(dp(12),0,dp(12),dp(4));
+        main.addView(shapeLab,shapeParams);
+
         LinearLayout actions = new LinearLayout(this);
         actions.setPadding(dp(12), dp(4), dp(12), dp(13));
         actions.setGravity(Gravity.CENTER_VERTICAL);
@@ -559,6 +567,27 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
         double upZ = Math.abs(elevation) > 87 ? (elevation > 0 ? -1 : 1) : 0;
         double upY = Math.abs(elevation) > 87 ? 0 : 1;
         viewer.getCamera().lookAt(x, y, z, 0, 0, -4, 0, upY, upZ);
+    }
+
+    private void openShapeLab() {
+        Intent intent=new Intent(this,ShapeLabActivity.class);
+        if(sourceGlb==null||sourceGlb.length==0){
+            startActivity(intent); // Shape Lab supplies its own native GLB picker.
+            return;
+        }
+        final byte[] source=sourceGlb;
+        final String name=modelName;
+        new Thread(()->{
+            try {
+                File data=new File(getCacheDir(),"sceneforge-shapelab-source.glb");
+                try(FileOutputStream out=new FileOutputStream(data)){
+                    out.write(source);
+                }
+                intent.putExtra("source_path",data.getAbsolutePath());
+                intent.putExtra("source_name",name);
+                runOnUiThread(()->startActivity(intent));
+            }catch(Exception ex){runOnUiThread(()->error("Shape Lab import: "+ex.getMessage()));}
+        },"sceneforge-shapelab-import").start();
     }
 
     private void chooseModel() {
