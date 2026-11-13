@@ -297,7 +297,7 @@ public final class ShapeLabActivity extends Activity {
         private float scale,centerU,centerV;
         private float minU,minV,maxU,maxV;
         private GlbSurfaceEditor.Stroke stroke;
-        private float downX,downY;
+        private float downX,downY,gestureScale;
         private boolean moved;
 
         ShapeCanvas(){super(ShapeLabActivity.this);setLayerType(View.LAYER_TYPE_SOFTWARE,null);}
@@ -397,13 +397,15 @@ public final class ShapeLabActivity extends Activity {
                 for(int j=0;j<3;j++)at[j]=(bounds[0][j]+bounds[1][j])*.5f;
                 at[U()]=u;at[V()]=v;
                 stroke=engine.beginStroke(selected,at,cameraView,radius,mirrorCheck.isChecked());
-                downX=e.getX();downY=e.getY();moved=false;
+                downX=e.getX();downY=e.getY();gestureScale=scale;moved=false;
                 invalidate();return true;
             }
             if(action==MotionEvent.ACTION_MOVE){
                 if(stroke==null)return true;
-                float du=fromX(e.getX())-fromX(downX);
-                float dv=fromY(e.getY())-fromY(downY);
+                // Fix units to the projection scale at stroke start so the
+                // camera's auto-fit cannot induce drag feedback or drift.
+                float du=(e.getX()-downX)/gestureScale*(flipU()?-1f:1f);
+                float dv=-(e.getY()-downY)/gestureScale*(flipV()?-1f:1f);
                 stroke.apply(du,dv);moved=Math.abs(du)+Math.abs(dv)>.002f;
                 invalidate();return true;
             }
