@@ -63,6 +63,9 @@ public final class ShapeLabActivity extends Activity {
         getWindow().setStatusBarColor(BG);
         getWindow().setNavigationBarColor(BG);
         buildUi();
+        if(getIntent().getBooleanExtra("sceneforge_verify_shape_lab",false)) {
+            SurfaceLabSmoke.execute();
+        }
         String cache=getIntent().getStringExtra("source_path");
         sourceName=getIntent().getStringExtra("source_name");
         if(sourceName==null)sourceName="Vehicle";
