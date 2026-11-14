@@ -705,24 +705,25 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
                 buffer.put(variant);
                 buffer.flip();
                 runOnUiThread(() -> {
-                    if (revision != openRequest) return;
-                    try {
-                        viewer.loadModelGlb(buffer);
-                        if (viewer.getAsset() == null) {
-                            throw new IllegalArgumentException("Renderer rejected inspection variant");
-                        }
-                        viewer.transformToUnitCube(new Float3(0f, 0f, -4f));
-                        partInspector.onNewModel();
-                        if(zebraButton!=null)zebraButton.setText("ZEBRA");
-                        displayedGlb = buffer;
-                        displayMode = mode;
-                        status.setText(sourceSummary + " • " + mode.name());
-                    } catch (Exception ex) {
-                        error("View mode failed: " + ex.getMessage());
-                    } finally {
-                        modeBusy = false;
-                        syncModeButtons();
-                    }
+                    if (revision != openRequest) {modeBusy=false;syncModeButtons();return;}
+                    waitForPreviousGlbLoad(android.os.SystemClock.uptimeMillis(),()->{
+                        if(revision!=openRequest){modeBusy=false;syncModeButtons();return;}
+                        try {
+                            viewer.loadModelGlb(buffer);
+                            if (viewer.getAsset() == null)
+                                throw new IllegalArgumentException("Renderer rejected inspection variant");
+                            viewer.transformToUnitCube(new Float3(0f, 0f, -4f));
+                            partInspector.onNewModel();
+                            if(zebraButton!=null)zebraButton.setText("ZEBRA");
+                            displayedGlb=buffer;
+                            displayMode=mode;
+                            status.setText(sourceSummary+" • "+mode.name());
+                        } catch (Exception ex) {error("View mode failed: "+ex.getMessage());}
+                        finally {modeBusy=false;syncModeButtons();}
+                    },()->{
+                        modeBusy=false;syncModeButtons();
+                        error("Previous GLB is still loading; wait before changing render mode.");
+                    });
                 });
             } catch (Exception ex) {
                 runOnUiThread(() -> {
@@ -909,28 +910,30 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
                 buffer.flip();
                 runOnUiThread(() -> {
                     if (revision != openRequest) return;
-                    try {
-                        viewer.loadModelGlb(buffer);
-                        if (viewer.getAsset() == null)
-                            throw new IllegalArgumentException("The renderer could not load this GLB");
-                        viewer.transformToUnitCube(new Float3(0f, 0f, -4f));
-                        partInspector.onNewModel();
-                        sourceGlb = data;
-                        materialReport=audit;
-                        tapTool=0;syncTapTools();firstMeasure=null;
-                        if(zebraButton!=null)zebraButton.setText("ZEBRA");
-                        if(revealButton!=null)revealButton.setText("REVEAL DARK");
-                        displayedGlb = buffer;
-                        displayMode = GlbInspectionVariants.Mode.TEXTURED;
-                        modeBusy = false;
-                        sourceSummary = summary;
-                        syncModeButtons();
-                        modelLoaded = true;
-                        azimuth = 33; elevation = 18; distance = 4.8f;
-                        setCamera();
-                        title.setText(name);
-                        status.setText(summary+" • "+audit.images+" texture images • "+audit.darkFactors+" dark materials");
-                    } catch (Exception e) { error("GLB load failed: " + e.getMessage()); }
+                    waitForPreviousGlbLoad(android.os.SystemClock.uptimeMillis(),()->{
+                        if(revision!=openRequest)return;
+                        try {
+                            viewer.loadModelGlb(buffer);
+                            if(viewer.getAsset()==null)
+                                throw new IllegalArgumentException("The renderer could not load this GLB");
+                            viewer.transformToUnitCube(new Float3(0f,0f,-4f));
+                            partInspector.onNewModel();
+                            sourceGlb=data;
+                            materialReport=audit;
+                            tapTool=0;syncTapTools();firstMeasure=null;
+                            if(zebraButton!=null)zebraButton.setText("ZEBRA");
+                            if(revealButton!=null)revealButton.setText("REVEAL DARK");
+                            displayedGlb=buffer;
+                            displayMode=GlbInspectionVariants.Mode.TEXTURED;
+                            modeBusy=false;
+                            sourceSummary=summary;
+                            syncModeButtons();
+                            modelLoaded=true;
+                            azimuth=33;elevation=18;distance=4.8f;setCamera();
+                            title.setText(name);
+                            status.setText(summary+" • "+audit.images+" texture images • "+audit.darkFactors+" dark materials");
+                        } catch(Exception e) {error("GLB load failed: "+e.getMessage());}
+                    },()->error("Previous GLB is still loading. Please try opening this file again."));
                 });
             } catch (Exception ex) { runOnUiThread(() -> error(ex.getMessage())); }
         }, "glb-reader").start();
