@@ -2,8 +2,8 @@
 
 The standard Android race renderer is Godot 4.5 **Mobile over Vulkan**. Keep
 `game/project.godot` set to `mobile` with the Android `vulkan` driver.
-Godot's Compatibility fallback remains enabled for devices that cannot run
-Vulkan. At runtime, check `RenderingServer.get_current_rendering_method()`
+Compatibility/OpenGL fallback is explicitly **disabled** in `game/project.godot`;
+this build requires a Vulkan-capable Android device. At runtime, check `RenderingServer.get_current_rendering_method()`
 and `get_current_rendering_driver_name()`; project settings alone do not
 prove the driver actually in use.
 

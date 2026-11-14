@@ -1,6 +1,6 @@
 # SceneForge fleet
 
-Seven selectable, driveable craft. Open FLEET from the Foundry or driving view. Choose a craft, orbit it by dragging or zoom with pinch/scroll, inspect FRONT / TAIL / COCKPIT, then DRIVE. Track choice is retained. Only the selected craft is instantiated during play.
+Ten selectable, driveable craft: Kestrel, Pyldriver, Shrike, Mantis, Aurora, Forge, Synapse, Tremor, Aerolith and Solstice. The authoritative runtime identities and behavior live in `game/vehicles/fleet_catalog.gd`; the detailed production notes below include historical development snapshots. Open FLEET from the Foundry or driving view. Choose a craft, orbit it by dragging or zoom with pinch/scroll, inspect FRONT / TAIL / COCKPIT, then DRIVE. Track choice is retained. Only the selected craft is instantiated during play.
 
 | Craft | Silhouette | Cruise | Handling |
 |---|---|---|---|
@@ -10,10 +10,14 @@ Seven selectable, driveable craft. Open FLEET from the Foundry or driving view. 
 | Mantis | Olive utility shoulders, twin fork runners, upright stabilizers | 111 km/h | High grip |
 | Aurora | Midnight-blue low delta wings, copper seams and blue running lights | 126 km/h | Fast, more lateral slip |
 | Synapse | Indigo teardrop wedge, swept polar-glass canopy, four active underbody repulsors and three ion nozzles | 133 km/h | Precision |
+| Forge | Graphite/amber precision racer | 115 km/h | Balanced |
+| Tremor | Heavy, squared-off SUV hover racer | 104 km/h | Heavy and planted |
+| Aerolith | Satin-titanium manta interceptor | 126 km/h | Agile |
+| Solstice | Teal grand tourer with sculpted haunches | 124 km/h | Grand touring |
 
 ## Production and provenance
 
-tools/build_fleet.py builds six original Blender GLBs in game/assets/fleet. User-supplied reference images guide silhouette and palette; no image or third-party mesh bytes are bundled. Original generated geometry/source is CC0-1.0. This uses the existing free Blender 4.5.3 / Godot 4.5.1 GitHub pipeline, no paid provider. Kestrel remains in the original Foundry GLB.
+`tools/build_fleet.py` builds the procedural fleet into `game/assets/fleet/`. Separate installer/build steps supply uploaded Shrike/Kestrel assets, the pinned Aerolith original and the original Solstice generator. Provenance and licensing vary: **do not call the user-supplied GLBs CC0**. The runtime is assembled in CI using free Blender 4.5.3 and Godot 4.5.1, with generated GLBs excluded from source control.
 
 The five earlier fleet additions have a recessed open cockpit, seat, frame, windshield, instrument/yoke compatibility, four pod housings and five animated tail assemblies. Synapse has a fitted polar-glass cockpit, runtime-adjusted glazing, four repulsor housings and three animated ion plumes. Geometry policy: below 40,000 triangles per generated craft, COLOR_0 shading attributes, required named control/nozzle rig nodes. Material batches group static parts. No pilot character mesh is included.
 
@@ -23,7 +27,7 @@ The production script authors +Z-forward, +Y-up Godot metres and converts into B
 
 fleet_catalog.gd stores identity, appearance and modest handling differences. The existing boost, reverse, wall rebound and jump-assist systems are shared. Lap records are stored by circuit and chassis; existing Kestrel track records migrate through a fallback.
 
-fleet_test.gd drives all 15 chassis/circuit combinations through a full lap and landing, checks rigs, component mounts, live display identity and cockpit camera placement, and exercises actual hangar selection. CI renders Fleet-kestrel.png, Fleet-piledriver.png, Fleet-shrike.png, Fleet-mantis.png and Fleet-aurora.png, and publishes fleet-report.json alongside the signed APK.
+`fleet_test.gd` checks vehicle driving, rigs, component mounts, cockpit cameras and hangar selection across the registered fleet. Source-level checks and physical driving tests run independently from optional screenshots. CI chooses changed or active craft captures through `tools/ci_capture_plan.py`, then publishes the selected previews and `fleet-report.json` alongside the signed APK.
 
 Local controller checks may use geometry fixtures; Blender output inspection and production GLB/Godot captures occur in CI. Screenshot FPS from software rendering is not Android performance telemetry.
 

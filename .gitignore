@@ -1,13 +1,44 @@
-.godot/
-build/
+# Godot imports (both runtime and standalone Terrain3D authoring projects)
+**/.godot/
+
+# Generated outputs, caches and local development environments
+**/build/
+**/.gradle/
+**/.cxx/
+**/__pycache__/
+**/.pytest_cache/
+**/.venv/
+**/venv/
+**/.idea/
+**/*.iml
+**/local.properties
+*.py[cod]
+*.apk
+*.aab
+*.log
+*.blend1
+*.blend2
+*.glb.tmp
+.env
+.env.*
+!.env.example
+
+# Signing material and local secrets must never enter Git
 *.keystore
 *.jks
-*.blend1
-.env
+*.p12
+*.pfx
 
-# Generated Blender GLBs and original atlas PNGs (source scripts in tools/).
+# Generated Godot runtime GLBs; source Blender scripts remain in tools/.
+# Do not ignore showroom_sources/: it contains irreplaceable supplied inputs.
+/game/assets/neon_foundry.glb
+/game/assets/fleet/*.glb
+/game/assets/showroom/*.glb
+/game/assets/prototypes/*.glb
 /game/assets/scenery/serpent/*.glb
+
+# Generated Crimson Serpent texture bakes. The authored 256px breakup source
+# and the committed 16-bit sculpt heightfield are intentionally retained.
 /game/tracks/serpent_textures/rock_atlas_1024.png
 /game/tracks/serpent_textures/asphalt_512.png
-
 /game/tracks/serpent_textures/terrain_sandstone_1024.png

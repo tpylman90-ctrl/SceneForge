@@ -1,26 +1,36 @@
-# Uploaded Shrike — Fleet / Foundry showroom only
+# Preserved user-supplied vehicle source models
 
-Place the user-approved **Shrike_MK_I_Android_LOD_ready.glb** in this folder,
-and rename it **shrike_uploaded.glb**. The file is a pre-oriented glTF 2.0
-binary, including the original textured model and the seven SceneForge
-node names `Kestrel_Hull`, `Kestrel_Yoke` and `Kestrel_Tail_0`–`4`.
+This folder holds **input/source assets**, not disposable CI artifacts. Do not
+delete, rename, recompress or relicense files here during repository cleanup.
 
-The workflow runs `python tools/install_showroom_shrike.py` after restoring
-any Blender-generated assets and copies the exact GLB, unchanged, into
-`game/assets/showroom/shrike_uploaded.glb` before Godot imports assets.
+## Shrike
 
-**Only Fleet and Foundry use this uploaded asset.** The driver/racing scenes
-continue using `game/assets/fleet/shrike.glb` from the procedural generator.
+`Shrike_MK_I_Android_LOD_ready.glb` is the existing, user-supplied textured
+Shrike GLB. `tools/install_showroom_shrike.py` accepts that name directly
+(or the optional alias `shrike_uploaded.glb`); **no manual rename is needed**.
+The installer validates the glTF 2.0 binary and required rig nodes, then
+copies it to `game/assets/showroom/shrike_uploaded.glb` during CI.
 
-Without the uploaded binary, the original procedurally generated Shrike
-continues loading as a safe fallback. When present, the workflow checks that
-the actual uploaded showroom model rendered and includes it as SelectedCraft.glb
-in the viewer release.
+The approved uploaded Shrike is used by both the Fleet/Foundry and racing when
+available (see `game/vehicles/fleet_catalog.gd`). The procedural Shrike is a
+fallback. The original source remains untouched in this folder.
 
-Notes:
-- The uploaded Tripo asset is a single textured mesh: canopy transparency
-  and a full cockpit driving view require later mesh separation.
-- Do not apply the old Shrike procedural HUD or synthetic exhaust details
-  to this showroom version.
-- Confirm the model's Tripo export/license terms before publicly redistributing
-  it. This directory lives in a public repository.
+Its node names include `Kestrel_Hull`, `Kestrel_Yoke` and
+`Kestrel_Tail_0`–`4`; these are compatibility names, not an instruction to
+substitute a Kestrel model. A fused canopy still limits independent cockpit
+glass adjustments.
+
+## Kestrel
+
+`Kestrel_User_Upgrade_Source_Meshopt.glb` preserves the original uploaded
+Meshopt-compressed source, while
+`Kestrel_User_Upgrade_GameReady.glb.xz` preserves the SHA-pinned prepared
+standard-GLB baseline. Both are needed for
+`tools/install_kestrel_upgrade.py`, which generates a refined game-ready
+runtime copy. See `KESTREL_USER_UPGRADE.md` for provenance and checksums.
+
+## Licensing
+
+These GLBs were supplied by the user. Their independent redistribution rights
+have not been verified; do not automatically mark them CC0 or assume their
+licenses match the original procedural Blender generator scripts.

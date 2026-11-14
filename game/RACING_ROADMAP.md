@@ -1,5 +1,7 @@
 # NEON FOUNDRY — Hover Racing conversion plan
 
+> **Historical planning document.** Several catalog names and milestone states below predate the current eight-circuit, ten-craft runtime. Use `game/vehicles/fleet_catalog.gd`, `game/city_loop.gd` and `game/tests/` as implementation authorities; this roadmap retains design intent rather than overriding tested behavior.
+
 Status: **early implementation underway**. The race-weekend UI, timed starts, solo three-lap challenge and Iron Harbor circuit prototype have been committed to main; GitHub Actions/Android device validation is not yet confirmed here. CPU rivals, career, credits, new garages and the other new worlds remain planned. This roadmap covers the wider conversion.
 
 ## Baseline to preserve

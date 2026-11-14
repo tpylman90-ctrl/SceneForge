@@ -12,14 +12,14 @@ Screenshot generation is separately selected by tools/ci_capture_plan.py:
   Vehicle-specific changes render that craft only (e.g., Shrike #2 or
   Tremor #7). Shared fleet renderer/catalog/Blender changes render all craft.
   The Foundry itself is captured only for foundry-wide changes.
-- **active**: manual review of current active craft (Shrike #2, Tremor #7)
+- **active**: manual review of current active craft (Kestrel #0, Shrike #2, Tremor #7, Solstice #9)
   and Crimson Divide circuits 4-6.
 - **full**: manual complete fleet / Foundry / seven-track screenshot regression.
 - **none**: manual test and APK build with screenshots explicitly disabled.
 
 Use **Actions > Android pipeline > Run workflow > capture_scope** to select.
 The default "auto" scope uses git diff (entire push or PR) against the prior
-revision, so an unrelated scenery change cannot force screenshots of all nine
+revision, so an unrelated scenery change cannot force screenshots of all ten
 craft. Each job writes the chosen capture scope to the GitHub step summary and
 build/capture-plan.txt.
 

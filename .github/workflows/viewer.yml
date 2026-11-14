@@ -1,7 +1,14 @@
 name: Vehicle viewer preview
 on:
+  # Viewer previews remain opt-in via [viewer] or manual dispatch; unrelated
+  # native-inspector and documentation commits do not create skipped runs.
   push:
     branches: [main]
+    paths:
+      - 'game/**'
+      - 'showroom_sources/**'
+      - 'tools/*.py'
+      - '.github/workflows/viewer.yml'
   workflow_dispatch:
 permissions:
   contents: write
@@ -12,7 +19,7 @@ env:
   PREVIEW_CRAFT: "${{ contains(github.event.head_commit.message, '[kestrel]') && '0' || (contains(github.event.head_commit.message, '[piledriver]') && '1' || (contains(github.event.head_commit.message, '[synapse]') && '6' || (contains(github.event.head_commit.message, '[forge]') && '5' || (contains(github.event.head_commit.message, '[tremor]') && '7' || '2')))) }}"
 jobs:
   preview:
-    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[viewer]') || contains(toJSON(github.event.commits), 'showroom_sources/shrike_uploaded.glb')
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[viewer]') || (contains(toJSON(github.event.commits), 'showroom_sources/shrike_uploaded.glb') || contains(toJSON(github.event.commits), 'showroom_sources/Shrike_MK_I_Android_LOD_ready.glb'))
     runs-on: ubuntu-24.04
     timeout-minutes: 25
     steps:
@@ -151,7 +158,6 @@ jobs:
           name=piledriver
           if [ "$PREVIEW_CRAFT" = 0 ]; then name=kestrel; fi
           if [ "$PREVIEW_CRAFT" = 2 ]; then name=shrike; fi
-          if [ "$PREVIEW_CRAFT" = 5 ]; then name=forge; fi
           if [ "$PREVIEW_CRAFT" = 5 ]; then name=forge; fi
           if [ "$PREVIEW_CRAFT" = 6 ]; then name=synapse; fi
           if [ "$PREVIEW_CRAFT" = 7 ]; then name=tremor; fi
