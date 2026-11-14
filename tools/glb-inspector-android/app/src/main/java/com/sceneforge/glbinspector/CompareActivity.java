@@ -218,6 +218,14 @@ public final class CompareActivity extends Activity implements Choreographer.Fra
             cp.setMargins(dp(8),dp(8),0,0);p.frame.addView(p.caption,cp);
             p.markers=new FeedbackStore.MarkerOverlay(this,feedback,i);
             p.frame.addView(p.markers,new FrameLayout.LayoutParams(-1,-1));
+            if(i==0){
+                ghostOverlay=new ImageView(this);
+                ghostOverlay.setScaleType(ImageView.ScaleType.FIT_XY);
+                ghostOverlay.setAlpha(ghostOpacity);
+                ghostOverlay.setVisibility(View.GONE);
+                ghostOverlay.setClickable(false);
+                p.frame.addView(ghostOverlay,new FrameLayout.LayoutParams(-1,-1));
+            }
             p.caption.bringToFront();
             panes[i]=p;
             LinearLayout.LayoutParams fp=wide?
@@ -614,7 +622,10 @@ public final class CompareActivity extends Activity implements Choreographer.Fra
         super.onActivityResult(request,result,data);
         if(result!=RESULT_OK || data==null || data.getData()==null)return;
         if(request==PICK_A || request==PICK_B) {
-            loadUri(panes[request==PICK_A?0:1],data.getData());
+            Uri uri=data.getData();
+            try {getContentResolver().takePersistableUriPermission(uri,Intent.FLAG_GRANT_READ_URI_PERMISSION);}
+            catch(SecurityException ignored){}
+            loadUri(panes[request==PICK_A?0:1],uri);
         } else if(request==PICK_PHOTO) {
             Uri uri=data.getData();
             try {
@@ -632,6 +643,8 @@ public final class CompareActivity extends Activity implements Choreographer.Fra
                     runOnUiThread(()->Toast.makeText(this,"Feedback JSON exported",Toast.LENGTH_LONG).show());
                 }catch(Exception ex){runOnUiThread(()->error("JSON export failed: "+ex.getMessage()));}
             },"feedback-json-export").start();
+        } else if(request==EXPORT_REVIEW_ZIP) {
+            saveReviewPackage(data.getData());
         }
     }
     private String displayName(Uri uri) {
@@ -671,6 +684,8 @@ public final class CompareActivity extends Activity implements Choreographer.Fra
                     try{
                         loadInViewer(p,direct);
                         p.original=bytes;p.name=name;p.hash=originalHash;
+                        sessionPrefs.edit().putString(p.index==0?"uriA":"uriB",uri.toString())
+                                .putString(p.index==0?"nameA":"nameB",name).apply();
                         if(p.markers!=null)p.markers.update(p.hash,p.azimuth,p.elevation,p.distance,orthographic);
                         updateIssueCount();
                         p.caption.setText((p.index==0?"A":"B")+" • "+name);
@@ -1066,13 +1081,17 @@ public final class CompareActivity extends Activity implements Choreographer.Fra
     }
     private void error(String text){message.setText(text);Toast.makeText(this,text,Toast.LENGTH_LONG).show();}
     @Override protected void onResume(){super.onResume();running=true;Choreographer.getInstance().postFrameCallback(this);}
-    @Override protected void onPause(){running=false;Choreographer.getInstance().removeFrameCallback(this);super.onPause();}
+    @Override protected void onPause(){
+        persistCameraSession();
+        running=false;Choreographer.getInstance().removeFrameCallback(this);super.onPause();
+    }
     @Override public void doFrame(long nano){
         if(!running)return;
         // Two offscreen graphics contexts; cap to ~30fps to reduce battery/GPU pressure.
         if((++frameCounter&1)==0){
             for(Pane p:panes)if(p.viewer!=null)p.viewer.render(nano);
         }
+        if(ghostEnabled && (frameCounter%12)==0)updateGhostFrame();
         Choreographer.getInstance().postFrameCallback(this);
     }
     @Override protected void onDestroy(){
