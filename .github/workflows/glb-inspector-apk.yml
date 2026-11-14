@@ -30,6 +30,8 @@ jobs:
           SDKMANAGER="$(find "$SDK_ROOT/cmdline-tools" -type f -name sdkmanager | head -n 1)"
           test -x "$SDKMANAGER"
           "$SDKMANAGER" --install 'platforms;android-37.0' 'build-tools;36.0.0'
+      - name: Prepare offline CC0 HDR studio environment
+        run: bash tools/glb-inspector-android/prepare-studio-ibl.sh
       - name: Configure Gradle 9.4.1
         uses: gradle/actions/setup-gradle@v4
         with:
