@@ -24,7 +24,7 @@ import java.util.LinkedHashSet;
  * Original bytes are never modified, and nothing is exported over the source GLB.
  */
 public final class GlbInspectionVariants {
-    public enum Mode { TEXTURED, CLAY, WIREFRAME }
+    public enum Mode { TEXTURED, CLAY, WIREFRAME, REVEAL_DARK }
 
     private static final int MAGIC = 0x46546c67;
     private static final int CHUNK_JSON = 0x4e4f534a;
@@ -67,7 +67,8 @@ public final class GlbInspectionVariants {
             throw new IllegalArgumentException("This GLB has no meshes to inspect");
         }
 
-        rewriteMaterials(gltf, mode);
+        if (mode == Mode.REVEAL_DARK) revealDarkFactors(gltf);
+        else rewriteMaterials(gltf, mode);
 
         byte[] binary;
         if (binaryOff >= 0) {
@@ -79,6 +80,37 @@ public final class GlbInspectionVariants {
             binary = rewriteAsWireframe(gltf, binary);
         }
         return encode(gltf, binary);
+    }
+
+    /**
+     * Diagnostic ONLY: brightens exceptionally dark base-color multipliers while preserving
+     * embedded textures, material extensions, UVs, alpha and all scene geometry.
+     * Black baseColorFactor multiplies any image into black: this helps prove that cause.
+     */
+    private static void revealDarkFactors(JSONObject gltf) throws JSONException {
+        JSONArray materials=gltf.optJSONArray("materials");
+        if(materials==null)return;
+        for(int i=0;i<materials.length();i++){
+            JSONObject material=materials.optJSONObject(i);
+            if(material==null)continue;
+            JSONObject pbr=material.optJSONObject("pbrMetallicRoughness");
+            if(pbr==null)continue;
+            JSONArray factor=pbr.optJSONArray("baseColorFactor");
+            if(factor==null || factor.length()<4)continue;
+            double red=factor.optDouble(0,1),green=factor.optDouble(1,1),blue=factor.optDouble(2,1);
+            if(red>.09 || green>.09 || blue>.09)continue;
+            double a=factor.optDouble(3,1.0);
+            boolean mapped=pbr.has("baseColorTexture");
+            // A texture needs a white factor to retain its original RGB; for an untextured
+            // fully black material use grey so geometry is visible during diagnosis.
+            pbr.put("baseColorFactor",mapped?
+                    new JSONArray().put(1.0).put(1.0).put(1.0).put(a):
+                    new JSONArray().put(0.64).put(0.70).put(0.75).put(a));
+            if(!mapped) {
+                pbr.put("metallicFactor",0.15);
+                pbr.put("roughnessFactor",0.48);
+            }
+        }
     }
 
     private static void rewriteMaterials(JSONObject gltf, Mode mode) throws JSONException {
