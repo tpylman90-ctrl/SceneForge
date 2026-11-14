@@ -33,6 +33,11 @@ import android.view.View;
 import android.view.WindowInsets;
 import android.widget.Button;
 import android.widget.FrameLayout;
+import android.widget.ImageView;
+import android.widget.SeekBar;
+import android.content.SharedPreferences;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 import android.widget.HorizontalScrollView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
@@ -71,7 +76,7 @@ public final class CompareActivity extends Activity implements Choreographer.Fra
     private static final int TEXT=Color.rgb(228,236,245);
     private static final int MUTED=Color.rgb(166,181,198);
     private static final int ACCENT=Color.rgb(29,186,180);
-    private static final int PICK_A=8121, PICK_B=8122, PICK_PHOTO=8123, EXPORT_JSON=8124;
+    private static final int PICK_A=8121, PICK_B=8122, PICK_PHOTO=8123, EXPORT_JSON=8124, EXPORT_REVIEW_ZIP=8125;
 
     private final Handler handler=new Handler(Looper.getMainLooper());
     private final Pane[] panes=new Pane[2];
@@ -79,7 +84,12 @@ public final class CompareActivity extends Activity implements Choreographer.Fra
     private FrameLayout viewportContainer;
     private ReferenceWindow referenceWindow;
     private FeedbackStore feedback;
-    private boolean marking=false;
+    private boolean marking=false,selectingPart=false,ghostEnabled=false;
+    private int lastSelectedPane=0;
+    private ImageView ghostOverlay;
+    private boolean ghostCopying=false;
+    private float ghostOpacity=0.5f;
+    private SharedPreferences sessionPrefs;
     private Button markButton, issueButton;
     private String pendingFeedbackExport = "";
     private TextView message;
@@ -99,6 +109,7 @@ public final class CompareActivity extends Activity implements Choreographer.Fra
         FrameLayout frame;
         TextView caption;
         FeedbackStore.MarkerOverlay markers;
+        PartInspector inspector;
         String hash = "";
         float downX, downY;
         ModelViewer viewer;
@@ -123,6 +134,7 @@ public final class CompareActivity extends Activity implements Choreographer.Fra
         getWindow().setNavigationBarColor(BG);
         Gltfio.init();
         feedback=new FeedbackStore(this);
+        sessionPrefs=getSharedPreferences("sceneforge_compare_session_v1",MODE_PRIVATE);
         buildUi();
         for(int i=0;i<2;i++) createRenderer(panes[i]);
         updateCameras();
@@ -372,6 +384,7 @@ public final class CompareActivity extends Activity implements Choreographer.Fra
                 new UiHelper(UiHelper.ContextErrorPolicy.DONT_CHECK),null);
         pane.viewer.setAutoPlayAnimations(false);
         pane.viewer.getView().setAntiAliasing(com.google.android.filament.View.AntiAliasing.FXAA);
+        pane.inspector=new PartInspector(this,pane.viewer);
         initStudio(pane);
         StudioQuality.apply(pane.viewer.getEngine(),pane.viewer.getView(),
                 pane.viewer.getCamera(),renderPreset);
@@ -395,7 +408,7 @@ public final class CompareActivity extends Activity implements Choreographer.Fra
                 pane.pinching=false;return true;
             case MotionEvent.ACTION_POINTER_DOWN:pane.pinching=true;return true;
             case MotionEvent.ACTION_MOVE:
-                if(e.getPointerCount()==1&&!pane.pinching&&!marking){
+                if(e.getPointerCount()==1&&!pane.pinching&&!marking&&!selectingPart){
                     pane.azimuth+=(e.getX()-pane.lastX)*0.42f;
                     pane.elevation=Math.max(-89,Math.min(89,pane.elevation-(e.getY()-pane.lastY)*0.33f));
                     if(sync)copyAngles(pane,panes[1-pane.index]);
@@ -408,7 +421,23 @@ public final class CompareActivity extends Activity implements Choreographer.Fra
                         Math.abs(e.getY()-pane.downY)<dp(12)) {
                     float u=Math.max(0f,Math.min(1f,e.getX()/Math.max(1f,pane.surface.getWidth())));
                     float v=Math.max(0f,Math.min(1f,e.getY()/Math.max(1f,pane.surface.getHeight())));
-                    editNote(pane,u,v,null);
+                    pane.inspector.pick(e.getX(),e.getY(),pane.surface.getWidth(),
+                            pane.surface.getHeight(),hit->{
+                        if(hit==null){error("Tap a visible model surface; the floor is not a defect target.");return;}
+                        editNote(pane,u,v,null,hit);
+                    });
+                }
+                if(selectingPart && !pane.pinching && pane.original!=null &&
+                        Math.abs(e.getX()-pane.downX)<dp(12) &&
+                        Math.abs(e.getY()-pane.downY)<dp(12)){
+                    pane.inspector.pick(e.getX(),e.getY(),pane.surface.getWidth(),
+                            pane.surface.getHeight(),hit->{
+                        if(hit==null){error("No component at that pixel");return;}
+                        lastSelectedPane=pane.index;
+                        pane.inspector.select(hit);
+                        message.setText("SELECTED "+(pane.index==0?"A":"B")+": "+hit.summary());
+                        selectingPart=false;
+                    });
                 }
                 pane.pinching=false;return true;
             case MotionEvent.ACTION_CANCEL:
@@ -589,6 +618,7 @@ public final class CompareActivity extends Activity implements Choreographer.Fra
         p.viewer.loadModelGlb(bytes);
         if(p.viewer.getAsset()==null)throw new IllegalArgumentException("glTF renderer rejected model");
         p.viewer.transformToUnitCube(new Float3(0,0,-4));
+        if(p.inspector!=null)p.inspector.onNewModel();
         p.currentDirect=bytes;updateCameras();
     }
     private void selectMode(GlbInspectionVariants.Mode selected){
@@ -622,6 +652,9 @@ public final class CompareActivity extends Activity implements Choreographer.Fra
 
     /** Create/edit a view-anchored defect pin with structured issue classification. */
     private void editNote(Pane pane,float u,float v,FeedbackStore.Note existing) {
+        editNote(pane,u,v,existing,null);
+    }
+    private void editNote(Pane pane,float u,float v,FeedbackStore.Note existing,PartInspector.Hit pickedHit) {
         if(pane.original==null || pane.hash.isEmpty()) {
             error("Load a GLB before marking defects.");
             return;
@@ -698,6 +731,14 @@ public final class CompareActivity extends Activity implements Choreographer.Fra
                     item.distance=pane.distance;
                     item.orthographic=orthographic;
                     item.mode=mode.name();
+                    if(pickedHit!=null){
+                        item.depthHit=true;
+                        item.worldX=pickedHit.world[0];
+                        item.worldY=pickedHit.world[1];
+                        item.worldZ=pickedHit.world[2];
+                        item.partName=pickedHit.name;
+                        item.depth=pickedHit.depth;
+                    }
                 }
                 item.issueType=FeedbackStore.TYPES[category.getSelectedItemPosition()];
                 item.severity=FeedbackStore.SEVERITIES[severity.getSelectedItemPosition()];
@@ -964,6 +1005,7 @@ public final class CompareActivity extends Activity implements Choreographer.Fra
         for(Pane p:panes){
             if(p==null||p.viewer==null)continue;
             try{
+                if(p.inspector!=null)p.inspector.destroy();
                 p.viewer.destroyModel();
                 Engine e=p.viewer.getEngine();
                 StudioQuality.release(e,p.viewer.getView());
