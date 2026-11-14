@@ -1,0 +1,24 @@
+material {
+    name : SceneForgeZebra,
+    shadingModel : unlit,
+    culling : none,
+    parameters : [
+        { type : float, name : frequency }
+    ]
+}
+fragment {
+    void material(inout MaterialInputs material) {
+        prepareMaterial(material);
+        // Stripe transitions in the view-reflection vector highlight pinched normals
+        // and automotive surface continuity; this is a diagnostic, not source paint.
+        float3 N = normalize(getWorldGeometricNormalVector());
+        float3 V = normalize(getWorldViewVector());
+        float3 R = normalize(reflect(-V, N));
+        float angle = atan(R.z, R.x);
+        float lines = fract((angle / 6.2831853 + 0.5) * materialParams.frequency + R.y * 1.25);
+        float stripe = smoothstep(0.43, 0.47, lines) *
+                       (1.0 - smoothstep(0.53, 0.57, lines));
+        float value = mix(0.045, 0.93, stripe);
+        material.baseColor = float4(value, value, value, 1.0);
+    }
+}
