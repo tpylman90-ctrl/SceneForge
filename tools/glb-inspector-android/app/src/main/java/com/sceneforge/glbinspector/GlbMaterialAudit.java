@@ -118,8 +118,10 @@ public final class GlbMaterialAudit {
                     int m=p.optInt("material",-1);
                     if(m<0||mats==null||m>=mats.length())continue;
                     JSONObject pbr=mats.getJSONObject(m).optJSONObject("pbrMetallicRoughness");
+                    JSONObject attributes=p.optJSONObject("attributes");
                     if(pbr!=null && pbr.has("baseColorTexture")
-                            && !p.optJSONObject("attributes").has("TEXCOORD_0"))r.missingUvMeshes++;
+                            && (attributes==null || !attributes.has("TEXCOORD_0")))
+                        r.missingUvMeshes++;
                 }
             }
             JSONArray extensions=gltf.optJSONArray("extensionsUsed");
