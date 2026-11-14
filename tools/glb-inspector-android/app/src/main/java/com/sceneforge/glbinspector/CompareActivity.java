@@ -95,6 +95,7 @@ public final class CompareActivity extends Activity implements Choreographer.Fra
     private TextView message;
     private Button syncButton, projectionButton, qualityButton;
     private StudioQuality.Preset renderPreset = StudioQuality.Preset.STUDIO;
+    private int exposureStops=0;
     private boolean sync=true, orthographic=true, running=false;
     private GlbInspectionVariants.Mode mode=GlbInspectionVariants.Mode.TEXTURED;
     private final Button[] modeButtons=new Button[3];
@@ -362,6 +363,14 @@ public final class CompareActivity extends Activity implements Choreographer.Fra
         Button captureB=button("PHOTO 2× B");
         captureB.setOnClickListener(v->capturePaneHiRes(panes[1]));
         advancedButton(advanced,captureB,dp(116));
+        Button exposure=button("EXPOSURE +0");
+        exposure.setOnClickListener(v->{
+            exposureStops=(exposureStops+1)%5;
+            applyExposureToPanes();
+            exposure.setText("EXPOSURE +"+exposureStops);
+            message.setText("Exposure +"+exposureStops+" stops • source GLBs unchanged");
+        });
+        advancedButton(advanced,exposure,dp(123));
         Button restoreSession=button("RESTORE LAST");
         restoreSession.setOnClickListener(v->restoreLastSession());
         advancedButton(advanced,restoreSession,dp(122));
@@ -386,6 +395,7 @@ public final class CompareActivity extends Activity implements Choreographer.Fra
                 for(Pane pane:panes)if(pane!=null && pane.viewer!=null)
                     StudioQuality.apply(pane.viewer.getEngine(),pane.viewer.getView(),
                             pane.viewer.getCamera(),renderPreset);
+                applyExposureToPanes();
                 qualityButton.setText(renderPreset==StudioQuality.Preset.PHOTO?"PHOTO MAX":
                         renderPreset==StudioQuality.Preset.STUDIO?"STUDIO":"FAST");
                 message.setText("Render quality: "+renderPreset.name()+" • Two live 3D viewports");
@@ -463,6 +473,11 @@ public final class CompareActivity extends Activity implements Choreographer.Fra
         }
     }
 
+    private void applyExposureToPanes(){
+        for(Pane p:panes)if(p!=null&&p.viewer!=null)
+            p.viewer.getCamera().setExposure(13f,1f/125f,
+                    (float)(100.0*Math.pow(2.0,exposureStops)));
+    }
     private Bitmap displayedGhost;
     private void updateGhostFrame(){
         if(!ghostEnabled||ghostCopying||!running||ghostOverlay==null)return;
@@ -705,6 +720,7 @@ public final class CompareActivity extends Activity implements Choreographer.Fra
         initStudio(pane);
         StudioQuality.apply(pane.viewer.getEngine(),pane.viewer.getView(),
                 pane.viewer.getCamera(),renderPreset);
+        applyExposureToPanes();
         pane.scale=new ScaleGestureDetector(this,new ScaleGestureDetector.SimpleOnScaleGestureListener(){
             @Override public boolean onScale(ScaleGestureDetector detector){
                 pane.distance=Math.max(2.0f,Math.min(18f,pane.distance/detector.getScaleFactor()));
