@@ -122,7 +122,13 @@ public final class PartInspector {
         return name==null||name.trim().isEmpty()?"Entity "+selectedEntity:name;
     }
     public int selectedEntity(){return selectedEntity;}
-    private boolean valid(int e){return originalMaterials.containsKey(e);}
+    private boolean valid(int e){
+        if(!originalMaterials.containsKey(e))return false;
+        FilamentAsset a=viewer.getAsset();
+        if(a==null)return false;
+        String name=a.getName(e);
+        return name==null || !name.toLowerCase(Locale.ROOT).contains("studio floor");
+    }
     public void pick(float x,float y,int w,int h,PickListener listener){
         if(w<=0||h<=0){listener.onPicked(null);return;}
         Camera cam=viewer.getCamera();
@@ -211,7 +217,7 @@ public final class PartInspector {
             FilamentAsset a=viewer.getAsset();
             if(a!=null){
                 String n=a.getName(entity);
-                isFloor=n!=null && n.toLowerCase(Locale.ROOT).contains("studiofloor");
+                isFloor=n!=null && n.toLowerCase(Locale.ROOT).contains("studio floor");
             }
             for(int i=0;i<source.length;i++){
                 MaterialInstance use=source[i];
@@ -244,7 +250,7 @@ public final class PartInspector {
         }
     }
     public void showAll(){
-        solo=false;selectedEntity=0;
+        solo=false;selectedEntity=0;zebra=false;
         for(int entity:entities){
             int ri=renderables.getInstance(entity);
             if(ri==0)continue;
