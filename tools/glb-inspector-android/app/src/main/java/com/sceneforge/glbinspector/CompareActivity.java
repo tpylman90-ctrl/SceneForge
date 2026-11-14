@@ -226,6 +226,7 @@ public final class CompareActivity extends Activity implements Choreographer.Fra
                 ghostOverlay.setClickable(false);
                 p.frame.addView(ghostOverlay,new FrameLayout.LayoutParams(-1,-1));
             }
+            p.markers.bringToFront();
             p.caption.bringToFront();
             panes[i]=p;
             LinearLayout.LayoutParams fp=wide?
@@ -612,6 +613,14 @@ public final class CompareActivity extends Activity implements Choreographer.Fra
                     bitmapA.recycle();bitmapB.recycle();
                     error("Review B screenshot unavailable");return;
                 }
+                // Real SurfaceView captures omit Android overlay widgets. Draw numbered
+                // defect pins onto the review evidence PNGs explicitly.
+                if(panes[0].markers!=null)
+                    panes[0].markers.drawOnExport(new Canvas(bitmapA),
+                            bitmapA.getWidth(),bitmapA.getHeight());
+                if(panes[1].markers!=null)
+                    panes[1].markers.drawOnExport(new Canvas(bitmapB),
+                            bitmapB.getWidth(),bitmapB.getHeight());
                 Bitmap reference=referenceWindow.referenceBitmap();
                 JSONObject exported;
                 try{
