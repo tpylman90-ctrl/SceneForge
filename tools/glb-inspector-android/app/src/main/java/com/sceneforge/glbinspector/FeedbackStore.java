@@ -209,6 +209,7 @@ public final class FeedbackStore {
         private float azimuth,elevation,distance;
         private boolean orthographic;
         private final float density;
+        private double[] viewMatrix, projectionMatrix;
 
         public MarkerOverlay(Context c,FeedbackStore s,int pane){
             super(c);
@@ -220,11 +221,31 @@ public final class FeedbackStore {
             activeHash=hash;azimuth=a;elevation=e;distance=d;orthographic=ortho;
             invalidate();
         }
+        public void updateCamera(com.google.android.filament.Camera camera){
+            if(camera==null)return;
+            viewMatrix=camera.getViewMatrix(null);
+            projectionMatrix=camera.getProjectionMatrix(null);
+            invalidate();
+        }
+        private float[] project(Note n,int width,int height){
+            if(!n.depthHit || viewMatrix==null || projectionMatrix==null)
+                return new float[]{n.u*width,n.v*height};
+            double[] source={n.worldX,n.worldY,n.worldZ,1};
+            double[] view=new double[4],clip=new double[4];
+            for(int r=0;r<4;r++)for(int c=0;c<4;c++)view[r]+=viewMatrix[c*4+r]*source[c];
+            for(int r=0;r<4;r++)for(int c=0;c<4;c++)clip[r]+=projectionMatrix[c*4+r]*view[c];
+            if(clip[3]<=0.0001)return null;
+            float u=(float)(clip[0]/clip[3]*0.5+0.5);
+            float v=(float)(0.5-clip[1]/clip[3]*0.5);
+            if(u<0||u>1||v<0||v>1)return null;
+            return new float[]{u*width,v*height};
+        }
         public List<Note> visibleNotes(){
             List<Note> visible=new ArrayList<>();
             if(activeHash==null || activeHash.isEmpty())return visible;
             for(Note n:store.notes) {
                 if(n.pane!=paneIndex || !activeHash.equals(n.modelSha256))continue;
+                if(n.depthHit){visible.add(n);continue;}
                 if(n.orthographic!=orthographic)continue;
                 float angle=((n.azimuth-azimuth+540f)%360f)-180f;
                 if(Math.abs(angle)>3f||Math.abs(n.elevation-elevation)>3f
@@ -236,7 +257,9 @@ public final class FeedbackStore {
         @Override protected void onDraw(Canvas c) {
             super.onDraw(c);
             for(Note n:visibleNotes()) {
-                float x=n.u*getWidth(),y=n.v*getHeight();
+                float[] pos=project(n,getWidth(),getHeight());
+                if(pos==null)continue;
+                float x=pos[0],y=pos[1];
                 paint.setStyle(Paint.Style.FILL);
                 paint.setColor(Color.rgb(11,26,35));
                 c.drawCircle(x,y,12*density,paint);
@@ -255,7 +278,9 @@ public final class FeedbackStore {
         public void drawOnExport(Canvas c,int width,int height) {
             float scale=height/Math.max(1f,getHeight());
             for(Note n:visibleNotes()){
-                float x=n.u*width,y=n.v*height;
+                float[] pos=project(n,width,height);
+                if(pos==null)continue;
+                float x=pos[0],y=pos[1];
                 paint.setColor(Color.rgb(13,43,49));paint.setStyle(Paint.Style.FILL);
                 c.drawCircle(x,y,11*density*scale,paint);
                 paint.setColor(Color.CYAN);paint.setStyle(Paint.Style.STROKE);
