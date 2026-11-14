@@ -77,6 +77,8 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
     private int imageIndex = 1;
     private boolean studioEnabled = true;
     private Button studioButton;
+    private Button qualityButton;
+    private StudioQuality.Preset renderPreset = StudioQuality.Preset.STUDIO;
     private byte[] sourceGlb;
     private ByteBuffer displayedGlb;
     private GlbInspectionVariants.Mode displayMode = GlbInspectionVariants.Mode.TEXTURED;
@@ -89,6 +91,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
     private int studioLevel = 2;
     private Button lightButton;
     private IndirectLight studioIbl;
+    private StudioQuality.Environment hdrEnvironment;
     private Texture reflectionCube;
     private Skybox studioBackground;
     private final int[] studioLights = new int[3];
@@ -105,8 +108,8 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
         viewer = new ModelViewer(surface, Engine.create(),
                 new UiHelper(UiHelper.ContextErrorPolicy.DONT_CHECK), null);
         viewer.setAutoPlayAnimations(true);
-        viewer.getView().setAntiAliasing(com.google.android.filament.View.AntiAliasing.FXAA);
         setupStudioLighting();
+        StudioQuality.apply(viewer.getEngine(), viewer.getView(), viewer.getCamera(), renderPreset);
         setCamera();
         pinch = new ScaleGestureDetector(this, new ScaleGestureDetector.SimpleOnScaleGestureListener() {
             @Override public boolean onScale(ScaleGestureDetector detector) {
@@ -284,6 +287,25 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
         LinearLayout.LayoutParams studioParams = new LinearLayout.LayoutParams(0, dp(44), 0.65f);
         studioParams.leftMargin = dp(8);
         utilities.addView(studioButton, studioParams);
+        qualityButton = button("STUDIO");
+        qualityButton.setOnClickListener(v -> {
+            StudioQuality.Preset[] presets = StudioQuality.Preset.values();
+            renderPreset = presets[(renderPreset.ordinal() + 1) % presets.length];
+            try {
+                StudioQuality.apply(viewer.getEngine(), viewer.getView(), viewer.getCamera(), renderPreset);
+                qualityButton.setText(renderPreset == StudioQuality.Preset.PHOTO ? "PHOTO MAX" :
+                        renderPreset == StudioQuality.Preset.STUDIO ? "STUDIO" : "FAST");
+                status.setText(sourceSummary + "   •   Render " + renderPreset.name());
+            } catch (Throwable err) {
+                renderPreset = StudioQuality.Preset.PERFORMANCE;
+                StudioQuality.apply(viewer.getEngine(), viewer.getView(), viewer.getCamera(), renderPreset);
+                qualityButton.setText("FAST");
+                error("GPU cannot enable that quality mode");
+            }
+        });
+        LinearLayout.LayoutParams qualityParams = new LinearLayout.LayoutParams(0, dp(44), 0.7f);
+        qualityParams.leftMargin = dp(6);
+        utilities.addView(qualityButton, qualityParams);
         main.addView(utilities);
 
         Button shapeLab=button("SHAPE LAB  •  EDIT ACTUAL GEOMETRY");
@@ -384,6 +406,17 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
                 .intensity(STUDIO_LEVELS[studioLevel])
                 .build(engine);
         viewer.getScene().setIndirectLight(studioIbl);
+
+        // Prefer a real prefiltered HDR IBL with physically meaningful softbox reflections.
+        // Old LDR procedural IBL is retained as a graceful fallback on unsupported devices.
+        hdrEnvironment = StudioQuality.loadHdrStudio(this, engine);
+        if (hdrEnvironment != null) {
+            viewer.getScene().setIndirectLight(hdrEnvironment.ibl);
+            engine.destroyIndirectLight(studioIbl);
+            engine.destroyTexture(reflectionCube);
+            studioIbl = hdrEnvironment.ibl;
+            reflectionCube = hdrEnvironment.texture;
+        }
 
         // Camera-facing key plus softer side/rim sources reveal undercuts and rear geometry.
         studioLights[0] = addStudioLight(engine, -0.35f, -0.90f, -0.55f,
@@ -770,6 +803,14 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
         running = false;
         Choreographer.getInstance().removeFrameCallback(this);
         super.onPause();
+    }
+    @Override protected void onDestroy() {
+        running = false;
+        if (viewer != null) {
+            try { StudioQuality.release(viewer.getEngine(), viewer.getView()); }
+            catch (Exception ignored) {}
+        }
+        super.onDestroy();
     }
     @Override public void doFrame(long frameTimeNanos) {
         if (!running) return;
