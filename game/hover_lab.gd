@@ -3,12 +3,12 @@ extends Node3D
 ## not a preview or an integration of the approval-locked NF-H01 craft.
 
 const Rig = preload("res://vehicles/hover_rig.gd")
-const Touch = preload("res://vehicles/hover_touch_input.gd")
+const Sticks = preload("res://vehicles/dual_stick_controls.gd")
 
 var rig # Script-backed RigidBody3D; dynamic interface from hover_rig.gd
 var camera: Camera3D
 var hud: Label
-var touches: Dictionary = {}
+var sticks: Control
 var thrust := false
 var brake := false
 var boost := false
@@ -44,8 +44,11 @@ func _ready() -> void:
 	platform("RAISED TEST PAD",Vector3(20,0.37,34),Vector3(13,0.74,20),Color("a17a4f"))
 	platform("GRASS MATERIAL TEST",Vector3(-20,0.06,42),Vector3(15,0.12,24),Color("4b6950"))
 	platform("WATER-LOOK TEST",Vector3(0,0.06,98),Vector3(28,0.12,42),Color("276c88"))
-	platform("RIGHT BARRIER",Vector3(46,1.35,60),Vector3(1.0,2.7,220),Color("bc7154"))
-	platform("LEFT BARRIER",Vector3(-46,1.35,60),Vector3(1.0,2.7,220),Color("bc7154"))
+	platform("RIGHT BARRIER",Vector3(46,4,60),Vector3(1,8,220),Color("bc7154"),true)
+	platform("LEFT BARRIER",Vector3(-46,4,60),Vector3(1,8,220),Color("bc7154"),true)
+	# Real physical height-gates. Floor sensors ignore obstacle layer 2.
+	platform("BLUE BEAM / GO UNDER",Vector3(0,4.10,17),Vector3(72,1.0,2.4),Color("238daf"),true)
+	platform("AMBER FENCE / GO OVER",Vector3(0,1.08,45),Vector3(72,2.16,2.4),Color("d37c3d"),true)
 	rig=Rig.new()
 	rig.name="SurfaceProbeCraft"
 	rig.position=initial_position
@@ -58,10 +61,11 @@ func _ready() -> void:
 	build_ui()
 	update_camera(1.0)
 
-func platform(label: String, center: Vector3, size: Vector3, color: Color) -> void:
+func platform(label: String, center: Vector3, size: Vector3, color: Color, obstacle: bool = false) -> void:
 	var body := StaticBody3D.new()
 	body.name=label
 	body.position=center
+	body.collision_layer=2 if obstacle else 1
 	var shape := CollisionShape3D.new()
 	var box := BoxShape3D.new()
 	box.size=size
@@ -110,38 +114,13 @@ func build_ui() -> void:
 	view_btn.pressed.connect(func():cockpit=not cockpit)
 	var leave := button(top,"TRACK",145)
 	leave.pressed.connect(func():get_tree().change_scene_to_file("res://city_loop.tscn"))
-	var steer_row := HBoxContainer.new()
-	steer_row.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT)
-	steer_row.position=Vector2(24,-130)
-	steer_row.add_theme_constant_override("separation",16)
-	layer.add_child(steer_row)
-	var l := button(steer_row,"◀ LEFT",208)
-	var r := button(steer_row,"RIGHT ▶",208)
-	l.button_down.connect(func():left=true)
-	l.button_up.connect(func():left=false)
-	r.button_down.connect(func():right=true)
-	r.button_up.connect(func():right=false)
-	var pedals := HBoxContainer.new()
-	pedals.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT)
-	pedals.position=Vector2(-410,-110)
-	pedals.add_theme_constant_override("separation",16)
-	layer.add_child(pedals)
-	var b := button(pedals,"BRAKE / REV",170)
-	var g := button(pedals,"THRUST",190)
-	b.button_down.connect(func():brake=true)
-	b.button_up.connect(func():brake=false)
-	g.button_down.connect(func():thrust=true)
-	g.button_up.connect(func():thrust=false)
-	var boost_row := HBoxContainer.new()
-	boost_row.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT)
-	boost_row.position=Vector2(-410,-200)
-	layer.add_child(boost_row)
-	var boost_btn := button(boost_row,"BOOST",376)
-	boost_btn.button_down.connect(func():boost=true)
-	boost_btn.button_up.connect(func():boost=false)
+	sticks=Sticks.new()
+	sticks.name="DualAnalog"
+	layer.add_child(sticks)
+	sticks.ceiling_label="5.5 M"
 
 func reset_lab() -> void:
-	touches.clear()
+	sticks.clear()
 	left=false
 	right=false
 	brake=false
@@ -151,7 +130,7 @@ func reset_lab() -> void:
 
 func _notification(what: int) -> void:
 	if what==NOTIFICATION_APPLICATION_FOCUS_OUT:
-		touches.clear()
+		sticks.clear()
 		left=false
 		right=false
 		brake=false
@@ -159,42 +138,32 @@ func _notification(what: int) -> void:
 		boost=false
 
 func _input(event: InputEvent) -> void:
-	var screen := get_viewport().get_visible_rect().size
-	if event is InputEventScreenTouch:
-		if event.pressed and Touch.is_drive_area(event.position,screen):
-			touches[event.index]=event.position
-		elif not event.pressed:
-			touches.erase(event.index)
-		else:
-			return
-	elif event is InputEventScreenDrag and touches.has(event.index):
-		touches[event.index]=event.position
-	else:
-		return
-	var state: Dictionary=Touch.decode(touches,screen)
-	left=bool(state["left"])
-	right=bool(state["right"])
-	brake=bool(state["brake"])
-	thrust=bool(state["throttle"])
-	boost=bool(state["boost"])
-	get_viewport().set_input_as_handled()
+	if sticks!=null and sticks.handle_event(event):
+		get_viewport().set_input_as_handled()
 
 func _physics_process(delta: float) -> void:
 	if rig.global_position.y < -15.0:
 		reset_lab()
-	var gas: bool=thrust or Input.is_physical_key_pressed(KEY_W) or Input.is_physical_key_pressed(KEY_UP)
-	var stopping: bool=brake or Input.is_physical_key_pressed(KEY_S) or Input.is_physical_key_pressed(KEY_DOWN)
-	var active_boost: bool=boost or Input.is_physical_key_pressed(KEY_SHIFT)
-	var turn: float=float(right or Input.is_physical_key_pressed(KEY_D) or Input.is_physical_key_pressed(KEY_RIGHT))-float(left or Input.is_physical_key_pressed(KEY_A) or Input.is_physical_key_pressed(KEY_LEFT))
-	rig.set_controls(gas,stopping,turn,active_boost)
+	sticks.tick(delta)
+	var analog_throttle: float=sticks.throttle_axis
+	if thrust or Input.is_physical_key_pressed(KEY_W) or Input.is_physical_key_pressed(KEY_UP):
+		analog_throttle=1.0
+	if brake or Input.is_physical_key_pressed(KEY_S) or Input.is_physical_key_pressed(KEY_DOWN):
+		analog_throttle=-1.0
+	var active_boost: bool=boost or sticks.boost_remaining>0.0 or Input.is_physical_key_pressed(KEY_SHIFT)
+	var turn: float=clampf(sticks.steer_axis+float(right or Input.is_physical_key_pressed(KEY_D) or Input.is_physical_key_pressed(KEY_RIGHT))-float(left or Input.is_physical_key_pressed(KEY_A) or Input.is_physical_key_pressed(KEY_LEFT)),-1.0,1.0)
+	var altitude: float=clampf(sticks.height_axis+float(Input.is_physical_key_pressed(KEY_E))-float(Input.is_physical_key_pressed(KEY_Q)),-1.0,1.0)
+	rig.set_analog_controls(analog_throttle,turn,altitude,active_boost)
+	sticks.altitude_fraction=(rig.hover_clearance-rig.MIN_HEIGHT)/(rig.MAX_HEIGHT-rig.MIN_HEIGHT)
+	sticks.queue_redraw()
 	update_camera(delta)
 	display_timer+=delta
 	if display_timer>=0.10:
 		display_timer=0.0
-		var state := "AIRBORNE" if rig.contact_count==0 else "HOVER / %d PROBES"%rig.contact_count
-		hud.text="SCENEFORGE / TRUE HOVER LAB\n%s  |  %03d KM/H  |  SIDE SLIP %.1f M/S\nCLEARANCE %.2f M  |  Y %.2f M  |  %d FPS\nGRAY TEST RIG / NOT NF-H01" % [
+		var state := "UNSUPPORTED AIR" if rig.contact_count==0 else "REAL HOVER / %d PROBES"%rig.contact_count
+		hud.text="SCENEFORGE / TWIN-STICK HOVER LAB\n%s  |  %03d KM/H  |  SLIP %.1f M/S\nHEIGHT %.2f M / TARGET %.2f M [1.1–5.5]\nBLUE: UNDER  /  AMBER: OVER  /  %d FPS" % [
 			state,int(absf(rig.forward_speed())*3.6),absf(rig.lateral_speed()),
-			rig.ground_distance,rig.global_position.y,Engine.get_frames_per_second()]
+			rig.global_position.y-rig.deck_y,rig.hover_clearance,Engine.get_frames_per_second()]
 
 func update_camera(delta: float) -> void:
 	if cockpit:
