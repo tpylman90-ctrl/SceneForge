@@ -3,7 +3,7 @@ extends Node3D
 const Fleet = preload("res://vehicles/fleet_catalog.gd")
 const Parts = preload("res://vehicles/performance_parts.gd")
 const HoverMotion = preload("res://vehicles/hover_motion.gd")
-const HoverTouchInput = preload("res://vehicles/hover_touch_input.gd")
+const DualSticks = preload("res://vehicles/dual_stick_controls.gd")
 const Crimson = preload("res://tracks/crimson_divide.gd")
 const CanyonScenery = preload("res://tracks/canyon_scenery.gd")
 const SerpentCanyon = preload("res://tracks/serpent_canyon.gd")
@@ -73,7 +73,11 @@ var feedback
 var travel_velocity := Vector3.ZERO
 var sound_button: Button
 var shutting_down := false
-var driving_touches: Dictionary = {}
+var dual_controls: Control
+const MIN_TRACK_ALTITUDE := 0.80
+const MAX_TRACK_ALTITUDE := 5.50
+const TRACK_CLIMB_RATE := 3.25
+var hover_altitude := 1.50
 # Independent physics module; switchable A/B against the proven classic model.
 var hover_response = HoverMotion.new()
 var hover_handling_enabled := true
@@ -185,7 +189,8 @@ func clear_drive_input() -> void:
 	throttle=false
 	brake=false
 	boost=false
-	driving_touches.clear()
+	if dual_controls!=null:
+		dual_controls.clear()
 
 func open_events() -> void:
 	clear_drive_input()
@@ -1250,6 +1255,13 @@ func build_ui() -> void:
 	var gas := ui_button(pedals,"THRUST",func(): pass,190)
 	gas.button_down.connect(func(): throttle=true)
 	gas.button_up.connect(func(): throttle=false)
+	# Existing button nodes remain for test compatibility, but are not shown.
+	row.hide()
+	pedals.hide()
+	booster.hide()
+	dual_controls=DualSticks.new()
+	dual_controls.name="TwoStickRaceControls"
+	layer.add_child(dual_controls)
 	track_menu=ColorRect.new()
 	track_menu.color=Color(0.025,0.055,0.085,0.98)
 	track_menu.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -1383,7 +1395,8 @@ func reset_car() -> void:
 	skyfall_trim=0.0
 	skyfall_vertical_speed=0.0
 	skyfall_gate_next=0
-	car.position = route[0]
+	hover_altitude=1.50
+	car.position = route[0]+Vector3.UP*hover_altitude
 	hover_response.reset(car.position.y)
 	route_index=0
 	airborne=false
@@ -1436,7 +1449,8 @@ func reset_car() -> void:
 	boost_locked=false
 	left=false
 	right=false
-	driving_touches.clear()
+	if dual_controls!=null:
+		dual_controls.clear()
 	race_elapsed=0.0
 	race_splits.clear()
 	race_finished=false
@@ -1519,35 +1533,30 @@ func track_progress(index: int) -> void:
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_APPLICATION_FOCUS_OUT:
-		throttle=false
-		brake=false
-		boost=false
-		left=false
-		right=false
-		driving_touches.clear()
+		clear_drive_input()
 
 func _input(event: InputEvent) -> void:
 	if track_menu.visible or event_menu.visible or results_panel.visible or race_countdown>0.0:
 		return
-	var screen := get_viewport().get_visible_rect().size
-	if event is InputEventScreenTouch:
-		if event.pressed and HoverTouchInput.is_drive_area(event.position,screen):
-			driving_touches[event.index] = event.position
-		elif not event.pressed:
-			driving_touches.erase(event.index)
-		else:
-			return
-	elif event is InputEventScreenDrag and driving_touches.has(event.index):
-		driving_touches[event.index] = event.position
-	else:
+	if dual_controls!=null and dual_controls.handle_event(event):
+		get_viewport().set_input_as_handled()
+
+func altitude_bounds() -> Vector2:
+	# The course sets the safe vertical lane. Later obstacle segments may
+	# override the high/low limits without rewriting the right joystick.
+	if track_id==Skyfall.ID and route_index>=Skyfall.GAP_START and route_index<Skyfall.FLIGHT_END:
+		return Vector2(3.0,20.0)
+	return Vector2(MIN_TRACK_ALTITUDE,MAX_TRACK_ALTITUDE)
+
+func update_altitude_target(delta: float) -> void:
+	if dual_controls==null:
 		return
-	var decoded: Dictionary=HoverTouchInput.decode(driving_touches,screen)
-	left=bool(decoded["left"])
-	right=bool(decoded["right"])
-	throttle=bool(decoded["throttle"])
-	brake=bool(decoded["brake"])
-	boost=bool(decoded["boost"])
-	get_viewport().set_input_as_handled()
+	var axis: float=clampf(dual_controls.height_axis+float(Input.is_physical_key_pressed(KEY_E))-float(Input.is_physical_key_pressed(KEY_Q)),-1.0,1.0)
+	var bounds: Vector2=altitude_bounds()
+	hover_altitude=clampf(hover_altitude+axis*TRACK_CLIMB_RATE*delta,bounds.x,bounds.y)
+	dual_controls.altitude_fraction=(hover_altitude-bounds.x)/maxf(0.01,bounds.y-bounds.x)
+	dual_controls.ceiling_label="%.1f M"%bounds.y
+	dual_controls.queue_redraw()
 
 func update_boost(delta: float, requested: bool, stopping: bool) -> void:
 	boost_active = requested and not stopping and speed >= 0 and not boost_locked and boost_energy > 0
