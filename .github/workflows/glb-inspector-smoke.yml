@@ -52,7 +52,7 @@ jobs:
             adb install -r tools/glb-inspector-android/app/build/outputs/apk/debug/app-debug.apk
             adb logcat -c
             adb shell am start -W -n com.sceneforge.glbinspector/.MainActivity --ez sceneforge_verify_modes true
-            sleep 8
+            sleep 23
             adb logcat -d -v time > inspector-smoke-logcat.txt
             adb shell pidof com.sceneforge.glbinspector > inspector-pid.txt || true
             echo "App PID: $(cat inspector-pid.txt)"
