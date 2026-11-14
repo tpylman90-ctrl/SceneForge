@@ -270,6 +270,7 @@ public final class CompareActivity extends Activity implements Choreographer.Fra
         markButton=button("MARK PANEL");
         markButton.setOnClickListener(v->{
             marking=!marking;
+            selectingPart=false;
             syncMarkButton();
             message.setText(marking ? "Tap a body panel in A or B to describe a defect." :
                     "Orbit mode • drag to rotate, pinch to zoom.");
@@ -284,9 +285,79 @@ public final class CompareActivity extends Activity implements Choreographer.Fra
         exportButton.setOnClickListener(v->exportFeedback());
         LinearLayout.LayoutParams exportP=new LinearLayout.LayoutParams(dp(116),dp(38));
         exportP.leftMargin=dp(5);feedbackRow.addView(exportButton,exportP);
+        Button reviewZip=button("EXPORT REVIEW ZIP");
+        reviewZip.setOnClickListener(v->exportReviewZip());
+        LinearLayout.LayoutParams zipP=new LinearLayout.LayoutParams(dp(152),dp(38));
+        zipP.leftMargin=dp(5);feedbackRow.addView(reviewZip,zipP);
         feedbackScroll.addView(feedbackRow);
         root.addView(feedbackScroll);
         syncMarkButton();
+
+        HorizontalScrollView advancedScroll=new HorizontalScrollView(this);
+        advancedScroll.setHorizontalScrollBarEnabled(false);
+        LinearLayout advanced=new LinearLayout(this);
+        advanced.setPadding(dp(7),0,dp(7),dp(3));
+        Button part=button("SELECT PART");
+        part.setOnClickListener(v->{
+            selectingPart=!selectingPart;marking=false;syncMarkButton();
+            message.setText(selectingPart?"Tap a part in A or B to highlight actual mesh":"Orbit mode");
+        });
+        advancedButton(advanced,part,dp(118));
+        Button materialAudit=button("MATERIALS");
+        materialAudit.setOnClickListener(v->showMaterialReports());
+        advancedButton(advanced,materialAudit,dp(106));
+        Button brighten=button("REVEAL DARK");
+        brighten.setOnClickListener(v->{
+            boolean show=mode!=GlbInspectionVariants.Mode.REVEAL_DARK;
+            selectMode(show?GlbInspectionVariants.Mode.REVEAL_DARK:GlbInspectionVariants.Mode.TEXTURED);
+            brighten.setText(show?"SOURCE PBR":"REVEAL DARK");
+        });
+        advancedButton(advanced,brighten,dp(117));
+        Button zebra=button("ZEBRA");
+        zebra.setOnClickListener(v->{
+            for(Pane p:panes)if(p.inspector!=null && p.original!=null)p.inspector.toggleZebra();
+            boolean on=panes[0].inspector!=null && panes[0].inspector.zebraEnabled();
+            zebra.setText(on?"ZEBRA ON":"ZEBRA");
+            message.setText("Automotive zebra reflection continuity analysis "+(on?"enabled":"off"));
+        });
+        advancedButton(advanced,zebra,dp(96));
+        Button solo=button("SOLO / ALL");
+        solo.setOnClickListener(v->{
+            Pane p=panes[lastSelectedPane];
+            if(p.inspector==null||p.inspector.selectedEntity()==0){
+                for(Pane pane:panes)if(pane.inspector!=null)pane.inspector.showAll();
+                message.setText("All components visible");
+            }else{
+                p.inspector.toggleSolo();
+                message.setText("Isolating selected component in "+(lastSelectedPane==0?"A":"B"));
+            }
+        });
+        advancedButton(advanced,solo,dp(103));
+        Button hide=button("HIDE PART");
+        hide.setOnClickListener(v->{
+            Pane p=panes[lastSelectedPane];
+            if(p.inspector==null)return;
+            p.inspector.hideSelection();
+            message.setText("Selected part hidden. SOLO / ALL restores it.");
+        });
+        advancedButton(advanced,hide,dp(104));
+        Button explode=button("EXPLODE");
+        explode.setOnClickListener(v->compareExplode());
+        advancedButton(advanced,explode,dp(102));
+        Button ghost=button("GHOST 50%");
+        ghost.setOnClickListener(v->toggleGhost(ghost));
+        advancedButton(advanced,ghost,dp(115));
+        Button captureA=button("PHOTO 2× A");
+        captureA.setOnClickListener(v->capturePaneHiRes(panes[0]));
+        advancedButton(advanced,captureA,dp(116));
+        Button captureB=button("PHOTO 2× B");
+        captureB.setOnClickListener(v->capturePaneHiRes(panes[1]));
+        advancedButton(advanced,captureB,dp(116));
+        Button restoreSession=button("RESTORE LAST");
+        restoreSession.setOnClickListener(v->restoreLastSession());
+        advancedButton(advanced,restoreSession,dp(122));
+        advancedScroll.addView(advanced);
+        root.addView(advancedScroll);
 
         LinearLayout actions=new LinearLayout(this);actions.setPadding(dp(8),0,dp(8),dp(7));
         Button png=button("SAVE A/B PNG");png.setOnClickListener(v->captureBoth());
@@ -324,6 +395,10 @@ public final class CompareActivity extends Activity implements Choreographer.Fra
         updateIssueCount();
     }
 
+    private void advancedButton(LinearLayout row,Button b,int width){
+        LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(width,dp(38));
+        lp.leftMargin=dp(5);row.addView(b,lp);
+    }
     private void syncMarkButton() {
         if(markButton==null)return;
         markButton.setText(marking ? "TAP TO MARK" : "MARK PANEL");
