@@ -20,10 +20,10 @@ bpy.ops.object.delete(use_global=False)
 
 # This add-on is installed from MakeHumanCommunity source by the CI workflow.
 import addon_utils
-addon_utils.enable("mpfb", default_set=False, persistent=False)
-from mpfb.services.humanservice import HumanService
-from mpfb.services.targetservice import TargetService
-from mpfb.entities.objectproperties import HumanObjectProperties
+addon_utils.enable("bl_ext.user_default.mpfb", default_set=False, persistent=False)
+from bl_ext.user_default.mpfb.services.humanservice import HumanService
+from bl_ext.user_default.mpfb.services.targetservice import TargetService
+from bl_ext.user_default.mpfb.entities.objectproperties import HumanObjectProperties
 
 body = HumanService.create_human(feet_on_ground=True)
 body.name = "Nova_MakeHuman_CC0_Body"
