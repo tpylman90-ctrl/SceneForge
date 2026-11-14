@@ -1,0 +1,72 @@
+name: Nova MPFB anatomical Blender study
+on:
+  push:
+    branches: [experiment/nova-blender-mpfb-v02]
+    paths:
+      - "tools/nova_character_mpfb_v02.py"
+      - ".github/workflows/nova-mpfb-study.yml"
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: nova-blender-mpfb-isolated
+  cancel-in-progress: true
+jobs:
+  nova-mpfb:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install pinned Blender and MPFB from official upstream
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq xvfb libgl1-mesa-dri
+          curl -fL --retry 3 https://download.blender.org/release/Blender4.5/blender-4.5.3-linux-x64.tar.xz -o /tmp/blender.tar.xz
+          tar -xf /tmp/blender.tar.xz -C /tmp
+          git clone --depth 1 https://github.com/makehumancommunity/mpfb2.git /tmp/mpfb2
+          mkdir -p "$HOME/.config/blender/4.5/scripts/addons"
+          ln -s /tmp/mpfb2/src/mpfb "$HOME/.config/blender/4.5/scripts/addons/mpfb"
+      - name: Generate real anatomical Nova mesh in Blender
+        shell: bash
+        env:
+          LIBGL_ALWAYS_SOFTWARE: "1"
+        run: |
+          set -euo pipefail
+          mkdir -p build/nova-mpfb-v02
+          xvfb-run -a /tmp/blender-4.5.3-linux-x64/blender --background --threads 4 --python tools/nova_character_mpfb_v02.py 2>&1 | tee build/nova-mpfb-v02/build.log
+          grep -q NOVA_MPFB_V02_EXPORT_OK build/nova-mpfb-v02/build.log
+          test -s build/nova-mpfb-v02/Nova_v02_MakeHuman.glb
+          test -s build/nova-mpfb-v02/Nova_v02_MakeHuman_Master.blend
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          report = json.loads(Path("build/nova-mpfb-v02/report.json").read_text())
+          assert report["body_vertices"] >= 10000, report
+          assert report["mesh_triangles"] >= 10000, report
+          assert 1.70 <= report["height_m"] <= 1.75, report
+          print("NOVA_V02_GEOMETRY_CHECK_PASSED", report["body_vertices"])
+          PY
+      - name: Upload GLB, editable Blender source, previews, and report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: nova-mpfb-v02-character-study
+          path: build/nova-mpfb-v02/
+          retention-days: 14
+      - name: Publish inspected GLB to experimental branch (not game main)
+        if: success()
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p experiments/nova-v02
+          cp build/nova-mpfb-v02/Nova_v02_MakeHuman.glb experiments/nova-v02/Nova_v02_MakeHuman.glb
+          cp build/nova-mpfb-v02/report.json experiments/nova-v02/report.json
+          cp build/nova-mpfb-v02/Nova_v02_front.png experiments/nova-v02/Nova_v02_front.png
+          cp build/nova-mpfb-v02/Nova_v02_quarter.png experiments/nova-v02/Nova_v02_quarter.png
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add experiments/nova-v02/
+          git commit -m "[nova-v02] publish isolated MPFB GLB and inspection" || exit 0
+          git push origin HEAD:experiment/nova-blender-mpfb-v02
