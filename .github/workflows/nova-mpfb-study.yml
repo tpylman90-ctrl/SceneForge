@@ -26,8 +26,9 @@ jobs:
           curl -fL --retry 3 https://download.blender.org/release/Blender4.5/blender-4.5.3-linux-x64.tar.xz -o /tmp/blender.tar.xz
           tar -xf /tmp/blender.tar.xz -C /tmp
           git clone --depth 1 https://github.com/makehumancommunity/mpfb2.git /tmp/mpfb2
-          mkdir -p "$HOME/.config/blender/4.5/scripts/addons"
-          ln -s /tmp/mpfb2/src/mpfb "$HOME/.config/blender/4.5/scripts/addons/mpfb"
+          /tmp/blender-4.5.3-linux-x64/blender --command extension build --source-dir /tmp/mpfb2/src/mpfb --output-filepath /tmp/mpfb-extension.zip
+          /tmp/blender-4.5.3-linux-x64/blender --command extension install-file -r user_default -e /tmp/mpfb-extension.zip
+          /tmp/blender-4.5.3-linux-x64/blender --command extension repo-list
       - name: Generate real anatomical Nova mesh in Blender
         shell: bash
         env:
