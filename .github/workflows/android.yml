@@ -302,6 +302,13 @@ jobs:
           timeout 120 godot --headless --path game --script res://tests/hover_handling_test.gd 2>&1 | tee build/hover-handling.log
           if grep -E 'SCRIPT ERROR:|ERROR:' build/hover-handling.log; then exit 1; fi
           grep SCENEFORGE_HOVER_HANDLING_OK build/hover-handling.log
+      - name: Check dual-stick multi-touch and tap-boost mapping
+        shell: bash
+        run: |
+          set -euo pipefail
+          timeout 120 godot --headless --path game --script res://tests/dual_stick_test.gd 2>&1 | tee build/dual-stick.log
+          if grep -E 'SCRIPT ERROR:|ERROR:' build/dual-stick.log; then exit 1; fi
+          grep SCENEFORGE_DUAL_STICK_OK build/dual-stick.log
       - name: Verify physical lift in the standalone hover proving ground
         shell: bash
         run: |
