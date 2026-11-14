@@ -1750,7 +1750,9 @@ func _physics_process(delta: float) -> void:
 	var stopping: bool=pressed_reverse or analog_throttle< -0.10
 	var gas_strength: float=1.0 if pressed_forward or boost_requested else clampf(analog_throttle,0.0,1.0)
 	var stop_strength: float=1.0 if pressed_reverse else clampf(-analog_throttle,0.0,1.0)
-	var turn: float=clampf((dual_controls.steer_axis if dual_controls!=null else 0.0)+float(right or Input.is_physical_key_pressed(KEY_D) or Input.is_physical_key_pressed(KEY_RIGHT))-float(left or Input.is_physical_key_pressed(KEY_A) or Input.is_physical_key_pressed(KEY_LEFT)),-1.0,1.0)
+	# SceneForge classic autopilot uses inverted legacy arrow values; flip
+	# the NEW analog X axis so right-thumb-right actually moves toward +X.
+	var turn: float=clampf(-(dual_controls.steer_axis if dual_controls!=null else 0.0)+float(right or Input.is_physical_key_pressed(KEY_D) or Input.is_physical_key_pressed(KEY_RIGHT))-float(left or Input.is_physical_key_pressed(KEY_A) or Input.is_physical_key_pressed(KEY_LEFT)),-1.0,1.0)
 	var skyfall_dive: bool=track_id==Skyfall.ID and route_index>=Skyfall.FLIGHT_START and route_index<Skyfall.FLIGHT_END
 	update_boost(delta,boost_requested,stopping)
 	var previous_speed := speed
