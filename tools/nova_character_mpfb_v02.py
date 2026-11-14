@@ -72,11 +72,21 @@ body.data.materials.clear()
 body.data.materials.append(skin)
 
 # Anatomically conformal garment sections — duplicate the human surface, not primitives.
+body_group=body.vertex_groups.get("body")
+body_only=set()
+if body_group:
+    for v in body.data.vertices:
+        if any(gg.group==body_group.index and gg.weight>.01 for gg in v.groups):
+            body_only.add(v.index)
+print("NOVA_BODY_GROUP", [(g.name,g.index) for g in body.vertex_groups][:25], len(body_only))
+
 def shell(name, filter_fn, material, offset=.009):
     verts=[]
     faces=[]
     idx={}
     for f in body.data.polygons:
+        if body_group and not all(int(v) in body_only for v in f.vertices):
+            continue
         c=f.center
         if not filter_fn(c.x,c.y,c.z):
             continue
@@ -104,10 +114,10 @@ def shell(name, filter_fn, material, offset=.009):
     return obj
 
 # MPFB produces an upright character. Keep her body in A-pose for future rig work.
-shell("Nova_Cyan_Jacket_Upper",lambda x,y,z: 1.17<z<1.43 and abs(x)<.36 and y>.005,cyan)
-shell("Nova_Violet_Jacket_RightSleeve",lambda x,y,z: 1.12<z<1.46 and x>.27, violet)
-shell("Nova_Cyan_Jacket_LeftSleeve",lambda x,y,z: 1.12<z<1.46 and x<-.27, cyan)
-shell("Nova_Crosscheck_Top",lambda x,y,z: 1.26<z<1.43 and abs(x)<.30 and y<.03, black)
+shell("Nova_Cyan_Fitted_Top",lambda x,y,z: 1.23<z<1.38 and abs(x)<.29,cyan,.012)
+shell("Nova_Violet_Cropped_Jacket_Back",lambda x,y,z: 1.30<z<1.51 and abs(x)<.33 and y>.08,violet,.019)
+shell("Nova_Violet_Jacket_RightSleeve",lambda x,y,z: 1.10<z<1.48 and x>.27, violet,.020)
+shell("Nova_Cyan_Jacket_LeftSleeve",lambda x,y,z: 1.10<z<1.48 and x<-.27, cyan,.020)
 
 # Pleated asymmetric racing skirt: separate engineered panels, not a mesh blob.
 def skirt():
@@ -145,7 +155,10 @@ def tube(name, coords, radius, material):
     ob.data.materials.append(material)
     return ob
 
-# Flowing, layered ponytail cards/strands. Not procedural spheres or solid hair 'ropes'.
+# Fit scalp hair to the anatomical head before adding ponytail strands.
+shell("Nova_Blonde_Scalp",lambda x,y,z: z>1.60 and abs(x)<.14 and (y>-.035 or z>1.68),blonde,.010)
+
+# Flowing, layered ponytail strands.
 for j in range(55):
     a=random.uniform(0,2*math.pi)
     rr=random.uniform(0.012,0.095)
@@ -159,7 +172,19 @@ for j in range(55):
     ],random.uniform(.004,.008),blonde if j%4 else blonde_hi)
 
 # Boots, glove cuffs, racing accents as small surface pieces.
-shell("Boots_lower_leg_black",lambda x,y,z: .06<z<.36,black, .018)
+# Make independent left/right footwear, avoiding a bridged boot band.
+for side in (-1,1):
+    bpy.ops.mesh.primitive_cone_add(vertices=32,radius1=.115,radius2=.091,depth=.36,location=(side*.142,0,.25))
+    shaft=bpy.context.object
+    shaft.name=("Left" if side<0 else "Right")+"_Boot_Shaft"
+    shaft.data.materials.append(black)
+    for face in shaft.data.polygons: face.use_smooth=True
+    bpy.ops.mesh.primitive_uv_sphere_add(segments=32,ring_count=16,location=(side*.145,-.095,.076))
+    toe=bpy.context.object
+    toe.name=("Left" if side<0 else "Right")+"_Boot_Toe"
+    toe.scale=(.116,.165,.077)
+    toe.data.materials.append(black)
+    for face in toe.data.polygons: face.use_smooth=True
 shell("Gloves_black",lambda x,y,z: .83<z<1.20 and abs(x)>.47,black,.012)
 shell("Waist_belt_black",lambda x,y,z: .94<z<1.025 and abs(x)<.32,black,.012)
 
