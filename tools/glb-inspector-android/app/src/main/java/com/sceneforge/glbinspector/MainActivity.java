@@ -422,6 +422,12 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
         Button explode=button("EXPLODE");
         explode.setOnClickListener(v->showExplodeControl());
         addAdvancedButton(advanced,explode,dp(104));
+        Button photo2x=button("PHOTO 2×");
+        photo2x.setOnClickListener(v->captureHiRes(2));
+        addAdvancedButton(advanced,photo2x,dp(113));
+        Button photo4x=button("PHOTO 4×");
+        photo4x.setOnClickListener(v->captureHiRes(4));
+        addAdvancedButton(advanced,photo4x,dp(113));
         advancedScroll.addView(advanced);
         main.addView(advancedScroll);
     }
@@ -455,6 +461,12 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
                     if(revealButton!=null)revealButton.setText("SOURCE PAINT");
                 })
                 .setNegativeButton("CLOSE",null).show();
+    }
+    private void captureHiRes(int multiplier){
+        if(!hasInspectableModel())return;
+        String filename=modelName+"_Photo_"+multiplier+"x_"+
+                new SimpleDateFormat("yyyyMMdd_HHmmss",Locale.US).format(new Date())+".png";
+        HiResCapture.capture(this,viewer,surface.getWidth(),surface.getHeight(),multiplier,filename);
     }
     private void showExplodeControl(){
         if(!hasInspectableModel())return;
