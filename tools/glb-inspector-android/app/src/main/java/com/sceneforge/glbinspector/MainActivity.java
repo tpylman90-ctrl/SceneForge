@@ -85,6 +85,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
     private Button studioButton;
     private Button qualityButton;
     private StudioQuality.Preset renderPreset = StudioQuality.Preset.STUDIO;
+    private int exposureStops=0;
     private byte[] sourceGlb;
     private ByteBuffer displayedGlb;
     private GlbInspectionVariants.Mode displayMode = GlbInspectionVariants.Mode.TEXTURED;
@@ -116,6 +117,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
         viewer.setAutoPlayAnimations(true);
         setupStudioLighting();
         StudioQuality.apply(viewer.getEngine(), viewer.getView(), viewer.getCamera(), renderPreset);
+        applyExposure();
         partInspector=new PartInspector(this,viewer);
         setCamera();
         pinch = new ScaleGestureDetector(this, new ScaleGestureDetector.SimpleOnScaleGestureListener() {
@@ -301,6 +303,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
             renderPreset = qualityChoices[(renderPreset.ordinal() + 1) % qualityChoices.length];
             try {
                 StudioQuality.apply(viewer.getEngine(), viewer.getView(), viewer.getCamera(), renderPreset);
+                applyExposure();
                 qualityButton.setText(renderPreset == StudioQuality.Preset.PHOTO ? "PHOTO MAX" :
                         renderPreset == StudioQuality.Preset.STUDIO ? "STUDIO" : "FAST");
                 status.setText(sourceSummary + "   •   Render " + renderPreset.name());
@@ -422,6 +425,16 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
         Button explode=button("EXPLODE");
         explode.setOnClickListener(v->showExplodeControl());
         addAdvancedButton(advanced,explode,dp(104));
+        Button exposure=button("EXPOSURE 0");
+        exposure.setOnClickListener(v->{
+            exposureStops=exposureStops>=4?-1:exposureStops+1;
+            if(exposureStops==-1)exposureStops=0;
+            applyExposure();
+            exposure.setText("EXPOSURE +"+exposureStops);
+            status.setText("Inspection brightness: +"+exposureStops+
+                    " stops (camera only; original GLB material unchanged)");
+        });
+        addAdvancedButton(advanced,exposure,dp(125));
         Button photo2x=button("PHOTO 2×");
         photo2x.setOnClickListener(v->captureHiRes(2));
         addAdvancedButton(advanced,photo2x,dp(113));
@@ -461,6 +474,11 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
                     if(revealButton!=null)revealButton.setText("SOURCE PAINT");
                 })
                 .setNegativeButton("CLOSE",null).show();
+    }
+    private void applyExposure(){
+        if(viewer==null)return;
+        viewer.getCamera().setExposure(13f,1f/125f,
+                (float)(100.0*Math.pow(2.0,exposureStops)));
     }
     private void captureHiRes(int multiplier){
         if(!hasInspectableModel())return;
