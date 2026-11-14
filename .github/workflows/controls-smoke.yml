@@ -1,0 +1,40 @@
+name: Fast hover controls smoke
+on:
+  push:
+    paths:
+      - 'game/vehicles/dual_stick_controls.gd'
+      - 'game/vehicles/hover_rig.gd'
+      - 'game/hover_lab.gd'
+      - 'game/hover_lab.tscn'
+      - 'game/tests/dual_stick_test.gd'
+      - 'game/tests/hover_rigidbody_test.gd'
+      - '.github/workflows/controls-smoke.yml'
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  input-and-hover:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Godot 4.5.1
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --location --retry 3             https://github.com/godotengine/godot/releases/download/4.5.1-stable/Godot_v4.5.1-stable_linux.x86_64.zip             -o /tmp/godot.zip
+          unzip -q /tmp/godot.zip -d /tmp/godot
+          sudo install /tmp/godot/Godot_v4.5.1-stable_linux.x86_64 /usr/local/bin/godot
+      - name: Verify joystick pointer and boost behavior
+        run: |
+          set -euo pipefail
+          timeout 90 godot --headless --path game --script res://tests/dual_stick_test.gd 2>&1 | tee /tmp/sticks.log
+          ! grep -E 'SCRIPT ERROR:|ERROR:' /tmp/sticks.log
+          grep -q SCENEFORGE_DUAL_STICK_OK /tmp/sticks.log
+      - name: Verify real four-probe suspension and bounds
+        run: |
+          set -euo pipefail
+          timeout 90 godot --headless --path game --script res://tests/hover_rigidbody_test.gd 2>&1 | tee /tmp/hover.log
+          ! grep -E 'SCRIPT ERROR:|ERROR:' /tmp/hover.log
+          grep -q SCENEFORGE_RIGIDBODY_HOVER_OK /tmp/hover.log
