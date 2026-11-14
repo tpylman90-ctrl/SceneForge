@@ -83,7 +83,8 @@ public final class CompareActivity extends Activity implements Choreographer.Fra
     private Button markButton, issueButton;
     private String pendingFeedbackExport = "";
     private TextView message;
-    private Button syncButton, projectionButton;
+    private Button syncButton, projectionButton, qualityButton;
+    private StudioQuality.Preset renderPreset = StudioQuality.Preset.STUDIO;
     private boolean sync=true, orthographic=true, running=false;
     private GlbInspectionVariants.Mode mode=GlbInspectionVariants.Mode.TEXTURED;
     private final Button[] modeButtons=new Button[3];
@@ -110,6 +111,7 @@ public final class CompareActivity extends Activity implements Choreographer.Fra
         boolean pinching=false;
         ScaleGestureDetector scale;
         IndirectLight ibl;
+        StudioQuality.Environment hdrEnvironment;
         Texture reflections;
         Skybox sky;
         int[] fillLights=new int[2];
@@ -282,6 +284,29 @@ public final class CompareActivity extends Activity implements Choreographer.Fra
         actions.addView(png,new LinearLayout.LayoutParams(0,dp(43),1f));
         LinearLayout.LayoutParams resetP=new LinearLayout.LayoutParams(0,dp(43),1f);
         resetP.leftMargin=dp(7);actions.addView(reset,resetP);
+        qualityButton=button("STUDIO");
+        LinearLayout.LayoutParams qualityP=new LinearLayout.LayoutParams(0,dp(43),0.85f);
+        qualityP.leftMargin=dp(7);
+        qualityButton.setOnClickListener(v->{
+            StudioQuality.Preset[] presets=StudioQuality.Preset.values();
+            renderPreset=presets[(renderPreset.ordinal()+1)%presets.length];
+            try {
+                for(Pane pane:panes)if(pane!=null && pane.viewer!=null)
+                    StudioQuality.apply(pane.viewer.getEngine(),pane.viewer.getView(),
+                            pane.viewer.getCamera(),renderPreset);
+                qualityButton.setText(renderPreset==StudioQuality.Preset.PHOTO?"PHOTO MAX":
+                        renderPreset==StudioQuality.Preset.STUDIO?"STUDIO":"FAST");
+                message.setText("Render quality: "+renderPreset.name()+" • Two live 3D viewports");
+            }catch(Throwable err){
+                renderPreset=StudioQuality.Preset.PERFORMANCE;
+                for(Pane pane:panes)if(pane!=null && pane.viewer!=null)
+                    StudioQuality.apply(pane.viewer.getEngine(),pane.viewer.getView(),
+                            pane.viewer.getCamera(),renderPreset);
+                qualityButton.setText("FAST");
+                error("This phone could not enable higher quality");
+            }
+        });
+        actions.addView(qualityButton,qualityP);
         root.addView(actions);
         syncModeButtons();
         updateIssueCount();
@@ -348,6 +373,8 @@ public final class CompareActivity extends Activity implements Choreographer.Fra
         pane.viewer.setAutoPlayAnimations(false);
         pane.viewer.getView().setAntiAliasing(com.google.android.filament.View.AntiAliasing.FXAA);
         initStudio(pane);
+        StudioQuality.apply(pane.viewer.getEngine(),pane.viewer.getView(),
+                pane.viewer.getCamera(),renderPreset);
         pane.scale=new ScaleGestureDetector(this,new ScaleGestureDetector.SimpleOnScaleGestureListener(){
             @Override public boolean onScale(ScaleGestureDetector detector){
                 pane.distance=Math.max(2.0f,Math.min(18f,pane.distance/detector.getScaleFactor()));
@@ -449,6 +476,14 @@ public final class CompareActivity extends Activity implements Choreographer.Fra
         p.ibl=new IndirectLight.Builder().reflections(p.reflections).irradiance(3,sh)
                 .intensity(30000).build(engine);
         p.viewer.getScene().setIndirectLight(p.ibl);
+        p.hdrEnvironment=StudioQuality.loadHdrStudio(this,engine);
+        if(p.hdrEnvironment!=null){
+            p.viewer.getScene().setIndirectLight(p.hdrEnvironment.ibl);
+            engine.destroyIndirectLight(p.ibl);
+            engine.destroyTexture(p.reflections);
+            p.ibl=p.hdrEnvironment.ibl;
+            p.reflections=p.hdrEnvironment.texture;
+        }
         p.fillLights[0]=addFill(p,-0.55f,-0.9f,-0.3f,42000,1f,0.97f,0.92f);
         p.fillLights[1]=addFill(p,0.75f,-0.4f,0.6f,23000,0.85f,0.9f,1f);
         p.viewer.getCamera().setExposure(13f,1f/125f,100f);
@@ -931,6 +966,7 @@ public final class CompareActivity extends Activity implements Choreographer.Fra
             try{
                 p.viewer.destroyModel();
                 Engine e=p.viewer.getEngine();
+                StudioQuality.release(e,p.viewer.getView());
                 p.viewer.getScene().setIndirectLight(null);
                 p.viewer.getScene().setSkybox(null);
                 if(p.ibl!=null)e.destroyIndirectLight(p.ibl);
