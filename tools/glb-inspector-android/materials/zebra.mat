@@ -1,7 +1,7 @@
 material {
     name : SceneForgeZebra,
     shadingModel : lit,
-    requires : [normal],
+    requires : [tangents],
     culling : none,
     parameters : [
         { type : float, name : frequency }
