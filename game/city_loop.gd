@@ -1588,14 +1588,11 @@ func update_skyfall_flight(delta: float, surface_height: float) -> float:
 		air_time+=delta
 		if crossing:
 			# A gentle first reveal: glide across genuine open space.
-			car.position.y=lerpf(car.position.y,surface_height+3.0,clampf(delta*2.8,0.0,1.0))
+			car.position.y=lerpf(car.position.y,surface_height+hover_altitude,clampf(delta*2.8,0.0,1.0))
 			skyfall_trim=move_toward(skyfall_trim,0.0,delta*10.0)
 		else:
-			# Assisted descent with meaningful lateral and limited vertical control.
-			# Boost trims upward; brake trims downward, preserving phone controls.
-			var input_trim: float=24.0 if boost_active else (-20.0 if brake else 0.0)
-			skyfall_trim=move_toward(skyfall_trim,input_trim,delta*13.0)
-			var target_height: float=surface_height+8.0+skyfall_trim
+			# Steering stick Y controls bounded altitude, not boost/brake.
+			var target_height: float=surface_height+hover_altitude
 			# Smooth vertical response trails the contour instead of snapping
 			# the vehicle to a camera-invisible altitude spline each frame.
 			var descent_target: float=clampf((target_height-car.position.y)*1.15,-58.0,28.0)
@@ -1742,10 +1739,18 @@ func _physics_process(delta: float) -> void:
 		return
 	if race_mode!=MODE_FREE:
 		race_elapsed+=delta
-	var boost_requested := boost or Input.is_physical_key_pressed(KEY_SHIFT)
-	var gas := throttle or boost_requested or Input.is_physical_key_pressed(KEY_W) or Input.is_physical_key_pressed(KEY_UP)
-	var stopping := brake or Input.is_physical_key_pressed(KEY_S) or Input.is_physical_key_pressed(KEY_DOWN)
-	var turn := float(right or Input.is_physical_key_pressed(KEY_D) or Input.is_physical_key_pressed(KEY_RIGHT))-float(left or Input.is_physical_key_pressed(KEY_A) or Input.is_physical_key_pressed(KEY_LEFT))
+	if dual_controls!=null:
+		dual_controls.tick(delta)
+		update_altitude_target(delta)
+	var analog_throttle: float=dual_controls.throttle_axis if dual_controls!=null else 0.0
+	var pressed_forward: bool=throttle or Input.is_physical_key_pressed(KEY_W) or Input.is_physical_key_pressed(KEY_UP)
+	var pressed_reverse: bool=brake or Input.is_physical_key_pressed(KEY_S) or Input.is_physical_key_pressed(KEY_DOWN)
+	var boost_requested: bool=boost or (dual_controls!=null and dual_controls.boost_remaining>0.0) or Input.is_physical_key_pressed(KEY_SHIFT)
+	var gas: bool=pressed_forward or boost_requested or analog_throttle>0.10
+	var stopping: bool=pressed_reverse or analog_throttle< -0.10
+	var gas_strength: float=1.0 if pressed_forward or boost_requested else clampf(analog_throttle,0.0,1.0)
+	var stop_strength: float=1.0 if pressed_reverse else clampf(-analog_throttle,0.0,1.0)
+	var turn: float=clampf((dual_controls.steer_axis if dual_controls!=null else 0.0)+float(right or Input.is_physical_key_pressed(KEY_D) or Input.is_physical_key_pressed(KEY_RIGHT))-float(left or Input.is_physical_key_pressed(KEY_A) or Input.is_physical_key_pressed(KEY_LEFT)),-1.0,1.0)
 	var skyfall_dive: bool=track_id==Skyfall.ID and route_index>=Skyfall.FLIGHT_START and route_index<Skyfall.FLIGHT_END
 	update_boost(delta,boost_requested,stopping)
 	var previous_speed := speed
@@ -1757,13 +1762,13 @@ func _physics_process(delta: float) -> void:
 			speed=move_toward(speed,0,3*delta)
 			reverse_hold=0
 		elif speed > 0.0:
-			speed = move_toward(speed,0,chassis.braking*delta)
+			speed = move_toward(speed,0,chassis.braking*stop_strength*delta)
 			reverse_hold = 0.0
 		else:
 			# A short stop separates braking from deliberate reversing.
 			reverse_hold += delta
 			if reverse_hold >= chassis.reverse_delay:
-				speed = move_toward(speed,-chassis.max_reverse_speed,chassis.reverse_acceleration*delta)
+				speed = move_toward(speed,-chassis.max_reverse_speed,chassis.reverse_acceleration*stop_strength*delta)
 	elif gas:
 		reverse_hold = 0.0
 		# Thrust first stops backward travel, then accelerates forward.
@@ -1772,7 +1777,7 @@ func _physics_process(delta: float) -> void:
 		else:
 			var limit: float = chassis.max_forward_speed + (chassis.boost_speed_bonus if boost_active else 0.0) + (12.0 if skyfall_dive else 0.0)
 			var push: float = chassis.acceleration * (chassis.boost_acceleration_multiplier if boost_active else 1.0) * ((0.72 if skyfall_dive else 0.25) if airborne else 1.0)
-			speed = move_toward(speed,limit,(push if speed < limit else 5.0)*delta)
+			speed = move_toward(speed,limit,(push*gas_strength if speed < limit else 5.0)*delta)
 	else:
 		reverse_hold = 0.0
 		speed = move_toward(speed,0,chassis.coast_drag*(0.30 if skyfall_dive and airborne else 1.0)*delta)
@@ -1817,7 +1822,9 @@ func _physics_process(delta: float) -> void:
 		else:
 			if was_airborne:
 				hover_response.reset(car.position.y)
-			car.position.y=hover_response.follow_surface(delta,surface_height,speed)
+			car.position.y=hover_response.follow_surface(delta,surface_height+hover_altitude,speed)
+	if not hover_handling_enabled and not airborne:
+		car.position.y=surface_height+hover_altitude
 	if track_id==Skyfall.ID and route_index>=Skyfall.FLIGHT_START and route_index<Skyfall.FLIGHT_END:
 		update_skyfall_gates()
 	if hover_rings!=null:
@@ -1845,6 +1852,7 @@ func _physics_process(delta: float) -> void:
 	if not race_finished:
 		var event_name := "FREE DRIVE" if race_mode==MODE_FREE else ("TIME TRIAL" if race_mode==MODE_TIME_TRIAL else ("SPRINT STAGE" if track_id==4 or track_id==Skyfall.ID else "3-LAP CHALLENGE"))
 		hud.text = track_name()+" / "+event_name+" / LAP %d\n%s %03d KM/H  ·  %.1f s\nBEST %s  ·  %d FPS\n%s" % [lap,"R" if speed < -0.05 else "D",int(absf(speed)*3.6),lap_time,"—" if best==0 else "%.1f s"%best,Engine.get_frames_per_second(),("AIRBORNE / %.1f s"%air_time) if airborne else region_name(int(nearest["index"]))]
+		hud.text+="\nHOVER %.1f M / MAX %.1f M" % [hover_altitude,altitude_bounds().y]
 		if track_id==Skyfall.ID:
 			hud.text+="\n"+skyfall_renderer_label
 
@@ -1947,58 +1955,43 @@ func test_loop() -> void:
 	assert(absf(headings[0]-headings[2])<0.03, "Yaw must remain stable across tick rates")
 	reset_car()
 	print("SCENEFORGE_STEERING_OK")
-	# Android must allow a steering finger and a thrust finger together.
+	# A touch on either joystick is independent of the other finger.
 	var touch := InputEventScreenTouch.new()
 	touch.index=1
 	touch.pressed=true
-	var screen := get_viewport().get_visible_rect().size
-	touch.position=Vector2(100,screen.y-80)
+	touch.position=dual_controls.left_center()+Vector2(0,-75)
 	_input(touch)
 	touch.index=2
-	touch.position=Vector2(screen.x-130,screen.y-80)
+	touch.position=dual_controls.right_center()+Vector2(60,-60)
 	_input(touch)
-	assert(left and throttle)
-	touch.index=1
+	assert(dual_controls.throttle_axis>0.8 and dual_controls.steer_axis>0.4 and dual_controls.height_axis>0.4)
 	touch.pressed=false
 	_input(touch)
-	assert(not left and throttle)
-	touch.index=2
-	_input(touch)
-	assert(not throttle)
-	touch.index=1
-	touch.pressed=true
-	touch.position=Vector2(100,screen.y-80)
-	_input(touch)
-	touch.index=2
-	touch.position=Vector2(screen.x-130,screen.y-170)
-	_input(touch)
-	assert(left and boost and not throttle, "Boost and steering must work with two fingers")
-	touch.pressed=false
-	_input(touch)
+	assert(dual_controls.throttle_axis>0.8 and dual_controls.steer_axis==0.0)
 	touch.index=1
 	_input(touch)
-	assert(not boost and not left)
-	# Generous edge hit areas and dragging between directions.
+	assert(dual_controls.throttle_axis==0.0)
 	touch.index=3
 	touch.pressed=true
-	touch.position=Vector2(5,screen.y-10)
+	touch.position=dual_controls.boost_center()
 	_input(touch)
-	assert(left and not right)
-	_physics_process(1.0/60)
-	assert(left_button.get_theme_stylebox("normal").bg_color.is_equal_approx(Color(0.08,0.32,0.39,0.92)))
-	var drag := InputEventScreenDrag.new()
-	drag.index=3
-	drag.position=Vector2(475,screen.y-10)
-	_input(drag)
-	assert(right and not left)
-	_physics_process(1.0/60)
-	assert(right_button.get_meta("lit") and not left_button.get_meta("lit"))
-	touch.pressed=false
-	_input(touch)
-	assert(not left and not right)
-	_physics_process(1.0/60)
-	assert(not right_button.get_meta("lit") and not left_button.get_meta("lit"))
-	assert(left_button.custom_minimum_size.x==208 and left_button.custom_minimum_size.y==90)
+	assert(dual_controls.boost_remaining>2.0)
+	dual_controls.tick(2.5)
+	assert(dual_controls.boost_remaining==0.0)
+	# Commanded altitude cannot exceed the vertical track boundaries.
+	for hz in [30,60,120]:
+		hover_altitude=1.50
+		dual_controls.height_axis=1.0
+		for step in range(hz*3):
+			update_altitude_target(1.0/float(hz))
+		assert(is_equal_approx(hover_altitude,MAX_TRACK_ALTITUDE))
+		dual_controls.height_axis=-1.0
+		for step in range(hz*3):
+			update_altitude_target(1.0/float(hz))
+		assert(is_equal_approx(hover_altitude,MIN_TRACK_ALTITUDE))
+	dual_controls.height_axis=0.0
+	reset_car()
+	print("SCENEFORGE_TWO_STICK_INPUT_OK")
 	# Geometric continuity, road containment and ordered lap gates.
 	for i in range(COUNT):
 		assert(route[i].distance_to(route[(i+1)%COUNT]) < 4.0)
