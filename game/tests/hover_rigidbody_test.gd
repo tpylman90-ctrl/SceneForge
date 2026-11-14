@@ -22,5 +22,17 @@ func check() -> void:
 	assert(lab.rig.global_position.x>0.1,"Right steering should yaw in the direction of the right button")
 	lab.reset_lab()
 	assert(lab.rig.linear_velocity.length()<0.01)
+	# Actuation is separate from lateral inputs, and held targets stay in range.
+	lab.rig.set_analog_controls(0.0,0.0,1.0,false)
+	for tick in range(240):
+		lab.rig.advance_height_target(1.0/60.0)
+	assert(is_equal_approx(lab.rig.hover_clearance,lab.rig.MAX_HEIGHT))
+	lab.rig.set_analog_controls(0.0,0.0,-1.0,false)
+	for tick in range(240):
+		lab.rig.advance_height_target(1.0/60.0)
+	assert(is_equal_approx(lab.rig.hover_clearance,lab.rig.MIN_HEIGHT))
+	lab.rig.set_analog_controls(0.0,0.0,0.0,false)
+	lab.rig.advance_height_target(1.0)
+	assert(is_equal_approx(lab.rig.hover_clearance,lab.rig.MIN_HEIGHT))
 	print("SCENEFORGE_RIGIDBODY_HOVER_OK")
 	quit()

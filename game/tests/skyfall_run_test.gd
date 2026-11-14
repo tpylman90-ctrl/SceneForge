@@ -98,10 +98,13 @@ func check() -> void:
 	scene.update_jump(1.0/60.0,scene.car.position.y)
 	assert(scene.airborne and scene.jump_launches==2)
 	assert(scene.speed>=scene.chassis.max_forward_speed*1.05,"Summit must launch at racing speed")
-	var lower: float=scene.skyfall_trim
-	scene.boost_active=true
+	var lower: float=scene.hover_altitude
+	scene.dual_controls.height_axis=1.0
+	scene.update_altitude_target(0.4)
+	assert(scene.hover_altitude>lower,"Right stick up should request increased flight altitude")
+	assert(scene.hover_altitude<=scene.altitude_bounds().y,"Flight must respect route ceiling")
 	scene.update_jump(0.4,points[Skyfall.FLIGHT_START+2].y)
-	assert(scene.skyfall_trim>lower,"Boost should lift the free-air trim")
+	scene.dual_controls.height_axis=0.0
 	scene.skyfall_gate_next=0
 	scene.route_index=Skyfall.FlightWorld.GATES[0]
 	scene.car.position=Skyfall.FlightWorld.flight_gate_center(points,0)
