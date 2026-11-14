@@ -1,0 +1,10 @@
+{
+  "source": "MPFB 2 CC0 anatomical mesh",
+  "blender": "4.5.3 LTS",
+  "prototype_stage": "A-pose geometry and clothing fit study; no approved facial likeness",
+  "height_m": 1.73,
+  "body_vertices": 19158,
+  "objects": 87,
+  "mesh_triangles": 49468,
+  "notes": "Blender-rendered reference GLB, not phone runtime-tested; no skin rig or animations yet."
+}
