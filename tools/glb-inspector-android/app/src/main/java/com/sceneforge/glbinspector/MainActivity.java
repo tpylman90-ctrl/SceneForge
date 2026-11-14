@@ -289,8 +289,8 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
         utilities.addView(studioButton, studioParams);
         qualityButton = button("STUDIO");
         qualityButton.setOnClickListener(v -> {
-            StudioQuality.Preset[] presets = StudioQuality.Preset.values();
-            renderPreset = presets[(renderPreset.ordinal() + 1) % presets.length];
+            StudioQuality.Preset[] qualityChoices = StudioQuality.Preset.values();
+            renderPreset = qualityChoices[(renderPreset.ordinal() + 1) % qualityChoices.length];
             try {
                 StudioQuality.apply(viewer.getEngine(), viewer.getView(), viewer.getCamera(), renderPreset);
                 qualityButton.setText(renderPreset == StudioQuality.Preset.PHOTO ? "PHOTO MAX" :
