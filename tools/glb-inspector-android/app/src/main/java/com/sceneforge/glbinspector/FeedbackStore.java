@@ -36,6 +36,10 @@ public final class FeedbackStore {
         public int pane;
         public float u,v,azimuth,elevation,distance;
         public boolean orthographic;
+        public boolean depthHit;
+        public double worldX,worldY,worldZ;
+        public String partName="";
+        public float depth;
         public long createdUtcMillis;
 
         public JSONObject toJson() throws Exception {
@@ -50,13 +54,19 @@ public final class FeedbackStore {
             o.put("description",description);
             o.put("created_utc",utc(createdUtcMillis));
             o.put("inspection_mode",mode);
+            o.put("part_name",partName==null?"":partName);
             o.put("anchor",new JSONObject()
                     .put("type","view_snapshot_normalized")
                     .put("units","relative_to_model_viewport")
                     .put("x",round(u))
                     .put("y",round(v))
-                    .put("world_position",JSONObject.NULL)
+                    .put("world_position",depthHit ?
+                            new JSONObject().put("x",worldX).put("y",worldY).put("z",worldZ)
+                                    .put("units","normalized_render_world") :
+                            JSONObject.NULL)
                     .put("is_surface_raycast",false)
+                    .put("is_depth_buffer_hit",depthHit)
+                    .put("depth",depthHit?depth:JSONObject.NULL)
                     .put("camera",new JSONObject()
                             .put("azimuth_degrees",round(azimuth))
                             .put("elevation_degrees",round(elevation))
@@ -77,7 +87,17 @@ public final class FeedbackStore {
                 n.description=o.optString("description");
                 n.createdUtcMillis=System.currentTimeMillis();
                 n.mode=o.optString("inspection_mode","TEXTURED");
+                n.partName=o.optString("part_name","");
                 JSONObject anchor=o.getJSONObject("anchor");
+                n.depthHit=anchor.optBoolean("is_depth_buffer_hit",false);
+                if(n.depthHit){
+                    JSONObject world=anchor.optJSONObject("world_position");
+                    if(world!=null){
+                        n.worldX=world.optDouble("x");n.worldY=world.optDouble("y");
+                        n.worldZ=world.optDouble("z");
+                    }
+                    n.depth=(float)anchor.optDouble("depth",0);
+                }
                 n.u=(float)anchor.getDouble("x");
                 n.v=(float)anchor.getDouble("y");
                 JSONObject camera=anchor.getJSONObject("camera");
@@ -148,9 +168,11 @@ public final class FeedbackStore {
         result.put("exported_at_utc",utc(System.currentTimeMillis()));
         result.put("software","SceneForge GLB Inspector Android");
         result.put("coordinate_convention",
-                "Viewport x/y are normalized [0,1], origin at top-left; captured camera pose required.");
+                "Viewport x/y are normalized [0,1], origin at top-left. " +
+                "3D depth picks also carry normalized render world coordinates; restore projection and pose for comparison.");
         result.put("anchor_limitations",
-                "Screen-view annotations, not 3D raycast surface points. Restore camera before applying corrections.");
+                "Some annotations are 2D view snapshots; newer annotations may include true GPU depth-buffer 3D hits. " +
+                "3D values are normalized renderer-world coordinates, not original authoring-meter units.");
         result.put("pair",new JSONObject()
                 .put("A",new JSONObject().put("filename",modelA==null?"":modelA)
                         .put("sha256",hashA==null?"":hashA))
@@ -172,8 +194,9 @@ public final class FeedbackStore {
         result.put("issues",issues);
         result.put("instructions_for_ai",
                 "Use each issue's description, severity, target GLB SHA-256 and recorded camera pose. " +
-                "Match marker_number in the annotated A/B PNG to each issue and its normalized viewport anchor. " +
-                "Inspect and change model geometry only after confirming the defect; do not treat anchors as 3D vertex positions.");
+                "Match marker_number in the annotated A/B PNG to each issue and normalized viewport anchor. " +
+                "Inspect and change model geometry only after confirming the defect; " +
+                "depth world hits identify surface locations, not original glTF vertex indexes.");
         return result;
     }
 
