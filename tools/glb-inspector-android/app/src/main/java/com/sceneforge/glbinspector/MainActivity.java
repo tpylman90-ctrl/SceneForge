@@ -152,51 +152,76 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
     private void verifyModesForCi() {
         new Thread(() -> {
             try {
-                byte[] square = GlbInspectionVariants.diagnosticSquare();
-                byte[] clay = GlbInspectionVariants.create(square, GlbInspectionVariants.Mode.CLAY);
-                byte[] wire = GlbInspectionVariants.create(square, GlbInspectionVariants.Mode.WIREFRAME);
-                // A two-triangle square must have five distinct real topology edges.
-                ByteBuffer h = ByteBuffer.wrap(wire).order(ByteOrder.LITTLE_ENDIAN);
-                JSONObject root = new JSONObject(new String(wire, 20, h.getInt(12),
-                        StandardCharsets.UTF_8).trim());
-                JSONObject prim = root.getJSONArray("meshes").getJSONObject(0)
+                byte[] square=GlbInspectionVariants.diagnosticSquare();
+                byte[] clay=GlbInspectionVariants.create(square,GlbInspectionVariants.Mode.CLAY);
+                byte[] wire=GlbInspectionVariants.create(square,GlbInspectionVariants.Mode.WIREFRAME);
+                byte[] reveal=GlbInspectionVariants.create(square,GlbInspectionVariants.Mode.REVEAL_DARK);
+                ByteBuffer h=ByteBuffer.wrap(wire).order(ByteOrder.LITTLE_ENDIAN);
+                JSONObject root=new JSONObject(new String(wire,20,h.getInt(12),StandardCharsets.UTF_8).trim());
+                JSONObject prim=root.getJSONArray("meshes").getJSONObject(0)
                         .getJSONArray("primitives").getJSONObject(0);
-                JSONObject indices = root.getJSONArray("accessors").getJSONObject(prim.getInt("indices"));
-                if (prim.getInt("mode") != 1 || indices.getInt("count") != 10) {
-                    throw new IllegalStateException("Wireframe edges did not match indexed triangles");
-                }
-                runOnUiThread(() -> {
-                    try {
-                        byte[][] models = {square, clay, wire, square};
-                        String[] labels = {"TEXTURED", "CLAY", "WIREFRAME", "RESTORED"};
-                        for (int i = 0; i < models.length; i++) {
-                            ByteBuffer payload = ByteBuffer.allocateDirect(models[i].length);
-                            payload.put(models[i]).flip();
-                            viewer.loadModelGlb(payload);
-                            if (viewer.getAsset() == null) {
-                                throw new IllegalStateException(labels[i] + " did not load into Filament");
-                            }
-                            viewer.transformToUnitCube(new Float3(0f, 0f, -4f));
-                            partInspector.onNewModel();
-                            displayedGlb = payload;
-                            android.util.Log.i("SCENEFORGE_MODE_TEST", labels[i] + "_PASSED");
-                        }
-                        sourceGlb = square;
-                        sourceSummary = "Native GLB mode verification";
-                        modelLoaded = true;
-                        displayMode = GlbInspectionVariants.Mode.TEXTURED;
-                        syncModeButtons();
-                        status.setText(sourceSummary);
-                        android.util.Log.i("SCENEFORGE_MODE_TEST", "ALL_MODES_PASSED");
-                    } catch (Throwable ex) {
-                        android.util.Log.e("SCENEFORGE_MODE_TEST", "FAILED", ex);
-                        status.setText("Mode test failed: " + ex.getMessage());
-                    }
+                JSONObject indices=root.getJSONArray("accessors").getJSONObject(prim.getInt("indices"));
+                if(prim.getInt("mode")!=1 || indices.getInt("count")!=10)
+                    throw new IllegalStateException("Wireframe indexed edge count incorrect");
+                if(GlbMaterialAudit.inspect(square).parseError)
+                    throw new IllegalStateException("Material audit cannot parse diagnostic GLB");
+                runOnUiThread(()->{
+                    byte[][] variants={square,clay,wire,reveal,square};
+                    String[] labels={"TEXTURED","CLAY","WIREFRAME","REVEAL_DARK","RESTORED"};
+                    verifyModesSequentially(variants,labels,0);
                 });
-            } catch (Throwable ex) {
-                android.util.Log.e("SCENEFORGE_MODE_TEST", "FAILED", ex);
-            }
-        }, "glb-mode-diagnostic").start();
+            }catch(Throwable ex){android.util.Log.e("SCENEFORGE_MODE_TEST","FAILED",ex);}
+        },"glb-mode-diagnostic").start();
+    }
+
+    /**
+     * gltfio loads resources asynchronously. Destroying/reloading four assets in one main-thread
+     * iteration hit a native ResourceLoader::asyncCancelLoad crash in Android emulator testing.
+     * Give each asset enough rendered frames to complete resource loading before destruction.
+     */
+    private void verifyModesSequentially(byte[][] variants,String[] labels,int index){
+        if(index>=variants.length){
+            sourceGlb=variants[0];
+            sourceSummary="Native GLB mode verification";
+            modelLoaded=true;
+            displayMode=GlbInspectionVariants.Mode.TEXTURED;
+            syncModeButtons();
+            status.setText(sourceSummary);
+            android.util.Log.i("SCENEFORGE_MODE_TEST","ALL_MODES_PASSED");
+            return;
+        }
+        final long requestStarted=android.os.SystemClock.uptimeMillis();
+        waitForPreviousGlbLoad(requestStarted,()->{
+            try {
+                ByteBuffer payload=ByteBuffer.allocateDirect(variants[index].length);
+                payload.put(variants[index]).flip();
+                viewer.loadModelGlb(payload);
+                if(viewer.getAsset()==null)
+                    throw new IllegalStateException(labels[index]+" gltfio rejected variant");
+                viewer.transformToUnitCube(new Float3(0f,0f,-4f));
+                partInspector.onNewModel();
+                displayedGlb=payload;
+                android.util.Log.i("SCENEFORGE_MODE_TEST",labels[index]+"_PASSED");
+                // Allow several real rendering frames between the starts of asynchronous loads.
+                handler.postDelayed(()->verifyModesSequentially(variants,labels,index+1),700);
+            }catch(Throwable ex){android.util.Log.e("SCENEFORGE_MODE_TEST","FAILED",ex);}
+        },()->android.util.Log.e("SCENEFORGE_MODE_TEST",
+                "FAILED waiting for async glTF resources before "+labels[index]));
+    }
+
+    /**
+     * Non-blocking gltfio swap gate; never interrupt a still-running decode merely to
+     * switch preview modes. The running Choreographer renders while this is pending.
+     */
+    private void waitForPreviousGlbLoad(long started,Runnable ready,Runnable timedOut){
+        if(viewer==null || viewer.getAsset()==null){ready.run();return;}
+        float progress=viewer.getProgress();
+        if(progress>=0.999f){ready.run();return;}
+        if(android.os.SystemClock.uptimeMillis()-started>18_000L){
+            timedOut.run();
+            return;
+        }
+        handler.postDelayed(()->waitForPreviousGlbLoad(started,ready,timedOut),120);
     }
 
     private void buildUi() {
