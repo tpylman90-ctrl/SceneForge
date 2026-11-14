@@ -462,6 +462,231 @@ public final class CompareActivity extends Activity implements Choreographer.Fra
         }
     }
 
+    private Bitmap displayedGhost;
+    private void updateGhostFrame(){
+        if(!ghostEnabled||ghostCopying||!running||ghostOverlay==null)return;
+        Pane source=panes[1];
+        if(source==null||source.surface==null || source.surface.getWidth()<1||
+                source.surface.getHeight()<1 || source.original==null)return;
+        ghostCopying=true;
+        Bitmap bmp=Bitmap.createBitmap(source.surface.getWidth(),source.surface.getHeight(),
+                Bitmap.Config.ARGB_8888);
+        PixelCopy.request(source.surface,bmp,status->{
+            ghostCopying=false;
+            if(status!=PixelCopy.SUCCESS||!ghostEnabled||isFinishing()){
+                bmp.recycle();return;
+            }
+            Bitmap old=displayedGhost;
+            displayedGhost=bmp;
+            ghostOverlay.setImageBitmap(bmp);
+            ghostOverlay.invalidate();
+            if(old!=null && old!=bmp)handler.postDelayed(old::recycle,150);
+        },handler);
+    }
+    private void toggleGhost(Button toggle){
+        if(!ghostEnabled){
+            if(panes[0].original==null||panes[1].original==null){
+                error("Open both GLBs to overlay the B render on A.");return;
+            }
+            ghostEnabled=true;ghostOpacity=0.50f;
+            sync=true;syncButton.setText("SYNC ON");
+            syncButton.setBackgroundTintList(android.content.res.ColorStateList.valueOf(ACCENT));
+            copyAngles(panes[0],panes[1]);
+            updateCameras();
+        }else if(ghostOpacity==0.50f)ghostOpacity=0.70f;
+        else if(ghostOpacity==0.70f)ghostOpacity=0.30f;
+        else ghostEnabled=false;
+        toggle.setText(ghostEnabled?"GHOST "+Math.round(ghostOpacity*100)+"%":"GHOST OFF");
+        if(ghostOverlay!=null){
+            ghostOverlay.setVisibility(ghostEnabled?View.VISIBLE:View.GONE);
+            ghostOverlay.setAlpha(ghostOpacity);
+        }
+        message.setText(ghostEnabled?"Screen-space overlay of B on A • synchronized camera; normalized GLB sizes":
+                "Ghost overlay disabled");
+        if(ghostEnabled)updateGhostFrame();
+    }
+    private void showMaterialReports(){
+        StringBuilder report=new StringBuilder();
+        for(Pane pane:panes){
+            report.append(pane.index==0?"A / LEFT\n":"B / RIGHT\n");
+            if(pane.original==null)report.append("No GLB selected\n\n");
+            else report.append(GlbMaterialAudit.inspect(pane.original).detail()).append("\n\n");
+        }
+        new AlertDialog.Builder(this).setTitle("GLB material & texture audit")
+                .setMessage(report.toString())
+                .setPositiveButton("CLOSE",null).show();
+    }
+    private void compareExplode(){
+        if(panes[0].original==null&&panes[1].original==null){
+            error("Open a GLB first");return;
+        }
+        SeekBar bar=new SeekBar(this);
+        bar.setMax(100);bar.setProgress(panes[0].inspector.exploded()?45:0);
+        bar.setPadding(dp(18),dp(16),dp(18),dp(10));
+        bar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener(){
+            @Override public void onProgressChanged(SeekBar slider,int value,boolean user){
+                if(user)for(Pane p:panes)if(p.inspector!=null&&p.original!=null)
+                    p.inspector.explode(value/100f);
+            }
+            @Override public void onStartTrackingTouch(SeekBar slider){}
+            @Override public void onStopTrackingTouch(SeekBar slider){}
+        });
+        new AlertDialog.Builder(this).setTitle("Exploded component assembly")
+                .setMessage("Drag to separate GLB components temporarily. Original files are not edited.")
+                .setView(bar)
+                .setNeutralButton("RESTORE",(d,which)->{
+                    for(Pane p:panes)if(p.inspector!=null)p.inspector.explode(0f);
+                })
+                .setPositiveButton("DONE",null).show();
+    }
+    private void capturePaneHiRes(Pane pane){
+        if(pane.original==null){error("Load this GLB first");return;}
+        String safeName=pane.name.replaceAll("[^A-Za-z0-9_-]","_");
+        HiResCapture.capture(this,pane.viewer,pane.surface.getWidth(),pane.surface.getHeight(),2,
+                "SceneForge_"+(pane.index==0?"A":"B")+"_"+safeName+"_Photo2x_"+
+                new SimpleDateFormat("yyyyMMdd_HHmmss",Locale.US).format(new Date())+".png");
+    }
+    private void persistCameraSession(){
+        if(sessionPrefs==null)return;
+        SharedPreferences.Editor edit=sessionPrefs.edit();
+        edit.putBoolean("sync",sync).putBoolean("orthographic",orthographic)
+                .putString("mode",mode.name());
+        for(Pane pane:panes){
+            String prefix=pane.index==0?"A":"B";
+            edit.putFloat(prefix+"az",pane.azimuth)
+                    .putFloat(prefix+"el",pane.elevation)
+                    .putFloat(prefix+"dist",pane.distance);
+        }
+        edit.apply();
+    }
+    private void restoreLastSession(){
+        String left=sessionPrefs.getString("uriA","");
+        String right=sessionPrefs.getString("uriB","");
+        if(left.isEmpty()&&right.isEmpty()){
+            error("No previous A/B review files saved");return;
+        }
+        sync=sessionPrefs.getBoolean("sync",true);
+        orthographic=sessionPrefs.getBoolean("orthographic",true);
+        projectionButton.setText(orthographic?"ORTHO":"3D");
+        syncButton.setText(sync?"SYNC ON":"SYNC OFF");
+        syncButton.setBackgroundTintList(android.content.res.ColorStateList.valueOf(sync?ACCENT:PANEL));
+        for(Pane pane:panes){
+            String prefix=pane.index==0?"A":"B";
+            pane.azimuth=sessionPrefs.getFloat(prefix+"az",90f);
+            pane.elevation=sessionPrefs.getFloat(prefix+"el",9f);
+            pane.distance=sessionPrefs.getFloat(prefix+"dist",4.1f);
+        }
+        try{mode=GlbInspectionVariants.Mode.valueOf(
+                sessionPrefs.getString("mode","TEXTURED"));}
+        catch(Exception ignored){mode=GlbInspectionVariants.Mode.TEXTURED;}
+        if(!left.isEmpty())loadUri(panes[0],Uri.parse(left));
+        if(!right.isEmpty())loadUri(panes[1],Uri.parse(right));
+        updateCameras();syncModeButtons();
+        message.setText("Restoring previous GLBs and camera angles from local document grants");
+    }
+    private void exportReviewZip(){
+        if(panes[0].original==null||panes[1].original==null){
+            error("Load both GLBs to export the complete review package");return;
+        }
+        persistCameraSession();
+        Intent save=new Intent(Intent.ACTION_CREATE_DOCUMENT);
+        save.addCategory(Intent.CATEGORY_OPENABLE);
+        save.setType("application/zip");
+        save.putExtra(Intent.EXTRA_TITLE,"SceneForge_Review_"+
+                new SimpleDateFormat("yyyyMMdd_HHmmss",Locale.US).format(new Date())+".zip");
+        startActivityForResult(save,EXPORT_REVIEW_ZIP);
+    }
+    private void saveReviewPackage(Uri destination){
+        if(panes[0].original==null||panes[1].original==null)return;
+        SurfaceView a=panes[0].surface,b=panes[1].surface;
+        if(a.getWidth()<1||b.getWidth()<1){error("Render surfaces not ready");return;}
+        Bitmap bitmapA=Bitmap.createBitmap(a.getWidth(),a.getHeight(),Bitmap.Config.ARGB_8888);
+        Bitmap bitmapB=Bitmap.createBitmap(b.getWidth(),b.getHeight(),Bitmap.Config.ARGB_8888);
+        PixelCopy.request(a,bitmapA,status->{
+            if(status!=PixelCopy.SUCCESS){
+                bitmapA.recycle();bitmapB.recycle();
+                error("Review A screenshot unavailable");return;
+            }
+            PixelCopy.request(b,bitmapB,status2->{
+                if(status2!=PixelCopy.SUCCESS){
+                    bitmapA.recycle();bitmapB.recycle();
+                    error("Review B screenshot unavailable");return;
+                }
+                Bitmap reference=referenceWindow.referenceBitmap();
+                JSONObject exported;
+                try{
+                    exported=feedback.export(panes[0].name,panes[0].hash,
+                            panes[1].name,panes[1].hash,
+                            referenceWindow.referenceName(),sync,mode.name());
+                }catch(Exception ex){
+                    bitmapA.recycle();bitmapB.recycle();
+                    error("Review package metadata: "+ex.getMessage());return;
+                }
+                JSONObject manifest=new JSONObject();
+                try{
+                    manifest.put("schema","sceneforge.review-package/v1");
+                    manifest.put("source","SceneForge GLB Inspector Android");
+                    manifest.put("created_utc",new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'",
+                            Locale.US){{setTimeZone(java.util.TimeZone.getTimeZone("UTC"));}}.format(new Date()));
+                    manifest.put("model_A",new JSONObject().put("name",panes[0].name)
+                            .put("sha256",panes[0].hash));
+                    manifest.put("model_B",new JSONObject().put("name",panes[1].name)
+                            .put("sha256",panes[1].hash));
+                    manifest.put("reference",referenceWindow.referenceName());
+                    manifest.put("inspection_mode",mode.name());
+                    manifest.put("projection",orthographic?"orthographic":"perspective");
+                    manifest.put("synchronized_cameras",sync);
+                    for(Pane p:panes){
+                        manifest.put(p.index==0?"camera_A":"camera_B",new JSONObject()
+                                .put("azimuth_degrees",p.azimuth)
+                                .put("elevation_degrees",p.elevation)
+                                .put("orbit_distance",p.distance));
+                    }
+                    manifest.put("feedback_items",exported.getJSONArray("issues").length());
+                    manifest.put("contains_model_bytes",false);
+                }catch(Exception ex){
+                    bitmapA.recycle();bitmapB.recycle();
+                    error("Review manifest: "+ex.getMessage());return;
+                }
+                new Thread(()->{
+                    try(OutputStream out=getContentResolver().openOutputStream(destination)){
+                        if(out==null)throw new IllegalArgumentException("Destination not writable");
+                        try(ZipOutputStream zip=new ZipOutputStream(out)){
+                            zip.putNextEntry(new ZipEntry("review_manifest.json"));
+                            zip.write(manifest.toString(2).getBytes(StandardCharsets.UTF_8));
+                            zip.closeEntry();
+                            zip.putNextEntry(new ZipEntry("ai_feedback.json"));
+                            zip.write(exported.toString(2).getBytes(StandardCharsets.UTF_8));
+                            zip.closeEntry();
+                            zip.putNextEntry(new ZipEntry("model_A_render.png"));
+                            bitmapA.compress(Bitmap.CompressFormat.PNG,100,zip);
+                            zip.closeEntry();
+                            zip.putNextEntry(new ZipEntry("model_B_render.png"));
+                            bitmapB.compress(Bitmap.CompressFormat.PNG,100,zip);
+                            zip.closeEntry();
+                            if(reference!=null&&!reference.isRecycled()){
+                                zip.putNextEntry(new ZipEntry("photo_reference.png"));
+                                reference.compress(Bitmap.CompressFormat.PNG,100,zip);
+                                zip.closeEntry();
+                            }
+                            zip.putNextEntry(new ZipEntry("README.txt"));
+                            zip.write(("SCENEFORGE INSPECTOR REVIEW PACKAGE\n"+
+                                    "The JSON references true GLB names, hashes, depth-picked 3D anchors where available, "+
+                                    "and original camera poses. PNGs are actual Android GPU renderings.\n"+
+                                    "The source GLBs are not embedded: provide model files separately if geometry editing is required.\n"+
+                                    "Original GLB files were never changed by exporting this ZIP.\n")
+                                    .getBytes(StandardCharsets.UTF_8));
+                            zip.closeEntry();
+                        }
+                        runOnUiThread(()->Toast.makeText(this,"Review package ZIP saved",Toast.LENGTH_LONG).show());
+                    }catch(Exception ex){
+                        runOnUiThread(()->error("Review ZIP export failed: "+ex.getMessage()));
+                    }finally{bitmapA.recycle();bitmapB.recycle();}
+                },"review-zip-save").start();
+            },handler);
+        },handler);
+    }
+
     private void createRenderer(Pane pane){
         pane.viewer=new ModelViewer(pane.surface,Engine.create(),
                 new UiHelper(UiHelper.ContextErrorPolicy.DONT_CHECK),null);
