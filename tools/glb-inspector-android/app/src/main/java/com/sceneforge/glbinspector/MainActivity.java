@@ -65,6 +65,12 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
     private final Handler handler = new Handler(Looper.getMainLooper());
     private SurfaceView surface;
     private ModelViewer viewer;
+    private PartInspector partInspector;
+    private GlbMaterialAudit.Report materialReport;
+    private int tapTool=0; // 0 orbit, 1 pick part, 2 measure real 3D hit pairs
+    private PartInspector.Hit firstMeasure;
+    private float touchStartX, touchStartY;
+    private Button partButton, measureButton, zebraButton, revealButton;
     private TextView title;
     private TextView status;
     private ScaleGestureDetector pinch;
@@ -110,6 +116,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
         viewer.setAutoPlayAnimations(true);
         setupStudioLighting();
         StudioQuality.apply(viewer.getEngine(), viewer.getView(), viewer.getCamera(), renderPreset);
+        partInspector=new PartInspector(this,viewer);
         setCamera();
         pinch = new ScaleGestureDetector(this, new ScaleGestureDetector.SimpleOnScaleGestureListener() {
             @Override public boolean onScale(ScaleGestureDetector detector) {
@@ -168,6 +175,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
                                 throw new IllegalStateException(labels[i] + " did not load into Filament");
                             }
                             viewer.transformToUnitCube(new Float3(0f, 0f, -4f));
+                            partInspector.onNewModel();
                             displayedGlb = payload;
                             android.util.Log.i("SCENEFORGE_MODE_TEST", labels[i] + "_PASSED");
                         }
@@ -337,6 +345,134 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
         lightP.leftMargin = dp(9);
         actions.addView(lightButton, lightP);
         main.addView(actions);
+
+        // Scrollable tool shelf keeps 3D workspace usable on small Android phones.
+        HorizontalScrollView advancedScroll=new HorizontalScrollView(this);
+        advancedScroll.setHorizontalScrollBarEnabled(false);
+        LinearLayout advanced=new LinearLayout(this);
+        advanced.setPadding(dp(8),dp(1),dp(8),dp(5));
+        Button auditButton=button("MATERIAL AUDIT");
+        auditButton.setOnClickListener(v->showMaterialAudit());
+        advanced.addView(auditButton,new LinearLayout.LayoutParams(dp(128),dp(43)));
+        revealButton=button("REVEAL DARK");
+        revealButton.setOnClickListener(v->{
+            if(!modelLoaded){error("Open a GLB first");return;}
+            boolean reveal=displayMode!=GlbInspectionVariants.Mode.REVEAL_DARK;
+            displayAs(reveal?GlbInspectionVariants.Mode.REVEAL_DARK:GlbInspectionVariants.Mode.TEXTURED);
+            revealButton.setText(reveal?"SOURCE PAINT":"REVEAL DARK");
+        });
+        addAdvancedButton(advanced,revealButton,dp(122));
+        partButton=button("SELECT PART");
+        partButton.setOnClickListener(v->{
+            tapTool=tapTool==1?0:1;
+            firstMeasure=null;syncTapTools();
+            status.setText(tapTool==1?"Tap a visible model component to select/highlight it":"Orbit mode");
+        });
+        addAdvancedButton(advanced,partButton,dp(120));
+        measureButton=button("MEASURE");
+        measureButton.setOnClickListener(v->{
+            tapTool=tapTool==2?0:2;firstMeasure=null;syncTapTools();
+            status.setText(tapTool==2?"Tap two real surfaces to measure (GLB units)":"Orbit mode");
+        });
+        addAdvancedButton(advanced,measureButton,dp(106));
+        zebraButton=button("ZEBRA");
+        zebraButton.setOnClickListener(v->{
+            if(!hasInspectableModel())return;
+            partInspector.toggleZebra();
+            zebraButton.setText(partInspector.zebraEnabled()?"ZEBRA ON":"ZEBRA");
+            status.setText(partInspector.zebraEnabled() ?
+                    "Zebra reflection stripes • orbit to inspect surface continuity" :
+                    "Restored original PBR materials");
+        });
+        addAdvancedButton(advanced,zebraButton,dp(90));
+        Button stripe=button("STRIPE FREQ");
+        stripe.setOnClickListener(v->{
+            if(!hasInspectableModel())return;
+            final String[] labels={"Wide: 8","Medium: 16","Fine: 28"};
+            final float[] freq={8f,16f,28f};
+            new android.app.AlertDialog.Builder(this)
+                    .setTitle("Zebra stripe spacing")
+                    .setItems(labels,(dialog,which)->{
+                        partInspector.adjustZebraFrequency(freq[which]);
+                        if(!partInspector.zebraEnabled())partInspector.toggleZebra();
+                        zebraButton.setText("ZEBRA ON");
+                    }).show();
+        });
+        addAdvancedButton(advanced,stripe,dp(109));
+        Button solo=button("SOLO / ALL");
+        solo.setOnClickListener(v->{
+            if(!hasInspectableModel())return;
+            partInspector.toggleSolo();
+            status.setText("Selection isolation toggled");
+        });
+        addAdvancedButton(advanced,solo,dp(110));
+        Button hide=button("HIDE PART");
+        hide.setOnClickListener(v->{
+            if(!hasInspectableModel())return;
+            partInspector.hideSelection();status.setText("Part hidden • SHOW ALL to restore");
+        });
+        addAdvancedButton(advanced,hide,dp(108));
+        Button all=button("SHOW ALL");
+        all.setOnClickListener(v->{
+            if(!hasInspectableModel())return;
+            partInspector.showAll();zebraButton.setText("ZEBRA");
+            status.setText("All components restored");
+        });
+        addAdvancedButton(advanced,all,dp(100));
+        Button explode=button("EXPLODE");
+        explode.setOnClickListener(v->showExplodeControl());
+        addAdvancedButton(advanced,explode,dp(104));
+        advancedScroll.addView(advanced);
+        main.addView(advancedScroll);
+    }
+
+    private void addAdvancedButton(LinearLayout row,Button button,int width){
+        LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(width,dp(43));
+        lp.leftMargin=dp(5);
+        row.addView(button,lp);
+    }
+    private boolean hasInspectableModel(){
+        if(!modelLoaded||partInspector==null){error("Load a GLB first");return false;}
+        return true;
+    }
+    private void syncTapTools(){
+        if(partButton!=null){
+            partButton.setBackgroundTintList(android.content.res.ColorStateList.valueOf(tapTool==1?ACCENT:PANEL));
+            partButton.setTextColor(tapTool==1?BG:TEXT);
+        }
+        if(measureButton!=null){
+            measureButton.setBackgroundTintList(android.content.res.ColorStateList.valueOf(tapTool==2?ACCENT:PANEL));
+            measureButton.setTextColor(tapTool==2?BG:TEXT);
+        }
+    }
+    private void showMaterialAudit(){
+        if(!modelLoaded||sourceGlb==null){error("Load a GLB first");return;}
+        if(materialReport==null)materialReport=GlbMaterialAudit.inspect(sourceGlb);
+        new android.app.AlertDialog.Builder(this).setTitle("Source material & texture audit")
+                .setMessage(materialReport.detail())
+                .setPositiveButton("REVEAL DARK (VIEW ONLY)",(dialog,which)->{
+                    displayAs(GlbInspectionVariants.Mode.REVEAL_DARK);
+                    if(revealButton!=null)revealButton.setText("SOURCE PAINT");
+                })
+                .setNegativeButton("CLOSE",null).show();
+    }
+    private void showExplodeControl(){
+        if(!hasInspectableModel())return;
+        android.widget.SeekBar slider=new android.widget.SeekBar(this);
+        slider.setMax(100);
+        slider.setProgress(partInspector.exploded()?55:0);
+        slider.setPadding(dp(22),dp(22),dp(22),dp(12));
+        slider.setOnSeekBarChangeListener(new android.widget.SeekBar.OnSeekBarChangeListener(){
+            @Override public void onProgressChanged(android.widget.SeekBar bar,int progress,boolean fromUser){
+                if(fromUser)partInspector.explode(progress/100f);
+            }
+            @Override public void onStartTrackingTouch(android.widget.SeekBar bar){}
+            @Override public void onStopTrackingTouch(android.widget.SeekBar bar){}
+        });
+        new android.app.AlertDialog.Builder(this).setTitle("Exploded assembly • temporary view")
+                .setView(slider)
+                .setNeutralButton("RESTORE",(dialog,which)->partInspector.explode(0))
+                .setPositiveButton("DONE",null).show();
     }
 
     /**
@@ -521,6 +657,8 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
                             throw new IllegalArgumentException("Renderer rejected inspection variant");
                         }
                         viewer.transformToUnitCube(new Float3(0f, 0f, -4f));
+                        partInspector.onNewModel();
+                        if(zebraButton!=null)zebraButton.setText("ZEBRA");
                         displayedGlb = buffer;
                         displayMode = mode;
                         status.setText(sourceSummary + " • " + mode.name());
@@ -566,6 +704,42 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
     }
 
     private boolean onModelTouch(MotionEvent e) {
+        if(tapTool!=0){
+            switch(e.getActionMasked()){
+                case MotionEvent.ACTION_DOWN:
+                    touchStartX=e.getX();touchStartY=e.getY();return true;
+                case MotionEvent.ACTION_UP:
+                    if(Math.abs(e.getX()-touchStartX)<dp(12)&&
+                            Math.abs(e.getY()-touchStartY)<dp(12)&&hasInspectableModel()){
+                        final int pickedTool=tapTool;
+                        partInspector.pick(e.getX(),e.getY(),surface.getWidth(),surface.getHeight(),hit->{
+                            if(hit==null){status.setText("No selectable mesh at that point");return;}
+                            if(pickedTool==1){
+                                partInspector.select(hit);
+                                status.setText("SELECTED: "+hit.summary());
+                            }else if(pickedTool==2){
+                                if(firstMeasure==null){
+                                    firstMeasure=hit;
+                                    status.setText("First point: "+hit.name+" • tap second point");
+                                }else{
+                                    double distance=PartInspector.distanceInGlbUnits(firstMeasure,
+                                            hit,partInspector.unitsPerNormalizedWorld());
+                                    new android.app.AlertDialog.Builder(this)
+                                            .setTitle("3D distance")
+                                            .setMessage(String.format(Locale.US,
+                                                    "%.4f GLB units\\n%s → %s\\n\\nCalculated from Filament's actual depth-buffer picking, not screen pixel distance.",
+                                                    distance,firstMeasure.name,hit.name))
+                                            .setPositiveButton("OK",null).show();
+                                    firstMeasure=null;
+                                }
+                            }
+                        });
+                    }
+                    return true;
+                case MotionEvent.ACTION_CANCEL:return true;
+                default:return true;
+            }
+        }
         pinch.onTouchEvent(e);
         switch (e.getActionMasked()) {
             case MotionEvent.ACTION_DOWN:
@@ -669,6 +843,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
                         || data[2] != 'T' || data[3] != 'F')
                     throw new IllegalArgumentException("Not a valid binary GLB");
                 String summary = inspect(data);
+                GlbMaterialAudit.Report audit=GlbMaterialAudit.inspect(data);
                 byte[] preview = data;
                 if (studioEnabled) {
                     try { preview = StudioGlb.withFloor(data); }
@@ -684,7 +859,12 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
                         if (viewer.getAsset() == null)
                             throw new IllegalArgumentException("The renderer could not load this GLB");
                         viewer.transformToUnitCube(new Float3(0f, 0f, -4f));
+                        partInspector.onNewModel();
                         sourceGlb = data;
+                        materialReport=audit;
+                        tapTool=0;syncTapTools();firstMeasure=null;
+                        if(zebraButton!=null)zebraButton.setText("ZEBRA");
+                        if(revealButton!=null)revealButton.setText("REVEAL DARK");
                         displayedGlb = buffer;
                         displayMode = GlbInspectionVariants.Mode.TEXTURED;
                         modeBusy = false;
@@ -694,7 +874,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
                         azimuth = 33; elevation = 18; distance = 4.8f;
                         setCamera();
                         title.setText(name);
-                        status.setText(summary);
+                        status.setText(summary+" • "+audit.images+" texture images • "+audit.darkFactors+" dark materials");
                     } catch (Exception e) { error("GLB load failed: " + e.getMessage()); }
                 });
             } catch (Exception ex) { runOnUiThread(() -> error(ex.getMessage())); }
@@ -807,6 +987,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
     @Override protected void onDestroy() {
         running = false;
         if (viewer != null) {
+            try { if(partInspector!=null)partInspector.destroy(); }catch(Exception ignored){}
             try { StudioQuality.release(viewer.getEngine(), viewer.getView()); }
             catch (Exception ignored) {}
         }
