@@ -9,8 +9,10 @@ set -euo pipefail
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 destination="$here/app/src/main/assets/studio"
 mkdir -p "$destination"
-if [ -s "$destination/studio_ibl.ktx" ]; then
-  echo "Preprocessed HDR studio is already present"
+if [ -s "$destination/studio_ibl.ktx" ] && \
+   [ -s "$here/app/src/main/assets/materials/selection.filamat" ] && \
+   [ -s "$here/app/src/main/assets/materials/zebra.filamat" ]; then
+  echo "Preprocessed HDR studio and materials already present"
   exit 0
 fi
 
@@ -53,3 +55,14 @@ fi
 cp "$ibl" "$destination/studio_ibl.ktx"
 test "$(wc -c < "$destination/studio_ibl.ktx")" -gt 30000
 echo "Bundled studio environment $(du -h "$destination/studio_ibl.ktx" | awk '{print $1}')"
+matc="$(find "$work/filament" -type f -name matc -print -quit)"
+if [ -z "$matc" ]; then echo "Missing Filament matc executable" >&2; exit 1; fi
+chmod +x "$matc"
+mkdir -p "$here/app/src/main/assets/materials"
+for name in selection zebra; do
+  "$matc" -p mobile -a opengl -a vulkan \
+    -o "$here/app/src/main/assets/materials/${name}.filamat" \
+    "$here/materials/${name}.mat"
+  test -s "$here/app/src/main/assets/materials/${name}.filamat"
+done
+echo "Bundled genuine GPU selection and zebra-reflection diagnostic materials"
