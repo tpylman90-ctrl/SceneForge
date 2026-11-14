@@ -778,6 +778,7 @@ public final class CompareActivity extends Activity implements Choreographer.Fra
             }else {
                 p.viewer.getCamera().setLensProjection(45.0,aspect,0.10,100.0);
             }
+            if(p.markers!=null)p.markers.updateCamera(p.viewer.getCamera());
         }
     }
 
