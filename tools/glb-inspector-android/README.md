@@ -29,6 +29,33 @@ Standalone offline Android GLB inspector for SceneForge and AssetWright.
   recorded camera angle.
 - Original GLB files and source artwork are never modified by the inspector.
 
+## High-fidelity photographic HDR studio rendering (v0.8)
+
+The single and A/B GLB viewers now have a **FAST / STUDIO / PHOTO MAX** selector.
+
+- FAST: economical rendering, FXAA and dynamic resolution for responsive orbiting.
+- STUDIO: true prefiltered HDR studio light, accurate IBL for imported PBR materials,
+  HDR render buffer, temporal antialiasing, ambient occlusion, ACES tone mapping,
+  subtle bloom and shadows.
+- PHOTO MAX: adds higher precision HDR grading, full-resolution GTAO, 4× MSAA,
+  soft shadow filtering and screen-space reflections. Prioritizes visual fidelity
+  at the cost of frame rate, especially for two simultaneous GLBs.
+- The studio environment is preprocessed with the matching Filament **1.77.3 cmgen**
+  and included within the installed APK: **no Internet connection at runtime**.
+  Original GLB normal, base-color, metallic-roughness, clearcoat and texture maps
+  are never overwritten. Geometry that is absent from a model cannot be recovered
+  from its source artwork by the renderer.
+- HDR reference: *Studio Small 09* by Sergej Majboroda, Poly Haven,
+  https://polyhaven.com/a/studio_small_09, licensed CC0.
+  Build-only script `prepare-studio-ibl.sh` downloads this HDR and creates the
+  native Filament `.ktx` environment. The app gracefully falls back to its original
+  procedural environment if the studio IBL is not bundled or cannot be loaded.
+- Renderer: Google Filament 1.77.3, Apache 2.0.
+
+**Note:** PHOTO MAX is still real-time Filament rendering, not an offline path-traced
+render; it improves presentation without inventing any missing bevels, geometry,
+textures or normals. PNG export still uses Android's native viewport resolution.
+
 ## Studio and two-model comparison
 - Studio preview adds a **temporary PBR floor** to a model's in-memory GLB to receive
   real directional shadows. It never changes the saved GLB; toggle STUDIO ON/OFF.
