@@ -1,0 +1,11 @@
+material {
+    name : SceneForgeSelection,
+    shadingModel : unlit,
+    culling : none
+}
+fragment {
+    void material(inout MaterialInputs material) {
+        prepareMaterial(material);
+        material.baseColor = float4(0.06, 0.94, 0.83, 1.0);
+    }
+}
