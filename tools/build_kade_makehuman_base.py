@@ -17,7 +17,11 @@ OUT.mkdir(parents=True, exist_ok=True)
 SOURCE = "https://raw.githubusercontent.com/makehumancommunity/makehuman/master/makehuman/data/"
 BODY = SOURCE + "3dobjs/base.obj"
 TARGETS = [
-    ("macrodetails/universal-female-young-averagemuscle-averageweight.target", 1.00),
+    # MakeHuman averageweight is an intentionally empty neutral morph.
+    ("macrodetails/caucasian-female-young.target", 0.60),
+    ("macrodetails/african-female-young.target", 0.40),
+    ("macrodetails/universal-female-young-averagemuscle-maxweight.target", 0.40),
+    ("macrodetails/universal-female-young-maxmuscle-averageweight.target", 0.30),
     ("bodyshapes/bodyshapes-elvs-fem-full-hourglass.target", 0.42),
     ("hip/hip-scale-horiz-incr.target", 0.18),
     ("head/head-round.target", 0.10),
