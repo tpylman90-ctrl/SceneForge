@@ -32,7 +32,9 @@ jobs:
           set -euo pipefail
           sudo apt-get update -qq
           sudo apt-get install -y -qq xvfb libgl1-mesa-dri
-          curl -fL --retry 4 https://download.blender.org/release/Blender4.5/blender-4.5.3-linux-x64.tar.xz -o /tmp/blender.tar.xz
+          curl -fL --retry 3 --retry-all-errors https://mirror.blender.org/release/Blender4.5/blender-4.5.3-linux-x64.tar.xz -o /tmp/blender.tar.xz || \
+          curl -fL --retry 4 --retry-all-errors https://download.blender.org/release/Blender4.5/blender-4.5.3-linux-x64.tar.xz -o /tmp/blender.tar.xz
+          test "$(stat -c%s /tmp/blender.tar.xz)" -gt 300000000
           tar -xf /tmp/blender.tar.xz -C /tmp
       - name: Fix face attachments and render real PBR review
         env:
