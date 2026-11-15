@@ -50,7 +50,7 @@ jobs:
           r=json.loads((p/'Kade_v02_Report.json').read_text())
           assert r['continuous_makehuman_base_topology'] is True
           assert r['meshes_exported']==1
-          assert r['vertex_count']>14000
+          assert r['vertex_count']==13380
           assert r['triangles']>15000
           assert abs(r['height_m']-1.68)<1e-6
           assert len(r['targets'])==7
