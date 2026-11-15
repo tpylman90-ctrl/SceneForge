@@ -1,0 +1,50 @@
+{
+  "prototype": "Nova V0.3B corrected anatomy and facial attachments",
+  "input_master": "/home/runner/work/SceneForge/SceneForge/build/source-v03/Nova_V03_Anatomy_Master.blend",
+  "blender": "4.5.3 LTS",
+  "source": "MakeHuman MPFB facial morphs and CC0 asset pack meshes",
+  "body_vertices": 19158,
+  "head_shape_keys": 35,
+  "model_mesh_objects": 5,
+  "eye_asset_world_bounds": {
+    "min": [
+      -0.046132370829582214,
+      -0.16891124844551086,
+      1.503999948501587
+    ],
+    "max": [
+      0.046132370829582214,
+      -0.14782539010047913,
+      1.5325679779052734
+    ]
+  },
+  "eyebrow_asset_world_bounds": {
+    "min": [
+      -0.06283548474311829,
+      -0.17392900586128235,
+      1.5334903001785278
+    ],
+    "max": [
+      0.06283548474311829,
+      -0.14007776975631714,
+      1.5470472574234009
+    ]
+  },
+  "hair_asset_world_bounds": {
+    "min": [
+      -0.08715125173330307,
+      -0.1513158231973648,
+      1.3256884813308716
+    ],
+    "max": [
+      0.08592944592237473,
+      0.13036230206489563,
+      1.737501859664917
+    ]
+  },
+  "limitations": [
+    "not a likeness-approved final head",
+    "no game rig",
+    "hair still initial MPFB asset"
+  ]
+}
