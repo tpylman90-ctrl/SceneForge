@@ -22,7 +22,7 @@ jobs:
         run: |
           set -euo pipefail
           sudo apt-get update -qq
-          sudo apt-get install -y -qq blender xvfb libgl1-mesa-dri libxrender1 libxi6 libxxf86vm1 mesa-vulkan-drivers
+          sudo apt-get install -y -qq blender python3-numpy python3-pil xvfb libgl1-mesa-dri libxrender1 libxi6 libxxf86vm1 mesa-vulkan-drivers
           blender --version
           command -v blender
 
