@@ -1,0 +1,65 @@
+{
+  "prototype": "Nova v0.3 actual MPFB body and face study",
+  "blender_version": "4.5.3 LTS",
+  "mpfb_source": "MakeHumanCommunity MPFB 2 extension",
+  "system_asset_license": "MakeHuman official system assets CC0",
+  "source_height_m": 1.695,
+  "normalized_height_m": 1.73,
+  "body_vertices": 19158,
+  "morph_targets_requested": 27,
+  "morph_targets_loaded": 27,
+  "morph_names": [
+    "head/head-oval",
+    "head/head-age-decr",
+    "head/head-scale-horiz-decr",
+    "chin/chin-width-decr",
+    "chin/chin-prominent-decr",
+    "cheek/l-cheek-bones-incr",
+    "cheek/r-cheek-bones-incr",
+    "cheek/l-cheek-volume-incr",
+    "cheek/r-cheek-volume-incr",
+    "eyes/l-eye-scale-incr",
+    "eyes/r-eye-scale-incr",
+    "eyes/l-eye-corner2-up",
+    "eyes/r-eye-corner2-up",
+    "eyebrows/eyebrows-angle-up",
+    "nose/nose-volume-decr",
+    "nose/nose-point-up",
+    "nose/nose-width1-decr",
+    "mouth/mouth-upperlip-volume-incr",
+    "mouth/mouth-lowerlip-volume-incr",
+    "mouth/mouth-cupidsbow-incr",
+    "mouth/mouth-angles-up",
+    "hip/hip-scale-horiz-incr",
+    "torso/measure-waist-circ-decr",
+    "legs/l-upperleg-muscle-incr",
+    "legs/r-upperleg-muscle-incr",
+    "legs/l-lowerleg-muscle-incr",
+    "legs/r-lowerleg-muscle-incr"
+  ],
+  "system_assets": [
+    [
+      "eyes",
+      "low-poly.mhclo",
+      "Nova_Continuous_Anatomical_Basemesh.low-poly"
+    ],
+    [
+      "brows",
+      "eyebrow001.mhclo",
+      "Nova_Continuous_Anatomical_Basemesh.eyebrow001"
+    ],
+    [
+      "lashes",
+      "eyelashes01.mhclo",
+      "Nova_Continuous_Anatomical_Basemesh.eyelashes01"
+    ],
+    [
+      "hair",
+      "/tmp/mpfb-system-assets/hair/ponytail01/ponytail01.mhclo",
+      "Nova_Continuous_Anatomical_Basemesh.ponytail01"
+    ]
+  ],
+  "mesh_objects": 5,
+  "triangle_count_source": 43056,
+  "status": "unrigged, neutral body study, not approved Nova likeness"
+}
