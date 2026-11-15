@@ -70,6 +70,16 @@ for rel,w in TARGETS:
     morph_log.append({"target":rel,"weight":w,"modified_vertices":changed})
     print("KADE_TARGET_APPLIED",rel,changed,flush=True)
 
+# Source hm08 includes joint cubes, hair proxies, tights and skirt helpers.
+# Only vertex IDs 0..13379 are the actual visible anatomical body (CC0).
+# Preserve full target index space until ALL morphs have been applied.
+BODY_END=13380
+visible_faces=[f for f in faces if all(0<=i<BODY_END for i in f)]
+print("KADE_VISIBLE_BODY_FACES",len(visible_faces),"REMOVED_HELPER_FACES",len(faces)-len(visible_faces),flush=True)
+assert len(visible_faces)>10000 and len(faces)-len(visible_faces)>1000
+faces=visible_faces
+base=base[:BODY_END]
+
 # MakeHuman uses Y-up in OBJ; rotate to Blender Z-up and normalize to 1.68m.
 # Auto-detection preserves compatibility with source revisions.
 mins=[min(v[i] for v in base) for i in range(3)]
@@ -193,9 +203,9 @@ def render(name,loc):
     assert (OUT/name).stat().st_size>10000
     print("KADE_V02_RENDER_OK",name,flush=True)
 
-render("Kade_Base_Front.png",(0,-3.9,1.25))
-render("Kade_Base_ThreeQuarter.png",(3.0,-3.7,1.35))
-render("Kade_Base_Back.png",(0,3.9,1.25))
+render("Kade_Base_Front.png",(0,3.9,1.25))
+render("Kade_Base_ThreeQuarter.png",(3.0,3.7,1.35))
+render("Kade_Base_Back.png",(0,-3.9,1.25))
 triangles=sum(len(p.vertices)-2 for p in mesh.polygons)
 bounds=[[min(p[i] for p in verts),max(p[i] for p in verts)] for i in range(3)]
 report={
