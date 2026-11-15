@@ -203,9 +203,9 @@ def render(name,loc):
     assert (OUT/name).stat().st_size>10000
     print("KADE_V02_RENDER_OK",name,flush=True)
 
-render("Kade_Base_Front.png",(0,3.9,1.25))
-render("Kade_Base_ThreeQuarter.png",(3.0,3.7,1.35))
-render("Kade_Base_Back.png",(0,-3.9,1.25))
+render("Kade_Base_Front.png",(0,-3.9,1.25))
+render("Kade_Base_ThreeQuarter.png",(3.0,-3.7,1.35))
+render("Kade_Base_Back.png",(0,3.9,1.25))
 triangles=sum(len(p.vertices)-2 for p in mesh.polygons)
 bounds=[[min(p[i] for p in verts),max(p[i] for p in verts)] for i in range(3)]
 report={
