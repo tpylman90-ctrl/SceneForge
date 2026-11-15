@@ -1,0 +1,162 @@
+name: Kade V02 | MakeHuman base in Blender + Godot
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "tools/build_kade_makehuman_base.py"
+      - ".github/workflows/kade-makehuman-v02.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  kade-anatomy:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Blender 4.5.3 and CPU rendering prerequisites
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq xvfb libgl1-mesa-dri libxrender1 libxi6 libxxf86vm1 mesa-vulkan-drivers
+          curl -fL --retry 3 https://download.blender.org/release/Blender4.5/blender-4.5.3-linux-x64.tar.xz -o /tmp/blender.tar.xz
+          tar -xf /tmp/blender.tar.xz -C /tmp
+          test -x /tmp/blender-4.5.3-linux-x64/blender
+
+      - name: Generate true MakeHuman continuous anatomy, CC0 morphs and three Blender renders
+        env:
+          LIBGL_ALWAYS_SOFTWARE: "1"
+          KADE_SAMPLES: "24"
+        run: |
+          set -euo pipefail
+          mkdir -p build/kade-v02
+          xvfb-run -a /tmp/blender-4.5.3-linux-x64/blender --background --threads 4 --python tools/build_kade_makehuman_base.py 2>&1 | tee build/kade-v02/blender.log
+          grep -q KADE_V02_PASS build/kade-v02/blender.log
+          test -s build/kade-v02/Kade_Continuous_Base_v02.glb
+          test -s build/kade-v02/Kade_Continuous_Base_v02.blend
+          for view in Front Back ThreeQuarter; do
+            test -s "build/kade-v02/Kade_Base_$view.png"
+          done
+
+      - name: Assert character is genuinely continuous MakeHuman topology
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path('build/kade-v02')
+          r=json.loads((p/'Kade_v02_Report.json').read_text())
+          assert r['continuous_makehuman_base_topology'] is True
+          assert r['meshes_exported']==1
+          assert r['vertex_count']>14000
+          assert r['triangles']>15000
+          assert abs(r['height_m']-1.68)<1e-6
+          assert len(r['targets'])==4
+          glb=(p/'Kade_Continuous_Base_v02.glb').read_bytes()
+          import struct
+          assert glb[:4]==b'glTF'
+          assert struct.unpack_from('<I',glb,8)[0]==len(glb)
+          print('KADE_V02_REAL_HUMAN_BASE_VERIFIED',r['vertex_count'],r['triangles'])
+          PY
+
+      - name: Download Godot 4.5.1 engine
+        run: |
+          set -euo pipefail
+          curl -fL --retry 3 https://github.com/godotengine/godot/releases/download/4.5.1-stable/Godot_v4.5.1-stable_linux.x86_64.zip -o /tmp/godot.zip
+          unzip -q /tmp/godot.zip -d /tmp/godot
+          sudo install /tmp/godot/Godot_v4.5.1-stable_linux.x86_64 /usr/local/bin/godot
+
+      - name: Verify GLB imports in Godot 4.5.1
+        run: |
+          set -euo pipefail
+          mkdir -p build/kade-v02/godot
+          cp build/kade-v02/Kade_Continuous_Base_v02.glb build/kade-v02/godot/
+          cat > build/kade-v02/godot/project.godot <<'EOF'
+          config_version=5
+
+          [application]
+          config/name="Kade v02 Mesh Import Test"
+          run/main_scene=""
+
+          [rendering]
+          renderer/rendering_method="gl_compatibility"
+          renderer/rendering_method.mobile="gl_compatibility"
+          EOF
+          godot --headless --path build/kade-v02/godot --editor --import --quit 2>&1 | tee build/kade-v02/godot_import.log
+          if grep -E 'SCRIPT ERROR:|ERROR:' build/kade-v02/godot_import.log; then exit 1; fi
+          echo KADE_V02_GODOT_IMPORT_OK
+
+      - name: Try graphical Godot Vulkan Mobile screenshot
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          cat > build/kade-v02/godot/capture.gd <<'EOF'
+          extends SceneTree
+
+          func _initialize() -> void:
+              call_deferred("_capture")
+
+          func _capture() -> void:
+              var asset = load("res://Kade_Continuous_Base_v02.glb")
+              if asset == null:
+                  push_error("Kade GLB missing")
+                  quit(2)
+                  return
+              var stage := Node3D.new()
+              root.add_child(stage)
+              stage.add_child(asset.instantiate())
+              var envnode := WorldEnvironment.new()
+              var env := Environment.new()
+              env.background_mode = Environment.BG_COLOR
+              env.background_color = Color(0.14, 0.16, 0.19)
+              env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+              env.ambient_light_color = Color.WHITE
+              env.ambient_light_energy = 0.65
+              envnode.environment = env
+              stage.add_child(envnode)
+              var sun := DirectionalLight3D.new()
+              sun.light_energy = 2.4
+              sun.rotation_degrees = Vector3(-42, -28, 0)
+              stage.add_child(sun)
+              var camera := Camera3D.new()
+              camera.projection = Camera3D.PROJECTION_ORTHOGONAL
+              camera.size = 2.4
+              camera.position = Vector3(2.5,1.45,3.1)
+              stage.add_child(camera)
+              camera.look_at(Vector3(0,0.95,0), Vector3.UP)
+              camera.current = true
+              root.size = Vector2i(900, 900)
+              for i in range(12):
+                  await process_frame
+              var img = root.get_viewport().get_texture().get_image()
+              var err = img.save_png("res://Kade_Godot_Vulkan.png")
+              if err != OK:
+                  push_error("Screenshot save failed")
+                  quit(3)
+              else:
+                  print("KADE_V02_GODOT_VULKAN_RENDER_OK")
+                  quit(0)
+          EOF
+          ICD="$(find /usr/share/vulkan/icd.d -name 'lvp_icd*.json' -print -quit)"
+          export VK_ICD_FILENAMES="$ICD"
+          timeout 120 xvfb-run -a godot --audio-driver Dummy --path build/kade-v02/godot --rendering-method mobile --rendering-driver vulkan --script res://capture.gd 2>&1 | tee build/kade-v02/godot_vulkan.log
+          test -s build/kade-v02/godot/Kade_Godot_Vulkan.png
+
+      - name: Upload Kade inspection files
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Kade-V02-MakeHuman-CC0-Blender-Godot
+          path: |
+            build/kade-v02/Kade_Continuous_Base_v02.glb
+            build/kade-v02/Kade_Continuous_Base_v02.blend
+            build/kade-v02/Kade_Base_*.png
+            build/kade-v02/Kade_v02_Report.json
+            build/kade-v02/blender.log
+            build/kade-v02/godot_import.log
+            build/kade-v02/godot_vulkan.log
+            build/kade-v02/godot/Kade_Godot_Vulkan.png
+          retention-days: 30
