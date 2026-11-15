@@ -35,10 +35,10 @@ def move_world(obj,x=0,y=0,z=0):
     bpy.context.view_layer.update()
 
 # Adjust accessory placement to the final, morph-deformed facial landmarks.
-move_world(eye,y=-.022,z=-.079)
-move_world(lashes,y=-.025,z=-.073)
-move_world(brows,y=-.016,z=-.041)
-move_world(hair,z=-.027)
+move_world(eye,y=-.022,z=-.180)
+move_world(lashes,y=-.025,z=-.175)
+move_world(brows,y=-.016,z=-.168)
+move_world(hair,z=-.100)
 
 # Keep morphs editable. Restore CC0 hair's original alpha texture if present.
 hair_candidates=[m for m in bpy.data.materials if "ponytail" in m.name.lower()]
