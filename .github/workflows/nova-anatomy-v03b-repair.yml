@@ -1,0 +1,69 @@
+name: Nova V03B packed Blender source repair
+on:
+  push:
+    branches: [experiment/nova-anatomy-v03]
+    paths:
+      - "tools/nova_v03_repair.py"
+      - ".github/workflows/nova-anatomy-v03b-repair.yml"
+  workflow_dispatch:
+permissions:
+  contents: write
+  actions: read
+concurrency:
+  group: nova-anatomy-v03b-repair
+  cancel-in-progress: true
+jobs:
+  repair:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - name: Recover verified packed source from successful MPFB run
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p build/source-v03
+          gh run download 43754193203 --repo tpylman90-ctrl/SceneForge --name Nova-V03-Blender-MPFB-character-study --dir build/source-v03
+          test -s build/source-v03/Nova_V03_Anatomy_Master.blend
+      - name: Install pinned free Blender for asset repair
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq xvfb libgl1-mesa-dri
+          curl -fL --retry 4 https://download.blender.org/release/Blender4.5/blender-4.5.3-linux-x64.tar.xz -o /tmp/blender.tar.xz
+          tar -xf /tmp/blender.tar.xz -C /tmp
+      - name: Fix face attachments and render real PBR review
+        env:
+          LIBGL_ALWAYS_SOFTWARE: "1"
+        run: |
+          set -euo pipefail
+          mkdir -p build/nova-anatomy-v03b
+          xvfb-run -a /tmp/blender-4.5.3-linux-x64/blender --background --threads 4 --python tools/nova_v03_repair.py 2>&1 | tee build/nova-anatomy-v03b/build.log
+          grep -q NOVA_V03B_REPAIRED_MPFB_FACE_OK build/nova-anatomy-v03b/build.log
+          test -s build/nova-anatomy-v03b/Nova_V03B_Anatomy_Master.blend
+          test -s build/nova-anatomy-v03b/Nova_V03B_Anatomy_Review.glb
+          test -s build/nova-anatomy-v03b/Nova_V03B_face.png
+      - name: Upload Blender source, GLB, and inspection images
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Nova-V03B-corrected-GLB-Blender
+          path: build/nova-anatomy-v03b/
+          retention-days: 14
+      - name: Publish isolated GLB review and image previews
+        if: success()
+        run: |
+          set -euo pipefail
+          mkdir -p experiments/nova-v03b
+          cp build/nova-anatomy-v03b/Nova_V03B_Anatomy_Review.glb experiments/nova-v03b/
+          cp build/nova-anatomy-v03b/Nova_V03B_face.png experiments/nova-v03b/
+          cp build/nova-anatomy-v03b/Nova_V03B_full.png experiments/nova-v03b/
+          cp build/nova-anatomy-v03b/Nova_V03B_three_quarter.png experiments/nova-v03b/
+          cp build/nova-anatomy-v03b/Nova_V03B_report.json experiments/nova-v03b/
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add experiments/nova-v03b/
+          git commit -m '[nova-v03b] publish face-aligned anatomical GLB and PBR previews' || exit 0
+          git push origin HEAD:experiment/nova-anatomy-v03
