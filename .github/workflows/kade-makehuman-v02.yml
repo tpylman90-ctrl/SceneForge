@@ -53,7 +53,7 @@ jobs:
           assert r['vertex_count']>14000
           assert r['triangles']>15000
           assert abs(r['height_m']-1.68)<1e-6
-          assert len(r['targets'])==4
+          assert len(r['targets'])==7
           glb=(p/'Kade_Continuous_Base_v02.glb').read_bytes()
           import struct
           assert glb[:4]==b'glTF'
