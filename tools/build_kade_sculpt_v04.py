@@ -1,7 +1,7 @@
 """
 Kade v04 — MakeHuman CC0 anatomical base for SceneForge.
 Real continuous human mesh and MakeHuman body-shape target deltas.
-Blender 4.5.3 -> GLB -> Godot 4.5.1 import/render preview.
+Blender (CI currently 4.0.2) -> GLB -> Godot 4.5.1 import/render preview.
 Not a final identity sculpt or a rigged avatar.
 
 Source: https://github.com/makehumancommunity/makehuman
@@ -230,7 +230,7 @@ render("Kade_Base_Back.png",(0,3.9,1.25))
 triangles=sum(len(p.vertices)-2 for p in mesh.polygons)
 bounds=[[min(p[i] for p in verts),max(p[i] for p in verts)] for i in range(3)]
 report={
- "version":"Kade anatomical base v03 – bust proportion refinement", "source":"makehumancommunity/makehuman base.obj",
+ "version":"Kade anatomical base v04 – 21 sculpt morphs, unmasked skin material", "source":"makehumancommunity/makehuman base.obj",
  "asset_license":"CC0", "source_sha256":hashlib.sha256(objfile.read_bytes()).hexdigest(),
  "vertex_count":len(verts),"polygon_count":len(faces),
  "triangles":triangles,"meshes_exported":1,"height_m":1.68,
