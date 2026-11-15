@@ -18,14 +18,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install Blender 4.5.3 and CPU rendering prerequisites
+      - name: Install open-source Blender from Ubuntu and CPU rendering prerequisites
         run: |
           set -euo pipefail
           sudo apt-get update -qq
-          sudo apt-get install -y -qq xvfb libgl1-mesa-dri libxrender1 libxi6 libxxf86vm1 mesa-vulkan-drivers
-          curl -fL --retry 3 https://download.blender.org/release/Blender4.5/blender-4.5.3-linux-x64.tar.xz -o /tmp/blender.tar.xz
-          tar -xf /tmp/blender.tar.xz -C /tmp
-          test -x /tmp/blender-4.5.3-linux-x64/blender
+          sudo apt-get install -y -qq blender xvfb libgl1-mesa-dri libxrender1 libxi6 libxxf86vm1 mesa-vulkan-drivers
+          blender --version
+          command -v blender
 
       - name: Generate true MakeHuman continuous anatomy, CC0 morphs and three Blender renders
         env:
@@ -34,7 +33,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p build/kade-v02
-          xvfb-run -a /tmp/blender-4.5.3-linux-x64/blender --background --threads 4 --python tools/build_kade_makehuman_base.py 2>&1 | tee build/kade-v02/blender.log
+          xvfb-run -a blender --background --threads 4 --python tools/build_kade_makehuman_base.py 2>&1 | tee build/kade-v02/blender.log
           grep -q KADE_V02_PASS build/kade-v02/blender.log
           test -s build/kade-v02/Kade_Continuous_Base_v02.glb
           test -s build/kade-v02/Kade_Continuous_Base_v02.blend
