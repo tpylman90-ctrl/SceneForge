@@ -110,7 +110,7 @@ for category,file,assettype in [
     asset=HumanService.add_mhclo_asset(find_asset(file),body,asset_type=assettype,material_type="GAMEENGINE")
     assets.append((category,file,str(getattr(asset,"name",asset))))
 # Original approved Nova has a high, voluminous blond ponytail.
-# Use one existing coherent human hairstyle now, not 50 separated spaghetti-tubes.
+# Use an actual fitted MakeHuman ponytail mesh rather than invented tube strands.
 hair_candidates=[]
 for pattern in ["*ponytail*.mhclo","*pony*.mhclo","long01.mhclo","long02.mhclo"]:
     for hit in ASSETS.rglob(pattern):
@@ -141,8 +141,8 @@ def mat(name,col,rough=.7,metal=0.0):
 outfit=mat("Neutral_Anatomical_Review_Bodysuit",(.20,.24,.29),.88,.0)
 trim=mat("Warm_Gray_Anatomy_Seams",(.33,.35,.37),.85)
 blonde=mat("Nova_Hair_Blonde",(.72,.52,.28),.55)
-# On this inspection version, assign the base skin only to the face,
-# neck, hands and feet; everywhere else is neutral seamless body-fit suit.
+# On this inspection version, retain actual skin in face, hands and feet.
+# A continuous body-fitted review suit replaces the disconnected V0.2 panels.
 skin_count=len(body.data.materials)
 body.data.materials.append(outfit)
 body.data.materials.append(trim)
@@ -154,12 +154,44 @@ for face in body.data.polygons:
         continue
     face.material_index=body_mat_idx
 # Body material actually follows continuous MPFB geometry, no disconnected clothing!
-# Keep eye/skin textures exactly as provided; only recolor the hair for Nova.
-if hair_ob is not None:
-    hair_items=[hair_ob] if getattr(hair_ob,"type",None)=="MESH" else []
-    for h in hair_items:
-        h.data.materials.clear()
-        h.data.materials.append(blonde)
+# Preserve the original textured and alpha-masked MPFB hair material.
+# V0.3's first attempt replaced it with an opaque flat material, which made
+# hair look like a plastic helmet. Multiply its albedo by warm blonde instead.
+if hair_ob is not None and getattr(hair_ob,"type",None)=="MESH":
+    for slot in hair_ob.material_slots:
+        original=slot.material
+        if not original: continue
+        material=original.copy()
+        slot.material=material
+        if not material.use_nodes: continue
+        bs=next((n for n in material.node_tree.nodes if n.type=="BSDF_PRINCIPLED"),None)
+        if not bs: continue
+        input_socket=bs.inputs.get("Base Color")
+        if input_socket is None:continue
+        original_link=input_socket.links[0] if input_socket.is_linked else None
+        if original_link:
+            multiply=material.node_tree.nodes.new("ShaderNodeMixRGB")
+            multiply.blend_type="MULTIPLY"
+            multiply.inputs[0].default_value=.50
+            multiply.inputs[2].default_value=(.92,.69,.39,1)
+            material.node_tree.links.new(original_link.from_socket,multiply.inputs[1])
+            material.node_tree.links.new(multiply.outputs[0],input_socket)
+        else:
+            input_socket.default_value=(.74,.55,.32,1)
+# Warm the CC0 skin slightly while preserving its RGB texture and pore detail.
+for material in body.data.materials[:skin_count]:
+    if not material or not material.use_nodes:continue
+    bs=next((n for n in material.node_tree.nodes if n.type=="BSDF_PRINCIPLED"),None)
+    if not bs:continue
+    base=bs.inputs.get("Base Color")
+    if base is None or not base.is_linked:continue
+    existing=base.links[0].from_socket
+    tint=material.node_tree.nodes.new("ShaderNodeMixRGB")
+    tint.blend_type="MULTIPLY"
+    tint.inputs[0].default_value=.35
+    tint.inputs[2].default_value=(.92,.72,.56,1)
+    material.node_tree.links.new(existing,tint.inputs[1])
+    material.node_tree.links.new(tint.outputs[0],base)
 
 # Group and normalize output scale together. Do not deform MPFB shape key deltas.
 zs=[v.co.z for v in body.data.vertices]
@@ -169,7 +201,25 @@ scale=target_height/(top-bottom)
 for ob in objects:
     ob.scale=(ob.scale.x*scale,ob.scale.y*scale,ob.scale.z*scale)
     ob.location.z-=bottom*scale
-# The basemesh is parented by MPFB; changing object transforms is non-destructive.
+# MPFB's bundled eye/eyelash/eyebrow proxies are fitted against the neutral
+# human basis. Facial shape keys change socket location; align accessories to
+# the *evaluated* face instead of leaving eyes floating on the forehead.
+# Distances are in normalized model meters, measured from first PBR QC.
+for ob in objects:
+    if ob==body:continue
+    name=ob.name.lower()
+    if "low-poly" in name:
+        ob.location.z-=.077
+        ob.location.y-=.021
+    elif "eyelashes" in name:
+        ob.location.z-=.071
+        ob.location.y-=.023
+    elif "eyebrow" in name:
+        ob.location.z-=.039
+        ob.location.y-=.016
+    elif "ponytail" in name:
+        ob.location.z-=.030
+# Existing object scale/transform remains editable and unbaked.
 bpy.context.view_layer.update()
 
 # Select only actual character mesh, no studio assets.
@@ -204,9 +254,9 @@ def area(name,pos,power,size,color):
     bpy.context.collection.objects.link(obj)
     obj.location=pos;data.energy=power;data.shape="DISK";data.size=size
     data.color=color;look_at(obj,(0,0,1.02))
-area("Main softbox",(-2.2,-3.0,3.2),440,4.0,(1,1,1))
-area("Fill softbox",(2.5,-1.8,2.4),250,3.0,(.83,.90,1.0))
-area("Hair edge",(1.0,2.0,2.7),380,2.0,(1.0,.87,.76))
+area("Main softbox",(-2.2,-3.0,3.2),230,4.0,(1,1,1))
+area("Fill softbox",(2.5,-1.8,2.4),135,3.0,(.83,.90,1.0))
+area("Hair edge",(1.0,2.0,2.7),185,2.0,(1.0,.87,.76))
 cam_data=bpy.data.cameras.new("Camera")
 cam=bpy.data.objects.new("Camera",cam_data)
 bpy.context.collection.objects.link(cam)
