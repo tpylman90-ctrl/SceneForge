@@ -35,10 +35,10 @@ def move_world(obj,x=0,y=0,z=0):
     bpy.context.view_layer.update()
 
 # Adjust accessory placement to the final, morph-deformed facial landmarks.
-move_world(eye,y=-.022,z=-.180)
-move_world(lashes,y=-.025,z=-.175)
-move_world(brows,y=-.016,z=-.168)
-move_world(hair,z=-.100)
+move_world(eye,y=-.022,z=-.066)
+move_world(lashes,y=-.025,z=-.066)
+move_world(brows,y=-.016,z=-.052)
+move_world(hair,z=-.020)
 
 # Keep morphs editable. Restore CC0 hair's original alpha texture if present.
 hair_candidates=[m for m in bpy.data.materials if "ponytail" in m.name.lower()]
@@ -134,7 +134,7 @@ print("WORLD_ASSET_BOUNDS",bounds)
 for name in ("eyes","eyelashes"):
     b=bounds[name]
     centerz=(b["min"][2]+b["max"][2])*.5
-    assert 1.42<centerz<1.55,(name,centerz)
+    assert 1.615<centerz<1.665,(name,centerz)
 
 # Export only model objects in GLB; no studio lighting.
 bpy.ops.object.select_all(action="DESELECT")
