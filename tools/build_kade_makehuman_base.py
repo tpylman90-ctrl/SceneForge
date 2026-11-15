@@ -70,7 +70,7 @@ for rel,w in TARGETS:
 # Auto-detection preserves compatibility with source revisions.
 mins=[min(v[i] for v in base) for i in range(3)]
 maxs=[max(v[i] for v in base) for i in range(3)]
-up=max(range(3),key=lambda i:maxs[i]-mins[i])
+up=1  # MakeHuman base.obj is explicitly Y-up, regardless of arm span
 if up==1:
     raw=[(v[0],-v[2],v[1]) for v in base]
 elif up==2:
