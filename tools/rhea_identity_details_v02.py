@@ -185,7 +185,9 @@ def build_rhea_identity(body, make_material):
             p2.append([(pt,r*bwidth/.0049) for pt,r in path])
         if p2:poly_curves("Rhea_Hair_%02d_%s"%(shade,material.name),p2,material,bevel=.0049,res=2)
 
-    # Rhea keeps a full copper hairline; no mechanic-style shaved stripe geometry.\n\n    # Eyes are layered spheres and irises at her anatomical eye sockets,
+    # Rhea keeps a full copper hairline; no mechanic-style shaved stripe geometry.
+
+    # Eyes are layered spheres and irises at her anatomical eye sockets,
     # with separate translucent-looking colored features (opaque GLB PBR).
     for sign in (-1,1):
         ex=sign*.034
