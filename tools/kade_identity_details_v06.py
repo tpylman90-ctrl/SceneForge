@@ -88,8 +88,8 @@ def build_kade_identity(body, make_material):
     for p in m.polygons:
         c=p.center
         if not (1.535<c.z<1.68):continue
-        threshold=(1.642 if c.y<-.01 else (1.615 if c.y<.07 else 1.586))
-        if c.z<threshold or (c.x>.047 and c.y<.03 and c.z<1.647):continue
+        threshold=(1.618 if c.y<-.015 else 1.575)
+        if c.z<threshold or (c.x>.036 and c.y<.03 and c.z<1.605):continue
         face=[]
         for vi in p.vertices:
             if vi not in scalpids:
@@ -100,7 +100,7 @@ def build_kade_identity(body, make_material):
     for vi,local in sorted(scalpids.items(),key=lambda x:x[1]):
         v=m.vertices[vi]
         coords.append(tuple(v.co + v.normal*.0027))
-    if len(coords)<200:raise RuntimeError("Scalp patch could not map to anatomical head")
+    if len(coords)<80:raise RuntimeError("Scalp patch could not map to anatomical head")
     scalpm=bpy.data.meshes.new("Kade_RealScalp_Patch")
     scalpm.from_pydata(coords,[],scalpfaces)
     scalpm.update()
