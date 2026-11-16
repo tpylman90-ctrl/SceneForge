@@ -1,0 +1,177 @@
+name: Rhea V02 | Copper Hair and Face Geometry Blender-Godot
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "tools/build_rhea_face_hair_v02.py"
+      - "tools/rhea_identity_details_v02.py"
+      - ".github/workflows/rhea-face-hair-v02.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  rhea-anatomy:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install open-source Blender from Ubuntu and CPU rendering prerequisites
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq blender python3-numpy python3-pil xvfb libgl1-mesa-dri libxrender1 libxi6 libxxf86vm1 mesa-vulkan-drivers
+          blender --version
+          command -v blender
+
+      - name: Model Rhea face and curly hair then render six Blender views
+        env:
+          LIBGL_ALWAYS_SOFTWARE: "1"
+          RHEA_SAMPLES: "14"
+        run: |
+          set -euo pipefail
+          mkdir -p build/rhea-v02
+          xvfb-run -a blender --background --threads 4 --python tools/build_rhea_face_hair_v02.py 2>&1 | tee build/rhea-v02/blender.log
+          grep -q RHEA_V02_PASS build/rhea-v02/blender.log
+          test -s build/rhea-v02/Rhea_FaceHair_Assembly_v02.glb
+          test -s build/rhea-v02/Rhea_FaceHair_Assembly_v02.blend
+          for view in Front Back ThreeQuarter; do
+            test -s "build/rhea-v02/Rhea_Base_$view.png"
+          done
+          for f in Rhea_Face_Front.png Rhea_Face_ThreeQuarter.png Rhea_Hair_Rear.png; do
+            test -s "build/rhea-v02/$f"
+          done
+
+      - name: Assert character is genuinely continuous MakeHuman topology
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path('build/rhea-v02')
+          r=json.loads((p/'Rhea_v02_Report.json').read_text())
+          assert r['continuous_makehuman_base_topology'] is True
+          assert r['meshes_exported']>=16
+          assert r['identity_mesh_count']>=15
+          assert r['includes_hair'] is True
+          assert r['includes_goggles'] is True
+          assert r['includes_freckles'] is True
+          assert r['vertex_count']==13380
+          assert r['triangles']>15000
+          assert abs(r['height_m']-1.78)<1e-6
+          assert len(r['targets'])==33, len(r['targets'])
+          assert r['sculpt_morph_count']==25
+          assert r['targets'][7]['target'].startswith('breast/')
+          assert abs(r['targets'][7]['weight']-0.24)<1e-6
+          assert r['gray_material_removed'] is True
+          assert r['material_count']==1
+          assert r['fitted_suit_material_only'] is False
+          glb=(p/'Rhea_FaceHair_Assembly_v02.glb').read_bytes()
+          import struct
+          assert glb[:4]==b'glTF'
+          assert struct.unpack_from('<I',glb,8)[0]==len(glb)
+          print('RHEA_V02_REAL_HUMAN_BASE_VERIFIED',r['vertex_count'],r['triangles'])
+          PY
+
+      - name: Download Godot 4.5.1 engine
+        run: |
+          set -euo pipefail
+          curl -fL --retry 3 https://github.com/godotengine/godot/releases/download/4.5.1-stable/Godot_v4.5.1-stable_linux.x86_64.zip -o /tmp/godot.zip
+          unzip -q /tmp/godot.zip -d /tmp/godot
+          sudo install /tmp/godot/Godot_v4.5.1-stable_linux.x86_64 /usr/local/bin/godot
+
+      - name: Verify GLB imports in Godot 4.5.1
+        run: |
+          set -euo pipefail
+          mkdir -p build/rhea-v02/godot
+          cp build/rhea-v02/Rhea_FaceHair_Assembly_v02.glb build/rhea-v02/godot/
+          cat > build/rhea-v02/godot/project.godot <<'EOF'
+          config_version=5
+
+          [application]
+          config/name="Rhea v02 Face Hair Import Test"
+          run/main_scene=""
+
+          [rendering]
+          renderer/rendering_method="gl_compatibility"
+          renderer/rendering_method.mobile="gl_compatibility"
+          EOF
+          godot --headless --path build/rhea-v02/godot --editor --import --quit 2>&1 | tee build/rhea-v02/godot_import.log
+          if grep -E 'SCRIPT ERROR:|ERROR:' build/rhea-v02/godot_import.log; then exit 1; fi
+          echo RHEA_V02_GODOT_IMPORT_OK
+
+      - name: Try graphical Godot Vulkan Mobile screenshot
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          cat > build/rhea-v02/godot/capture.gd <<'EOF'
+          extends SceneTree
+
+          func _initialize() -> void:
+              call_deferred("_capture")
+
+          func _capture() -> void:
+              var asset = load("res://Rhea_FaceHair_Assembly_v02.glb")
+              if asset == null:
+                  push_error("Rhea GLB missing")
+                  quit(2)
+                  return
+              var stage := Node3D.new()
+              root.add_child(stage)
+              stage.add_child(asset.instantiate())
+              var envnode := WorldEnvironment.new()
+              var env := Environment.new()
+              env.background_mode = Environment.BG_COLOR
+              env.background_color = Color(0.14, 0.16, 0.19)
+              env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+              env.ambient_light_color = Color.WHITE
+              env.ambient_light_energy = 0.65
+              envnode.environment = env
+              stage.add_child(envnode)
+              var sun := DirectionalLight3D.new()
+              sun.light_energy = 2.4
+              sun.rotation_degrees = Vector3(-42, -28, 0)
+              stage.add_child(sun)
+              var camera := Camera3D.new()
+              camera.projection = Camera3D.PROJECTION_ORTHOGONAL
+              camera.size = 2.4
+              camera.position = Vector3(2.5,1.45,3.1)
+              stage.add_child(camera)
+              camera.look_at(Vector3(0,0.95,0), Vector3.UP)
+              camera.current = true
+              root.size = Vector2i(900, 900)
+              for i in range(12):
+                  await process_frame
+              var img = root.get_viewport().get_texture().get_image()
+              var err = img.save_png("res://Rhea_Godot_Vulkan.png")
+              if err != OK:
+                  push_error("Screenshot save failed")
+                  quit(3)
+              else:
+                  print("RHEA_V02_GODOT_VULKAN_RENDER_OK")
+                  quit(0)
+          EOF
+          ICD="$(find /usr/share/vulkan/icd.d -name 'lvp_icd*.json' -print -quit)"
+          export VK_ICD_FILENAMES="$ICD"
+          timeout 120 xvfb-run -a godot --audio-driver Dummy --path build/rhea-v02/godot --rendering-method mobile --rendering-driver vulkan --script res://capture.gd 2>&1 | tee build/rhea-v02/godot_vulkan.log
+          test -s build/rhea-v02/godot/Rhea_Godot_Vulkan.png
+
+      - name: Upload Rhea inspection files
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Rhea-V02-Face-Hair-Blender-Godot
+          path: |
+            build/rhea-v02/Rhea_FaceHair_Assembly_v02.glb
+            build/rhea-v02/Rhea_FaceHair_Assembly_v02.blend
+            build/rhea-v02/Rhea_Base_*.png
+            build/rhea-v02/Rhea_Face_*.png
+            build/rhea-v02/Rhea_Hair_*.png
+            build/rhea-v02/Rhea_v02_Report.json
+            build/rhea-v02/blender.log
+            build/rhea-v02/godot_import.log
+            build/rhea-v02/godot_vulkan.log
+            build/rhea-v02/godot/Rhea_Godot_Vulkan.png
+          retention-days: 30
