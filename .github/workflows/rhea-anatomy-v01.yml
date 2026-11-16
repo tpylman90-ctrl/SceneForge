@@ -5,7 +5,7 @@ on:
     branches: [main]
     paths:
       - "tools/build_rhea_anatomy_v01.py"
-      - ".github/workflows/rhea-sculpt-v01.yml"
+      - ".github/workflows/rhea-anatomy-v01.yml"
   workflow_dispatch:
 
 permissions:
